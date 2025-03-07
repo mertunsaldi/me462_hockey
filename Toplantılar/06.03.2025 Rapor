@@ -1,0 +1,29 @@
+Romer 06.03.2025
+User’ın kontrol edebildiği edemediği şeyler olsun
+•	Kendi tagli bir dil geliştirilebilir. Game engine vb.
+•	Framework, gadgetlar derken oyun tasarlamaya dönüyoruz
+•	Belki ana kurallar çerçevesinde. Kurduğumuz sisteme eklenebilen sistemler geliştirilebilir. 
+    oGridded structure eklenebilir mesela
+    oProjeksiyon hakkında ön çalışma
+    o	Vurma işleri daha basit olabilir. Kartezyen eksenler olmasa daha iyi 
+    o	Sahayı modüler bir şekilde tasarlayabilip dikdörtgen alanda elips, daire üçgen arenalar yaratabiliriz
+o	
+•	Github düzenlenmesi gerekiyor. Yapılan her toplantıda detayların eklenmesi gerekiyor.
+    o	Gantt chart değişirse her hafta konuşulması gerekiyor
+
+•	Air Hockey Table ile haşır neşir ol. Çınar!
+•	Gadgetlarda aşırıya gitmeden gadgetı eklenebilecek sistemi tasarlamak daha önemli
+    o	Max 1 tane kompleks gadget
+    oOyunun kurallarının karmaşıklaştırılabilir olması daha önemli
+•	Hedefimiz insanlara oynamayı istetmeliyiz
+  o	Birkaç farklı vuruş şekilleri düşünmeliyiz
+  o	Accuracy? Precision?
+•	Puck tasarımı nasıl olacak?
+  o	Bilinçli bir thrust yaratabilir miyiz
+  o	Sahaya hiç müdahale yok. Sağda solda pervaneler var. Bunların bileşkesinden puckın kendini yönlendirebileceği bir sistem
+  o	Odaklı beam thrusterlar
+•	Tepeden görüntü işleyecek kameranın önüne bir şey ÇIKMA SIN
+Hocanın isterleri
+•	Cluster free bir görüntü
+•	Alttan aydınlatma olabilir
+•	Minimum Gadget
