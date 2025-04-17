@@ -1,4 +1,4 @@
-The original project by https://github.com/ProjectsWithRed/plotclock?tab=readme-ov-file is modified.
+The original project by https://github.com/ProjectsWithRed/plotclock?tab=readme-ov-file is being modified.
 
 To do (17.04.2025):
 - Try the micropython code on the real setup
