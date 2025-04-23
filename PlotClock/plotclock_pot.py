@@ -1,171 +1,146 @@
-import machine
-import math
-import time
+##########################################################################
+#  PlotClock – Pico – Potentiometers + Mode-Select Buttons (23 Apr 2025)
+##########################################################################
+import machine, math, time
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                              PIN DEFINITIONS
-# ─────────────────────────────────────────────────────────────────────────────
-SERVO_LIFT_PIN  = 2         # GP2
-SERVO_LEFT_PIN  = 3         # GP3
-SERVO_RIGHT_PIN = 4         # GP4
+# ─────────────────── PIN DEFINITIONS ────────────────────────────────────
+SERVO_LIFT_PIN  = 2              # GP2
+SERVO_LEFT_PIN  = 3              # GP3
+SERVO_RIGHT_PIN = 4              # GP4
 
-POT_LEFT_PIN  = 28          # GP28 / ADC2  – X axis
-POT_RIGHT_PIN = 27          # GP27 / ADC1  – Y axis
-POT_LIFT_PIN  = 26          # GP26 / ADC0  – Z (pen lift)
+POT_LEFT_PIN  = 28               # GP28 / ADC2 – X
+POT_RIGHT_PIN = 27               # GP27 / ADC1 – Y
+POT_LIFT_PIN  = 26               # GP26 / ADC0 – Z
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                       SERVO DRIVER   (unchanged)
-# ─────────────────────────────────────────────────────────────────────────────
+BTN_MODE_PIN   = 8               # GP8   – cycle 0↔1
+BTN_ERASE_PIN  = 11              # GP11  – erase area
+
+# ─────────────────── SERVO DRIVER (unchanged) ───────────────────────────
 class Servo:
-    def __init__(self, pin_num):
-        self.pwm = machine.PWM(machine.Pin(pin_num))
-        self.pwm.freq(50)            # 50 Hz
+    def __init__(self, pin):
+        self.pwm = machine.PWM(machine.Pin(pin))
+        self.pwm.freq(50)
         self._us = 1500
 
     def writeMicroseconds(self, us):
-        if us < 500:  us = 500
-        if us > 2500: us = 2500
-        duty = int((us / 20000.0) * 65535.0)
-        self.pwm.duty_u16(duty)
+        us = max(500, min(2500, us))
         self._us = us
+        self.pwm.duty_u16(int(us / 20000 * 65535))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                     ORIGINAL CONSTANTS / VARIABLES
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────── SIMPLE BUTTON WITH DEBOUNCE ────────────────────────
+class Button:
+    def __init__(self, pin, debounce_ms=10):
+        self.pin = machine.Pin(pin, machine.Pin.IN, machine.Pin.PULL_UP)
+        self.debounce = debounce_ms
+        self._pressed = False
+        self._last_ms = time.ticks_ms()
+        self.pin.irq(self._irq, machine.Pin.IRQ_FALLING | machine.Pin.IRQ_RISING)
+
+    def _irq(self, p):
+        now = time.ticks_ms()
+        if time.ticks_diff(now, self._last_ms) > self.debounce and p.value() == 0:
+            self._pressed = True
+            self._last_ms = now
+
+    def pressed(self):
+        if self._pressed:
+            self._pressed = False
+            return True
+        return False
+
+# ─────────────────── CONSTANTS  (all unchanged) ─────────────────────────
 SERVO_LEFT_FACTOR  = 630
 SERVO_RIGHT_FACTOR = 640
+SERVO_LEFT_NULL    = 1950
+SERVO_RIGHT_NULL   =  815
 
 Z_OFFSET = 230
-LIFT0 = 1110 + Z_OFFSET
-LIFT1 = 925  + Z_OFFSET
-LIFT2 = 735  + Z_OFFSET
-
-SERVO_LEFT_NULL  = 1950
-SERVO_RIGHT_NULL = 815
-
-WISHY = 3
+LIFT0, LIFT1, LIFT2 = 1110+Z_OFFSET, 925+Z_OFFSET, 735+Z_OFFSET
 LIFT_SPEED = 2000
 
-L1 = 35.0
-L2 = 55.1
-L3 = 13.2
-L4 = 45.0
+L1, L2, L3, L4 = 35.0, 55.1, 13.2, 45.0
+O1X, O1Y = 24.0, -25.0
+O2X, O2Y = 49.0, -25.0
+HOME_X, HOME_Y = 72.2, 45.5
 
-O1X = 24.0
-O1Y = -25.0
-O2X = 49.0
-O2Y = -25.0
-
-HOME_X = 72.2
-HOME_Y = 45.5
-
-SCALE = 0.9
 MOVE_DELAY_MS = 2
 
-servoLift = 1500.0
-lastX = HOME_X
-lastY = HOME_Y
+# ─────────────────── GLOBALS ─────────────────────────────────────────────
+currentMode = 0        # 0 = calibration, 1 = manual pot control
+servoLift   = 1500.0
+lastX, lastY = HOME_X, HOME_Y
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                         SERVO OBJECTS
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────── HARDWARE OBJECTS ───────────────────────────────────
 servo_lift  = Servo(SERVO_LIFT_PIN)
 servo_left  = Servo(SERVO_LEFT_PIN)
 servo_right = Servo(SERVO_RIGHT_PIN)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                           ADC OBJECTS
-# ─────────────────────────────────────────────────────────────────────────────
 adc_left  = machine.ADC(POT_LEFT_PIN)
 adc_right = machine.ADC(POT_RIGHT_PIN)
 adc_lift  = machine.ADC(POT_LIFT_PIN)
 
-# quick helper
+btn_mode  = Button(BTN_MODE_PIN)
+btn_erase = Button(BTN_ERASE_PIN)
+
+# ─────────────────── SMALL HELPERS ──────────────────────────────────────
 def map_range(x, in_lo, in_hi, out_lo, out_hi):
     return out_lo + (x - in_lo) * (out_hi - out_lo) / (in_hi - in_lo)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                    Mapping Function for Lift Servo  (unchanged)
-# ─────────────────────────────────────────────────────────────────────────────
-def angle_to_pulse(angle, min_angle=0, max_angle=180, min_pulse=500, max_pulse=2500):
-    return int(min_pulse + (angle - min_angle) * (max_pulse - min_pulse) / (max_angle - min_angle))
+def angle_to_pulse(ang, a0=0, a1=180, p0=500, p1=2500):
+    return int(map_range(ang, a0, a1, p0, p1))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                                SETUP
-# ─────────────────────────────────────────────────────────────────────────────
-def setup():
-    # move to home as before
-    lift(LIFT2)
-    drawTo(HOME_X, HOME_Y)
-    lift(LIFT0)
-    time.sleep(2)
+def acos_clamped(x):
+    return math.acos(max(-1, min(1, x)))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                                 LOOP
-# ─────────────────────────────────────────────────────────────────────────────
-def loop():
+def return_angle(a, b, c):
+    return acos_clamped((a*a + c*c - b*b) / (2*a*c))
+
+# ─────────────────── KINEMATICS ─────────────────────────────────────────
+def set_XY(Tx, Ty):
+    time.sleep_ms(1)
+    dx, dy = Tx-O1X, Ty-O1Y
+    c  = math.sqrt(dx*dx + dy*dy)
+    a1 = math.atan2(dy, dx)
+    a2 = return_angle(L1, L2, c)
+
+    servo_left.writeMicroseconds(int(((a2 + a1 - math.pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL))
+
+    a2b = return_angle(L2, L1, c)
+    Hx = Tx + L3 * math.cos((a1 - a2b + 0.621) + math.pi)
+    Hy = Ty + L3 * math.sin((a1 - a2b + 0.621) + math.pi)
+
+    dx2, dy2 = Hx - O2X, Hy - O2Y
+    c2 = math.sqrt(dx2*dx2 + dy2*dy2)
+    a1b = math.atan2(dy2, dx2)
+    a2c = return_angle(L1, L4, c2)
+
+    servo_right.writeMicroseconds(int(((a1b - a2c) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL))
+
+def drawTo(pX, pY):
     global lastX, lastY
+    dx, dy = pX-lastX, pY-lastY
+    steps = max(1, int(7*math.sqrt(dx*dx+dy*dy)))
+    for i in range(steps+1):
+        set_XY(lastX + dx*i/steps, lastY + dy*i/steps)
+        time.sleep_ms(MOVE_DELAY_MS)
+    lastX, lastY = pX, pY
 
-    # ---- 1. read potentiometers ------------------------------------------------
-    rawX  = adc_left.read_u16()     # 0–65535
-    rawY  = adc_right.read_u16()
-    rawZ  = adc_lift.read_u16()
-
-    # scale to same coordinate units the original code expects
-    targetX = map_range(rawX, 0, 65535,  0, 120)   # adjust limits if desired
-    targetY = map_range(rawY, 0, 65535,  0, 100)
-    liftDeg = map_range(rawZ, 0, 65535,  0, 180)
-
-    # ---- 2. move only if position changed by ≥0.5 mm to tame ADC noise ---------
-    if abs(targetX - lastX) > 0.5 or abs(targetY - lastY) > 0.5:
-        set_XY(targetX, targetY)
-        lastX, lastY = targetX, targetY
-
-    # ---- 3. lift servo ---------------------------------------------------------
-    servo_lift.writeMicroseconds(angle_to_pulse(liftDeg))
-
-    time.sleep_ms(10)
-
-# ─────────────────────────────────────────────────────────────────────────────
-#                           LIFT FUNCTION (unchanged)
-# ─────────────────────────────────────────────────────────────────────────────
-def lift(lift_target):
+def lift(target):
     global servoLift
-    if servoLift >= lift_target:
-        while servoLift >= lift_target:
-            servoLift -= 1
-            servo_lift.writeMicroseconds(int(servoLift))
-            time.sleep_us(LIFT_SPEED)
-    else:
-        while servoLift <= lift_target:
-            servoLift += 1
-            servo_lift.writeMicroseconds(int(servoLift))
-            time.sleep_us(LIFT_SPEED)
+    step = -1 if servoLift > target else 1
+    while servoLift != target:
+        servoLift += step
+        servo_lift.writeMicroseconds(int(servoLift))
+        time.sleep_us(LIFT_SPEED)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#                   ERASE / DRAW / MISC   (unchanged)
-# ─────────────────────────────────────────────────────────────────────────────
 def erase():
     goHome()
     lift(LIFT0)
-    drawTo(70, HOME_Y)
-    drawTo(65 - WISHY, HOME_Y)
-    drawTo(65 - WISHY, HOME_Y)
-    drawTo(5, HOME_Y)
-    drawTo(5, HOME_Y)
-    drawTo(63 - WISHY, 46)
-    drawTo(63 - WISHY, 42)
-    drawTo(5, 42)
-    drawTo(5, 38)
-    drawTo(63 - WISHY, 38)
-    drawTo(63 - WISHY, 34)
-    drawTo(5, 34)
-    drawTo(5, 29)
-    drawTo(6, 29)
-    drawTo(65 - WISHY, 26)
-    drawTo(5, 26)
-    drawTo(60 - WISHY, 40)
-    drawTo(HOME_X, HOME_Y)
+    drawTo(70, HOME_Y); drawTo(65-3, HOME_Y); drawTo(5, HOME_Y)
+    drawTo(63-3, 46);   drawTo(63-3, 42);   drawTo(5, 42)
+    drawTo(5, 38);      drawTo(63-3,38);    drawTo(63-3,34); drawTo(5,34)
+    drawTo(5,29);       drawTo(6,29);       drawTo(65-3,26); drawTo(5,26)
+    drawTo(60-3,40);    drawTo(HOME_X, HOME_Y)
     lift(LIFT0)
 
 def goHome():
@@ -174,81 +149,44 @@ def goHome():
     lift(LIFT0)
     time.sleep_ms(500)
 
-def bogenUZS(bx, by, radius, start, ende, sqee):
-    inkr = -0.05
-    count = 0
-    while (start + count) > ende:
-        drawTo(
-            sqee * radius * math.cos(start + count) + bx,
-            radius * math.sin(start + count) + by
-        )
-        count += inkr
+# ─────────────────── SETUP ──────────────────────────────────────────────
+def setup():
+    goHome()  # same startup as before
+    time.sleep(2)
 
-def bogenGZS(bx, by, radius, start, ende, sqee):
-    inkr = 0.05
-    count = 0
-    while (start + count) <= ende:
-        drawTo(
-            sqee * radius * math.cos(start + count) + bx,
-            radius * math.sin(start + count) + by
-        )
-        count += inkr
+# ─────────────────── LOOP ───────────────────────────────────────────────
+def loop():
+    global currentMode
 
-def drawTo(pX, pY):
-    global lastX, lastY
-    dx = pX - lastX
-    dy = pY - lastY
-    c = int(math.floor(7 * math.sqrt(dx * dx + dy * dy)))   # ← math.hypot avoided
-    if c < 1:
-        c = 1
-    for i in range(c+1):
-        ix = lastX + (i * dx / c)
-        iy = lastY + (i * dy / c)
-        set_XY(ix, iy)
-        time.sleep_ms(MOVE_DELAY_MS)
-    lastX = pX
-    lastY = pY
+    # 1) handle buttons ---------------------------------------------------
+    if btn_mode.pressed():
+        currentMode = (currentMode + 1) & 1   # toggle 0/1
+        print("Mode →", currentMode)          # debug
 
-def acos_clamped(x):
-    if x >  1: x =  1
-    if x < -1: x = -1
-    return math.acos(x)
+    if btn_erase.pressed():
+        erase()
 
-def return_angle(a, b, c):
-    return acos_clamped((a*a + c*c - b*b) / (2*a*c))
+    # 2) run selected mode ------------------------------------------------
+    if currentMode == 0:                      # ── Calibration sweep
+        drawTo(-3, 29.2)
+        time.sleep_ms(500)
+        drawTo(74.1, 28)
+        time.sleep_ms(500)
 
-def set_XY(Tx, Ty):
-    time.sleep_ms(1)
-    dx = Tx - O1X
-    dy = Ty - O1Y
+    else:                                     # ── Manual via pots
+        rawX, rawY, rawZ = adc_left.read_u16(), adc_right.read_u16(), adc_lift.read_u16()
+        Tx = map_range(rawX, 0, 65535, 0, 120)
+        Ty = map_range(rawY, 0, 65535, 0, 100)
+        liftDeg = map_range(rawZ, 0, 65535, 0, 180)
 
-    c  = math.sqrt(dx*dx + dy*dy)
-    a1 = math.atan2(dy, dx)
-    a2 = return_angle(L1, L2, c)
+        if abs(Tx-lastX) > 0.5 or abs(Ty-lastY) > 0.5:
+            set_XY(Tx, Ty)
 
-    servo_left.writeMicroseconds(
-        int(((a2 + a1 - math.pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL)
-    )
+        servo_lift.writeMicroseconds(angle_to_pulse(liftDeg))
 
-    # right‑hand linkage
-    a2b = return_angle(L2, L1, c)
-    Hx = Tx + L3 * math.cos((a1 - a2b + 0.621) + math.pi)
-    Hy = Ty + L3 * math.sin((a1 - a2b + 0.621) + math.pi)
+    time.sleep_ms(10)
 
-    dx2 = Hx - O2X
-    dy2 = Hy - O2Y
-    c2  = math.sqrt(dx2*dx2 + dy2*dy2)
-    a1b = math.atan2(dy2, dx2)
-    a2c = return_angle(L1, L4, c2)
-
-    servo_right.writeMicroseconds(
-        int(((a1b - a2c) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
-    )
-
-# ─────────────────────────────────────────────────────────────────────────────
-#                                MAIN
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────── MAIN ───────────────────────────────────────────────
 setup()
 while True:
     loop()
-    time.sleep_ms(10)
