@@ -1,130 +1,40 @@
+###############################################################################
+#  PlotClock – Pico – Potentiometer Edition (22 Apr 2025)
+###############################################################################
 import machine
 import math
 import time
 
-###############################################################################
-#                           PIN DEFINITIONS
-###############################################################################
-SERVO_LIFT_PIN = 2
-SERVO_LEFT_PIN = 3
-SERVO_RIGHT_PIN = 4
+# ─────────────────────────────────────────────────────────────────────────────
+#                              PIN DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+SERVO_LIFT_PIN  = 2         # GP2
+SERVO_LEFT_PIN  = 3         # GP3
+SERVO_RIGHT_PIN = 4         # GP4
 
-ENCODER_L_PIN1    = 6
-ENCODER_L_PIN2    = 7
-ENCODER_L_BTN_PIN = 8
+POT_LEFT_PIN  = 28          # GP28 / ADC2  – X axis
+POT_RIGHT_PIN = 27          # GP27 / ADC1  – Y axis
+POT_LIFT_PIN  = 26          # GP26 / ADC0  – Z (pen lift)
 
-ENCODER_R_PIN1    = 9
-ENCODER_R_PIN2    = 10
-ENCODER_R_BTN_PIN = 11
-
-ENCODER_LIFT_PIN1    = 12
-ENCODER_LIFT_PIN2    = 13
-ENCODER_LIFT_INIT    = 70  # starting position (in degrees)
-
-###############################################################################
-#                       SERVO REPLACEMENT FOR "ESP32Servo"
-###############################################################################
-# We’ll mimic "servo.writeMicroseconds(...)" via PWM at 50 Hz.
+# ─────────────────────────────────────────────────────────────────────────────
+#                       SERVO DRIVER   (unchanged)
+# ─────────────────────────────────────────────────────────────────────────────
 class Servo:
     def __init__(self, pin_num):
         self.pwm = machine.PWM(machine.Pin(pin_num))
-        self.pwm.freq(50)          # 50 Hz for standard servos
-        self._us = 1500            # track last written microseconds
+        self.pwm.freq(50)            # 50 Hz
+        self._us = 1500
 
     def writeMicroseconds(self, us):
-        # Clamp to safe range if needed:
         if us < 500:  us = 500
         if us > 2500: us = 2500
-        self._us = us
-        # Convert microseconds to 16-bit duty:
         duty = int((us / 20000.0) * 65535.0)
         self.pwm.duty_u16(duty)
+        self._us = us
 
-###############################################################################
-#                      ENCODER REPLACEMENT FOR "Encoder.h" 
-#         (INTERRUPT-BASED QUADRATURE DECODING, ARDUINO-STYLE)
-###############################################################################
-class InterruptEncoder:
-    """
-    A simple quadrature encoder class using interrupts on the Pico.
-    Provides a 'read()' method that returns the raw count,
-    and a 'write(value)' method to set the count (like encoder.write(...) in Arduino).
-    """
-    def __init__(self, pinA, pinB):
-        self.pinA = machine.Pin(pinA, machine.Pin.IN, machine.Pin.PULL_UP)
-        self.pinB = machine.Pin(pinB, machine.Pin.IN, machine.Pin.PULL_UP)
-
-        # current 2-bit state of the encoder
-        self._state = (self.pinA.value() << 1) | self.pinB.value()
-        self._position = 0
-
-        # Attach interrupts on both edges
-        self.pinA.irq(self._callback, machine.Pin.IRQ_RISING | machine.Pin.IRQ_FALLING)
-        self.pinB.irq(self._callback, machine.Pin.IRQ_RISING | machine.Pin.IRQ_FALLING)
-
-    def _callback(self, pin):
-        new_state = (self.pinA.value() << 1) | self.pinB.value()
-        if new_state != self._state:
-            # quadrature direction logic
-            if ((self._state == 0 and new_state == 1) or
-                (self._state == 1 and new_state == 3) or
-                (self._state == 3 and new_state == 2) or
-                (self._state == 2 and new_state == 0)):
-                self._position += 1
-            else:
-                self._position -= 1
-            self._state = new_state
-
-    def read(self):
-        return self._position
-
-    def write(self, value):
-        self._position = value
-
-###############################################################################
-#                     BUTTON REPLACEMENT FOR "Button.h"
-###############################################################################
-class Button:
-    """
-    Mimics the "Button" library usage:
-      - constructor (pin, debounce_ms)
-      - begin()
-      - pressed() to check if it was pressed since last check
-    Uses a simple interrupt-based approach with minimal debounce logic.
-    """
-    def __init__(self, pin_num, debounce_ms=10):
-        self.pin = machine.Pin(pin_num, machine.Pin.IN, machine.Pin.PULL_UP)
-        self.debounce_ms = debounce_ms
-        self._last_val = self.pin.value()
-        self._pressed_flag = False
-        self._last_change_time = time.ticks_ms()
-
-        # Set an interrupt on both edges:
-        self.pin.irq(self._callback, machine.Pin.IRQ_RISING | machine.Pin.IRQ_FALLING)
-
-    def _callback(self, p):
-        now = time.ticks_ms()
-        if time.ticks_diff(now, self._last_change_time) > self.debounce_ms:
-            val = p.value()
-            if val == 0:
-                # pressed (active low)
-                self._pressed_flag = True
-            self._last_val = val
-            self._last_change_time = now
-
-    def begin(self):
-        # mimic the original code's usage "leftEncoderBtn.begin();"
-        pass
-
-    def pressed(self):
-        if self._pressed_flag:
-            self._pressed_flag = False
-            return True
-        return False
-
-###############################################################################
-#                          ORIGINAL CONSTANTS / VARIABLES
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                     ORIGINAL CONSTANTS / VARIABLES
+# ─────────────────────────────────────────────────────────────────────────────
 SERVO_LEFT_FACTOR  = 630
 SERVO_RIGHT_FACTOR = 640
 
@@ -155,146 +65,73 @@ HOME_Y = 45.5
 SCALE = 0.9
 MOVE_DELAY_MS = 2
 
-# Global servo position for lift (in microseconds for servo, initially 1500)
 servoLift = 1500.0
 lastX = HOME_X
 lastY = HOME_Y
 
-# 0: Calibration, 1: Encoder control (we remove auto mode)
-currentMode = 1
-print("currentMode: ", currentMode)
-###############################################################################
-#                          SERVO OBJECTS
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                         SERVO OBJECTS
+# ─────────────────────────────────────────────────────────────────────────────
 servo_lift  = Servo(SERVO_LIFT_PIN)
 servo_left  = Servo(SERVO_LEFT_PIN)
 servo_right = Servo(SERVO_RIGHT_PIN)
 
-###############################################################################
-#                          ENCODER OBJECTS
-###############################################################################
-encoderL     = InterruptEncoder(ENCODER_L_PIN1,   ENCODER_L_PIN2)
-encPosL      = 0
-encLastPosL  = -1
+# ─────────────────────────────────────────────────────────────────────────────
+#                           ADC OBJECTS
+# ─────────────────────────────────────────────────────────────────────────────
+adc_left  = machine.ADC(POT_LEFT_PIN)
+adc_right = machine.ADC(POT_RIGHT_PIN)
+adc_lift  = machine.ADC(POT_LIFT_PIN)
 
-encoderR     = InterruptEncoder(ENCODER_R_PIN1,   ENCODER_R_PIN2)
-encPosR      = 0
-encLastPosR  = -1
+# quick helper
+def map_range(x, in_lo, in_hi, out_lo, out_hi):
+    return out_lo + (x - in_lo) * (out_hi - out_lo) / (in_hi - in_lo)
 
-encoderLift  = InterruptEncoder(ENCODER_LIFT_PIN1, ENCODER_LIFT_PIN2)
-encPosLift   = 0
-encLastPosLift = -1
-
-###############################################################################
-#                        BUTTON OBJECTS
-###############################################################################
-leftEncoderBtn  = Button(ENCODER_L_BTN_PIN, 10)
-rightEncoderBtn = Button(ENCODER_R_BTN_PIN, 10)
-
-###############################################################################
-#                  Mapping Function for Lift Servo
-###############################################################################
-def angle_to_pulse(angle, min_angle=0, max_angle=180, min_pulse=500, max_pulse=2500):           #you should calibrate this for proper lift
-    # Convert an angle (in degrees) to a pulse width in microseconds.
+# ─────────────────────────────────────────────────────────────────────────────
+#                    Mapping Function for Lift Servo  (unchanged)
+# ─────────────────────────────────────────────────────────────────────────────
+def angle_to_pulse(angle, min_angle=0, max_angle=180, min_pulse=500, max_pulse=2500):
     return int(min_pulse + (angle - min_angle) * (max_pulse - min_pulse) / (max_angle - min_angle))
 
-###############################################################################
-#                             SETUP() EQUIVALENT
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                                SETUP
+# ─────────────────────────────────────────────────────────────────────────────
 def setup():
-    global currentMode
+    # move to home as before
+    lift(LIFT2)
+    drawTo(HOME_X, HOME_Y)
+    lift(LIFT0)
+    time.sleep(2)
 
-    # Set initial encoder positions:
-    encoderL.write(int(HOME_X * 4))
-    encoderR.write(int(HOME_Y * 4))
-    encoderLift.write(int(ENCODER_LIFT_INIT * 4))
-
-    # start the button objects
-    leftEncoderBtn.begin()
-    rightEncoderBtn.begin()
-
-    # If not in calibration mode (currentMode != 0), move to the home position:
-    if currentMode != 0:
-        lift(LIFT2)
-        drawTo(HOME_X, HOME_Y)
-        lift(LIFT0)
-
-    time.sleep(2)  # delay of 2000 ms
-
-###############################################################################
-#                            LOOP() EQUIVALENT
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                                 LOOP
+# ─────────────────────────────────────────────────────────────────────────────
 def loop():
-    global currentMode
+    global lastX, lastY
 
-    handleEncoderBtns()
+    # ---- 1. read potentiometers ------------------------------------------------
+    rawX  = adc_left.read_u16()     # 0–65535
+    rawY  = adc_right.read_u16()
+    rawZ  = adc_lift.read_u16()
 
-    # Calibration mode
-    if currentMode == 0:
-        drawTo(-3, 29.2)
-        time.sleep_ms(500)
-        drawTo(74.1, 28)
-        time.sleep_ms(500)
-    # Manual control mode
-    elif currentMode == 1:
-        if updateEncoder(encoderL, 'L'):
-            set_XY(encPosL, encPosR)
-        if updateEncoder(encoderR, 'R'):
-            set_XY(encPosL, encPosR)
-        if updateEncoder(encoderLift, 'Lift'):
-            # Map the lift encoder value (in degrees) to microseconds.
-            pulse = angle_to_pulse(encPosLift)
-            servo_lift.writeMicroseconds(pulse)
+    # scale to same coordinate units the original code expects
+    targetX = map_range(rawX, 0, 65535,  0, 120)   # adjust limits if desired
+    targetY = map_range(rawY, 0, 65535,  0, 100)
+    liftDeg = map_range(rawZ, 0, 65535,  0, 180)
 
-###############################################################################
-#                handleEncoderBtns() -- SAME LOGIC AS ORIGINAL
-###############################################################################
-def handleEncoderBtns():
-    global currentMode
-    if leftEncoderBtn.pressed():
-        currentMode += 1
-        if currentMode == 2:
-            currentMode = 0
-        print("Current mode_handle: ", currentMode)
-    if rightEncoderBtn.pressed():
-        erase()
+    # ---- 2. move only if position changed by ≥0.5 mm to tame ADC noise ---------
+    if abs(targetX - lastX) > 0.5 or abs(targetY - lastY) > 0.5:
+        set_XY(targetX, targetY)
+        lastX, lastY = targetX, targetY
 
-###############################################################################
-#            updateEncoder() -- SAME LOGIC, ADAPTED TO PYTHON
-###############################################################################
-def updateEncoder(enc, which):
-    """
-    Mimics:
-      bool updateEncoder(Encoder encoder, int &encPos, int &encLastPos)
-    'which' is 'L','R','Lift' to pick the correct globals.
-    """
-    global encPosL, encLastPosL
-    global encPosR, encLastPosR
-    global encPosLift, encLastPosLift
+    # ---- 3. lift servo ---------------------------------------------------------
+    servo_lift.writeMicroseconds(angle_to_pulse(liftDeg))
 
-    newPos = enc.read() // 4  # Dividing by 4 as in the original code.
-    changed = False
+    time.sleep_ms(10)
 
-    if which == 'L':
-        if newPos != encLastPosL:
-            encPosL = newPos
-            encLastPosL = newPos
-            changed = True
-    elif which == 'R':
-        if newPos != encLastPosR:
-            encPosR = newPos
-            encLastPosR = newPos
-            changed = True
-    elif which == 'Lift':
-        if newPos != encLastPosLift:
-            encPosLift = newPos
-            encLastPosLift = newPos
-            changed = True
-    return changed
-
-###############################################################################
-#             LIFT FUNCTION (Same Logic as Original)
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                           LIFT FUNCTION (unchanged)
+# ─────────────────────────────────────────────────────────────────────────────
 def lift(lift_target):
     global servoLift
     if servoLift >= lift_target:
@@ -308,9 +145,9 @@ def lift(lift_target):
             servo_lift.writeMicroseconds(int(servoLift))
             time.sleep_us(LIFT_SPEED)
 
-###############################################################################
-#                           ERASE / DRAW / MISC FUNCTIONS
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                   ERASE / DRAW / MISC   (unchanged)
+# ─────────────────────────────────────────────────────────────────────────────
 def erase():
     goHome()
     lift(LIFT0)
@@ -364,7 +201,7 @@ def drawTo(pX, pY):
     global lastX, lastY
     dx = pX - lastX
     dy = pY - lastY
-    c = int(math.floor(7 * math.sqrt(dx * dx + dy * dy)))
+    c = int(math.floor(7 * math.sqrt(dx * dx + dy * dy)))   # ← math.hypot avoided
     if c < 1:
         c = 1
     for i in range(c+1):
@@ -375,8 +212,13 @@ def drawTo(pX, pY):
     lastX = pX
     lastY = pY
 
+def acos_clamped(x):
+    if x >  1: x =  1
+    if x < -1: x = -1
+    return math.acos(x)
+
 def return_angle(a, b, c):
-    return math.acos((a*a + c*c - b*b) / (2*a*c))
+    return acos_clamped((a*a + c*c - b*b) / (2*a*c))
 
 def set_XY(Tx, Ty):
     time.sleep_ms(1)
@@ -391,7 +233,7 @@ def set_XY(Tx, Ty):
         int(((a2 + a1 - math.pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL)
     )
 
-    # Calculate joint arm point for the right servo.
+    # right‑hand linkage
     a2b = return_angle(L2, L1, c)
     Hx = Tx + L3 * math.cos((a1 - a2b + 0.621) + math.pi)
     Hy = Ty + L3 * math.sin((a1 - a2b + 0.621) + math.pi)
@@ -406,11 +248,10 @@ def set_XY(Tx, Ty):
         int(((a1b - a2c) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
     )
 
-###############################################################################
-#                         MAIN BOOTSTRAP
-###############################################################################
+# ─────────────────────────────────────────────────────────────────────────────
+#                                MAIN
+# ─────────────────────────────────────────────────────────────────────────────
 setup()
-
 while True:
     loop()
     time.sleep_ms(10)
