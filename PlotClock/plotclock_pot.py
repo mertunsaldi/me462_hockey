@@ -1,6 +1,3 @@
-##########################################################################
-#  PlotClock – Pico – Potentiometers + Mode-Select Buttons (23 Apr 2025)
-##########################################################################
 import machine, math, time
 
 # ─────────────────── PIN DEFINITIONS ────────────────────────────────────
@@ -16,6 +13,7 @@ BTN_MODE_PIN   = 8               # GP8   – cycle 0↔1
 BTN_ERASE_PIN  = 11              # GP11  – erase area
 
 # ─────────────────── SERVO DRIVER (unchanged) ───────────────────────────
+#mimic "servo.writeMicroseconds(...)" via PWM at 50 Hz.
 class Servo:
     def __init__(self, pin):
         self.pwm = machine.PWM(machine.Pin(pin))
@@ -48,9 +46,12 @@ class Button:
             return True
         return False
 
-# ─────────────────── CONSTANTS  (all unchanged) ─────────────────────────
-SERVO_LEFT_FACTOR  = 630
-SERVO_RIGHT_FACTOR = 640
+# ─────────────────── CONSTANTS ─────────────────────────
+# adjust these values to have a 90 degree movement (during calibration mode)
+# increase these factors to servos rotate more
+SERVO_LEFT_FACTOR  = 710
+SERVO_RIGHT_FACTOR = 670
+
 SERVO_LEFT_NULL    = 1950
 SERVO_RIGHT_NULL   =  815
 
@@ -63,7 +64,7 @@ O1X, O1Y = 24.0, -25.0
 O2X, O2Y = 49.0, -25.0
 HOME_X, HOME_Y = 72.2, 45.5
 
-MOVE_DELAY_MS = 2
+MOVE_DELAY_MS = 0
 
 # ─────────────────── GLOBALS ─────────────────────────────────────────────
 currentMode = 0        # 0 = calibration, 1 = manual pot control
@@ -121,7 +122,8 @@ def drawTo(pX, pY):
     dx, dy = pX-lastX, pY-lastY
     steps = max(1, int(7*math.sqrt(dx*dx+dy*dy)))
     for i in range(steps+1):
-        set_XY(lastX + dx*i/steps, lastY + dy*i/steps)
+        #this gets the target x,y -> returns angle inputs of the motors (inverse kin.) -> and runs the motors.
+        set_XY(lastX + dx*i/steps, lastY + dy*i/steps) 
         time.sleep_ms(MOVE_DELAY_MS)
     lastX, lastY = pX, pY
 
@@ -173,7 +175,7 @@ def loop():
         drawTo(74.1, 28)
         time.sleep_ms(500)
 
-    else:                                     # ── Manual via pots
+    else:                                     # ── Current mode ==1 Manual via pots
         rawX, rawY, rawZ = adc_left.read_u16(), adc_right.read_u16(), adc_lift.read_u16()
         Tx = map_range(rawX, 0, 65535, 0, 120)
         Ty = map_range(rawY, 0, 65535, 0, 100)
