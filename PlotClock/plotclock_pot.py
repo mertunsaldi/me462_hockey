@@ -18,10 +18,10 @@ class Servo:
     def __init__(self, pin):
         self.pwm = machine.PWM(machine.Pin(pin))
         self.pwm.freq(50)
-        self._us = 1500
+        #self._us = 1500
 
     def writeMicroseconds(self, us):
-        us = max(500, min(2500, us))
+        #us = max(500, min(2500, us))
         self._us = us
         self.pwm.duty_u16(int(us / 20000 * 65535))
 
@@ -49,7 +49,7 @@ class Button:
 # ─────────────────── CONSTANTS ─────────────────────────
 # adjust these values to have a 90 degree movement (during calibration mode)
 # increase these factors to servos rotate more
-SERVO_LEFT_FACTOR  = 710
+SERVO_LEFT_FACTOR  = 700
 SERVO_RIGHT_FACTOR = 670
 
 SERVO_LEFT_NULL    = 1950
@@ -67,7 +67,7 @@ HOME_X, HOME_Y = 72.2, 45.5
 MOVE_DELAY_MS = 0
 
 # ─────────────────── GLOBALS ─────────────────────────────────────────────
-currentMode = 0        # 0 = calibration, 1 = manual pot control
+currentMode = 1        # 0 = calibration, 1 = manual pot control
 servoLift   = 1500.0
 lastX, lastY = HOME_X, HOME_Y
 
