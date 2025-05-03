@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #333;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #status {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 5px;
+      line-height: 1.4;
+      z-index: 10;
+    }
+    #status div {
+      margin-bottom: 4px;
+    }
+    #video-container {
+      /* Desired display width; will shrink to fit viewport */
+      max-width: 85%;
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #video {
+      /* Fill the container responsively */
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">
+    <div>Number of Balls: <span id="num_balls">0</span></div>
+    <div>Speeds: <span id="speeds">[]</span></div>
+    <div>IDs: <span id="ball_ids"></span></div>   <!-- New line -->
+  </div>
+  <div id="video-container">
+    <img id="video" src="{{ url_for('video_feed') }}" alt="Video Stream">
+  </div>
+  <script>
+    async function updateStats() {
+      try {
+        const res = await fetch('/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('num_balls').textContent = data.num_balls;
+        document.getElementById('speeds').textContent = '[' + data.speeds.join(', ') + ']';
+        document.getElementById('ball_ids').textContent = data.ids.join(', ');
+      } catch(err) {
+        console.error('Stats update error:', err);
+      }
+}
+    // Update stats every 250ms
+    setInterval(updateStats, 250);
+    updateStats();
+  </script>
+</body>
+</html>
