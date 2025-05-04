@@ -18,10 +18,8 @@ class Servo:
     def __init__(self, pin):
         self.pwm = machine.PWM(machine.Pin(pin))
         self.pwm.freq(50)
-        #self._us = 1500
 
     def writeMicroseconds(self, us):
-        #us = max(500, min(2500, us))
         self._us = us
         self.pwm.duty_u16(int(us / 20000 * 65535))
 
@@ -66,8 +64,14 @@ HOME_X, HOME_Y = 72.2, 45.5
 
 MOVE_DELAY_MS = 0
 
+# ─────────────────── TUNABLE MANUAL-MODE PARAMETERS ─────────────────
+FILTER_ALPHA = 0.1            # smoothing factor for ADC readings
+DEADBAND_MM  = 2            # mm dead-band before updating servos
+X_MIN, X_MAX = 0.0, 100.0    # X-range covered by left pot
+Y_MIN, Y_MAX = 20.0,  80.0    # Y-range covered by right pot
+
 # ─────────────────── GLOBALS ─────────────────────────────────────────────
-currentMode = 1        # 0 = calibration, 1 = manual pot control
+currentMode = 2        # 0 = calibration, 1 = manual pot control, 2 = go to position test
 servoLift   = 1500.0
 lastX, lastY = HOME_X, HOME_Y
 
@@ -82,6 +86,10 @@ adc_lift  = machine.ADC(POT_LIFT_PIN)
 
 btn_mode  = Button(BTN_MODE_PIN)
 btn_erase = Button(BTN_ERASE_PIN)
+
+# initialize filtered ADC values for manual mode
+rawX_filt = adc_left.read_u16()
+rawY_filt = adc_right.read_u16()
 
 # ─────────────────── SMALL HELPERS ──────────────────────────────────────
 def map_range(x, in_lo, in_hi, out_lo, out_hi):
@@ -99,12 +107,14 @@ def return_angle(a, b, c):
 # ─────────────────── KINEMATICS ─────────────────────────────────────────
 def set_XY(Tx, Ty):
     time.sleep_ms(1)
-    dx, dy = Tx-O1X, Ty-O1Y
+    dx, dy = Tx - O1X, Ty - O1Y
     c  = math.sqrt(dx*dx + dy*dy)
     a1 = math.atan2(dy, dx)
     a2 = return_angle(L1, L2, c)
 
-    servo_left.writeMicroseconds(int(((a2 + a1 - math.pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL))
+    servo_left.writeMicroseconds(
+        int(((a2 + a1 - math.pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL)
+    )
 
     a2b = return_angle(L2, L1, c)
     Hx = Tx + L3 * math.cos((a1 - a2b + 0.621) + math.pi)
@@ -115,15 +125,16 @@ def set_XY(Tx, Ty):
     a1b = math.atan2(dy2, dx2)
     a2c = return_angle(L1, L4, c2)
 
-    servo_right.writeMicroseconds(int(((a1b - a2c) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL))
+    servo_right.writeMicroseconds(
+        int(((a1b - a2c) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
+    )
 
 def drawTo(pX, pY):
     global lastX, lastY
-    dx, dy = pX-lastX, pY-lastY
-    steps = max(1, int(7*math.sqrt(dx*dx+dy*dy)))
-    for i in range(steps+1):
-        #this gets the target x,y -> returns angle inputs of the motors (inverse kin.) -> and runs the motors.
-        set_XY(lastX + dx*i/steps, lastY + dy*i/steps) 
+    dx, dy = pX - lastX, pY - lastY
+    steps = max(1, int(7 * math.sqrt(dx*dx + dy*dy)))
+    for i in range(steps + 1):
+        set_XY(lastX + dx * i / steps, lastY + dy * i / steps)
         time.sleep_ms(MOVE_DELAY_MS)
     lastX, lastY = pX, pY
 
@@ -158,33 +169,46 @@ def setup():
 
 # ─────────────────── LOOP ───────────────────────────────────────────────
 def loop():
-    global currentMode
+    global currentMode, rawX_filt, rawY_filt, lastX, lastY
 
     # 1) handle buttons ---------------------------------------------------
     if btn_mode.pressed():
         currentMode = (currentMode + 1) & 1   # toggle 0/1
-        print("Mode →", currentMode)          # debug
+        print("Mode →", currentMode)
 
     if btn_erase.pressed():
         erase()
 
     # 2) run selected mode ------------------------------------------------
-    if currentMode == 0:                      # ── Calibration sweep
+    if currentMode == 0:                      # calibration sweep
         drawTo(-3, 29.2)
         time.sleep_ms(500)
         drawTo(74.1, 28)
         time.sleep_ms(500)
+    elif currentMode == 1:                                     # manual pot control
+        # --- 1) read & filter ADC --------------------
+        newX = adc_left.read_u16()
+        newY = adc_right.read_u16()
+        rawX_filt += FILTER_ALPHA * (newX - rawX_filt)
+        rawY_filt += FILTER_ALPHA * (newY - rawY_filt)
+        rawZ    = adc_lift.read_u16()
 
-    else:                                     # ── Current mode ==1 Manual via pots
-        rawX, rawY, rawZ = adc_left.read_u16(), adc_right.read_u16(), adc_lift.read_u16()
-        Tx = map_range(rawX, 0, 65535, 0, 120)
-        Ty = map_range(rawY, 0, 65535, 0, 100)
+        # --- 2) map to workspace ----------------------
+        Tx = map_range(rawX_filt, 0, 65535, X_MIN, X_MAX)
+        Ty = map_range(rawY_filt, 0, 65535, Y_MIN, Y_MAX)
         liftDeg = map_range(rawZ, 0, 65535, 0, 180)
 
-        if abs(Tx-lastX) > 0.5 or abs(Ty-lastY) > 0.5:
+        # --- 3) apply dead-band & update servos -------
+        if abs(Tx - lastX) > DEADBAND_MM or abs(Ty - lastY) > DEADBAND_MM:
             set_XY(Tx, Ty)
+            lastX, lastY = Tx, Ty
 
+        # --- 4) lift servo -----------------------------
         servo_lift.writeMicroseconds(angle_to_pulse(liftDeg))
+    elif currentMode == 2:
+        drawTo(0, 20)
+        time.sleep_ms(10)
+        goHome()
 
     time.sleep_ms(10)
 
