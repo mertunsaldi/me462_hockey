@@ -15,7 +15,7 @@ def detect_balls(
     min_dist: float = 100,
     param1: float = 100,
     param2: float = 100,
-    min_radius: int = 50,
+    min_radius: int = 40,
     max_radius: int = 200
 ) -> List[Ball]:
     """
