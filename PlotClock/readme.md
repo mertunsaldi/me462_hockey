@@ -9,7 +9,7 @@ Done:
 - Assemble the whole mechanism and try mode 1. (tick, small design changes and modifications to code are done)
     
 To be done:
-- 0,0 noktasinin yerini ve workspace'ini tam olarak belirle (Hangi koseye uzanabiliyor ve konumu ne vs.) Kodda da bu duzgun bir sekilde map edilmis olmali.
+- 0,0 noktasinin yerini ve workspace'ini tam olarak belirle (Hangi koseye uzanabiliyor ve konumu ne vs.) Kodda da bu duzgun bir sekilde map edilmis olmali. Workspace'im dikdortgen degil. Bir 5bar simulasyonu yapip tam olarak workspace'imi bulmaliyim. Sonra o workspace'i mi kullanicam yoksa consisten oldugu dusundugum x ve y ranglerinin icinde mi calisicam ona karar vermeliyim.
 - Try going to the desired location in a simulation environment. 
 - Add a ball and target location to the simulation and integrate the search according to the ball and target location.
 - Serial communication with the master and moving to the location (and angle of the impact surface) received by the master computer.
@@ -17,4 +17,7 @@ To be done:
 
 
    
-Su an 0,10 diyince y'de 0'a geliyor. 0,5 diyince servo baseini donduruyor o yuzden y=10 benim sifirim olmali. 0,10 ile  0,20 arasinda yaklasik 11mm mesafe var. Boyle bir errorum var gibi duruyor.
+Notes:
+- Su an 0,10 diyince y'de 0'a geliyor. 0,5 diyince servo baseini donduruyor o yuzden y=10 benim sifirim olmali. 0,10 ile  0,20 arasinda yaklasik 11mm mesafe var. Boyle bir errorum var gibi duruyor.
+- Bu map range tam istedigim gibi calismiyor, tam ne ise yapiyor anlayamadim hatta cunku belli x yada y degerinin otesine gitmesini engellemiyor. Sanirim sadece potansiyometreyi daha accurate maplemek icin var.
+
