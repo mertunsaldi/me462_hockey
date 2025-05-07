@@ -21,3 +21,6 @@ Notes:
 - Su an 0,10 diyince y'de 0'a geliyor. 0,5 diyince servo baseini donduruyor o yuzden y=10 benim sifirim olmali. 0,10 ile  0,20 arasinda yaklasik 11mm mesafe var. Boyle bir errorum var gibi duruyor.
 - Bu map range tam istedigim gibi calismiyor, tam ne ise yapiyor anlayamadim hatta cunku belli x yada y degerinin otesine gitmesini engellemiyor. Sanirim sadece potansiyometreyi daha accurate maplemek icin var.
 
+
+The mechanism:
+![image](https://github.com/user-attachments/assets/e9153857-3f9a-4700-9b1e-49268d210551)
