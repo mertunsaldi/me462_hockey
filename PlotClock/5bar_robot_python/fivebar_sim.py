@@ -79,7 +79,7 @@ def calculate_positions(Tx, Ty):
         'O2': (O2X, O2Y),            # Right servo center
         'J1': (J1x, J1y),            # Left servo arm end
         'J2': (J2x, J2y),            # Right servo arm end
-        'T': (Tx, Ty),               # Target/pen position (end of L2)
+        'E': (Tx, Ty),               # end effector position position (end of L2)
         'H': (Hx, Hy),               # End of L3 (connection to L4)
         'left_pulse': left_pulse,
         'right_pulse': right_pulse
@@ -100,7 +100,7 @@ def drawTo(pX, pY):
     global lastX, lastY
     
     dx, dy = pX - lastX, pY - lastY
-    steps = max(1, int(7 * math.sqrt(dx*dx + dy*dy)))
+    steps = max(1, int(3 * math.sqrt(dx*dx + dy*dy)))
     
     # Store interpolated points for visualization
     positions_list = []
@@ -149,7 +149,7 @@ def init_visualization():
     j1_point, = ax.plot([], [], 'bo', markersize=6, label='J1')
     o2_point, = ax.plot([], [], 'ko', markersize=8, label='O2 (Right Servo)')
     j2_point, = ax.plot([], [], 'ro', markersize=6, label='J2')
-    target_point, = ax.plot([], [], 'go', markersize=7, label='T (Pen)')
+    target_point, = ax.plot([], [], 'go', markersize=7, label='end effector')
     h_point, = ax.plot([], [], 'co', markersize=6, label='H (L3 end)')
     
     marker_points = [o1_point, j1_point, o2_point, j2_point, target_point, h_point]
@@ -171,10 +171,10 @@ def update_visualization(positions):
     # Update arm lines
     # Left side: O1 -> J1
     arm_lines[0].set_data([positions['O1'][0], positions['J1'][0]], [positions['O1'][1], positions['J1'][1]])
-    # J1 -> T
-    arm_lines[1].set_data([positions['J1'][0], positions['T'][0]], [positions['J1'][1], positions['T'][1]])
-    # T -> H (L3)
-    arm_lines[2].set_data([positions['T'][0], positions['H'][0]], [positions['T'][1], positions['H'][1]])
+    # J1 -> E
+    arm_lines[1].set_data([positions['J1'][0], positions['E'][0]], [positions['J1'][1], positions['E'][1]])
+    # E -> H (L3)
+    arm_lines[2].set_data([positions['E'][0], positions['H'][0]], [positions['E'][1], positions['H'][1]])
     # J1 -> H (Representative link, same color as L3 but dashed)
     arm_lines[3].set_data([positions['J1'][0], positions['H'][0]], [positions['J1'][1], positions['H'][1]])
     
@@ -191,7 +191,7 @@ def update_visualization(positions):
     marker_points[1].set_data([positions['J1'][0]], [positions['J1'][1]])  # J1
     marker_points[2].set_data([positions['O2'][0]], [positions['O2'][1]])  # O2
     marker_points[3].set_data([positions['J2'][0]], [positions['J2'][1]])  # J2
-    marker_points[4].set_data([positions['T'][0]], [positions['T'][1]])    # T (Pen)
+    marker_points[4].set_data([positions['E'][0]], [positions['E'][1]])    # end effector
     marker_points[5].set_data([positions['H'][0]], [positions['H'][1]])    # H (end of L3)
     
     plt.draw()
@@ -208,7 +208,7 @@ def explore_workspace():
         for y in range(start_y, end_y+1, step):
             try:
                 drawTo(x, y)
-                plt.pause(0.05)
+                #plt.pause(0.0001)
             except:
                 # Skip points that cause singularities or are outside workspace
                 pass
@@ -225,6 +225,7 @@ def main():
     
     # Test various movements
     test_points = [
+        #(0, 70),
         (20, 40),              # Top left
         (60, 40),              # Top right
         (50, 20),              # Middle
@@ -238,7 +239,7 @@ def main():
     
     # Optionally explore the workspace
     print("Exploring workspace...")
-    explore_workspace()
+    #explore_workspace()
     
     print("Simulation complete!")
     
