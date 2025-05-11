@@ -2,16 +2,30 @@ import cv2, math, threading, time
 from flask import Flask, render_template, Response, jsonify
 from camera import Camera
 from trackers import BallTracker
-from detectors import ArucoDetector        # ← import your Aruco detector
+from detectors import ArucoDetector
 from renderers import render_overlay
 from models import Game
+from scenarios import StandingBallHitter
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-camera     = Camera(src=0)
-tracker_mgr= BallTracker()                # thresholds in trackers.py
-game       = Game()
-lock       = threading.Lock()             # for stats JSON
+camera      = Camera(src=0)
+tracker_mgr = BallTracker()
+game        = Game()
+lock        = threading.Lock()
+
+# ------------------------------------------------------------------
+# Set your active scenario here (None for no scenario)
+# Options: None, 'standing'
+ACTIVE_SCENARIO_NAME = 'standing'
+_SCENARIO_MAP = {
+    'standing': StandingBallHitter,
+    None: None
+}
+_current_scenario = _SCENARIO_MAP.get(ACTIVE_SCENARIO_NAME, None)
+if _current_scenario:
+    _current_scenario = _current_scenario()
+# ------------------------------------------------------------------
 
 def generate_frames():
     while True:
@@ -20,19 +34,37 @@ def generate_frames():
             time.sleep(0.01)
             continue
 
-        # 1) detect balls
-        balls = tracker_mgr.update(frame)
+        # 1) detect objects
+        balls   = tracker_mgr.update(frame)
+        markers = ArucoDetector.detect(frame)
 
-        # 2) detect arucos
-        arucos = ArucoDetector.detect(frame)
-
-        # 3) update shared game state
+        # 2) update game state
         with lock:
             game.set_balls(balls)
-            game.set_arucos(arucos)
+            game.set_arucos(markers)
 
-        # 4) render both
-        annotated = render_overlay(frame, balls, arucos)
+        # 3) run scenario logic (if any)
+        line_pts     = None
+        extra_pts    = None
+        extra_labels = None
+        if _current_scenario:
+            detections = []
+            detections.extend(balls)
+            detections.extend(markers)
+            _current_scenario.update(detections)
+            line_pts     = _current_scenario.get_line_points()
+            extra_pts    = _current_scenario.get_extra_points()
+            extra_labels = _current_scenario.get_extra_labels()
+
+        # 4) render all overlays
+        annotated = render_overlay(
+            frame,
+            balls,
+            markers,
+            line_points=line_pts,
+            extra_points=extra_pts,
+            extra_labels=extra_labels
+        )
 
         ok, buf = cv2.imencode('.jpg', annotated)
         if not ok:
@@ -53,18 +85,17 @@ def video_feed():
 @app.route('/stats')
 def stats():
     with lock:
-        balls  = game.balls.copy()
-        arucos = game.arucos.copy()
+        balls   = list(game.balls)
+        markers = list(game.arucos)
     speeds = [round(math.hypot(*map(float, b.velocity)), 2) for b in balls]
 
-    # return both ball and marker info
     return jsonify({
-        'num_balls': len(balls),
-        'ball_ids':  [b.id for b in balls],
-        'speeds':    speeds,
-        'num_markers': len(arucos),
-        'marker_ids': [m.id for m in arucos],
-        'marker_centers': [m.center for m in arucos]
+        'num_balls':     len(balls),
+        'ball_ids':      [b.id for b in balls],
+        'speeds':        speeds,
+        'num_markers':   len(markers),
+        'marker_ids':    [m.id for m in markers],
+        'marker_centers':[m.center for m in markers]
     })
 
 if __name__ == '__main__':
