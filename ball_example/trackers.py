@@ -3,7 +3,7 @@ import math
 import numpy as np
 from typing import Dict, List, Tuple
 from models import Ball
-from detectors import detect_balls
+from detectors import BallDetector
 
 # ---------- Tunable thresholds ----------
 SPATIAL_THRESHOLD   = 50.0     # px centroid distance to match / quick‑add check
@@ -33,7 +33,7 @@ class KalmanTracker:
     def correct(self, p: Tuple[int,int]): return self.kf.correct(np.array([[np.float32(p[0])],[np.float32(p[1])]]))
 # ---------------------------------------
 
-class TrackerManager:
+class BallTracker:
     """CSRT + Kalman multi‑ball tracker with colour verification & quick‑add."""
     def __init__(self):
         self.trackers: Dict[str, cv2.TrackerCSRT] = {}
@@ -64,7 +64,7 @@ class TrackerManager:
         self.frame_count += 1
         # ------- if nothing tracked, detect now -------
         if not self.balls:
-            for d in detect_balls(frame):
+            for d in BallDetector.detect(frame):
                 bid=f"ball_{self.next_id}"; self.next_id+=1; d.id=bid; self.balls[bid]=d
             self._reset_trackers(frame)
 
@@ -109,7 +109,7 @@ class TrackerManager:
         self.balls = updates
 
         # ------- quick‑add new balls every frame ------
-        for d in detect_balls(frame):
+        for d in BallDetector.detect(frame):
             # skip if near existing ball
             if any(math.hypot(d.center[0]-b.center[0], d.center[1]-b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                 continue
@@ -127,7 +127,7 @@ class TrackerManager:
         if self.frame_count >= REINIT_INTERVAL:
             self.frame_count = 0
             # run detection and merge with existing state (simple add if distinct)
-            for d in detect_balls(frame):
+            for d in BallDetector.detect(frame):
                 if any(math.hypot(d.center[0]-b.center[0], d.center[1]-b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                     continue
                 bid=f"ball_{self.next_id}"; self.next_id+=1; d.id=bid

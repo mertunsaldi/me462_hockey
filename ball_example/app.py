@@ -1,16 +1,17 @@
 import cv2, math, threading, time
 from flask import Flask, render_template, Response, jsonify
 from camera import Camera
-from trackers import TrackerManager
+from trackers import BallTracker
+from detectors import ArucoDetector        # ← import your Aruco detector
 from renderers import render_overlay
 from models import Game
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-camera = Camera(src=0)
-tracker_mgr = TrackerManager()          # no params – thresholds in trackers.py
-game = Game()
-lock = threading.Lock()                 # for stats JSON
+camera     = Camera(src=0)
+tracker_mgr= BallTracker()                # thresholds in trackers.py
+game       = Game()
+lock       = threading.Lock()             # for stats JSON
 
 def generate_frames():
     while True:
@@ -19,19 +20,30 @@ def generate_frames():
             time.sleep(0.01)
             continue
 
-        balls = tracker_mgr.update(frame)     # ← single call
+        # 1) detect balls
+        balls = tracker_mgr.update(frame)
+
+        # 2) detect arucos
+        arucos = ArucoDetector.detect(frame)
+
+        # 3) update shared game state
         with lock:
             game.set_balls(balls)
+            game.set_arucos(arucos)
 
-        annotated = render_overlay(frame, balls)
+        # 4) render both
+        annotated = render_overlay(frame, balls, arucos)
+
         ok, buf = cv2.imencode('.jpg', annotated)
         if not ok:
             continue
+
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index():
+    return render_template('index.html')
 
 @app.route('/video_feed')
 def video_feed():
@@ -41,12 +53,19 @@ def video_feed():
 @app.route('/stats')
 def stats():
     with lock:
-        balls = game.balls.copy()
-    speeds = [round((float(b.velocity[0])**2 + float(b.velocity[1])**2) ** 0.5, 2)
-              for b in balls]
-    return jsonify({'num_balls': len(balls),
-                    'ids': [b.id for b in balls],
-                    'speeds': speeds})
+        balls  = game.balls.copy()
+        arucos = game.arucos.copy()
+    speeds = [round(math.hypot(*map(float, b.velocity)), 2) for b in balls]
+
+    # return both ball and marker info
+    return jsonify({
+        'num_balls': len(balls),
+        'ball_ids':  [b.id for b in balls],
+        'speeds':    speeds,
+        'num_markers': len(arucos),
+        'marker_ids': [m.id for m in arucos],
+        'marker_centers': [m.center for m in arucos]
+    })
 
 if __name__ == '__main__':
     camera.start()
