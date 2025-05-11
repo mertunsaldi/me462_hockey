@@ -9,6 +9,12 @@ class ArucoMarker:
         self.corners = corners      # list of 4 (x,y) tuples in marker order
         self.center  = center       # (x,y) of the marker centroid
 
+
+class ArucoHitter(ArucoMarker):
+    """Simple container for a detected ArUco."""
+    pass
+
+
 class Ball:
     """
     Represents a detected ball in the frame.

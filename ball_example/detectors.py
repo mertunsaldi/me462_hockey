@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import List
-from models import Ball, ArucoMarker
+from models import Ball, ArucoMarker, ArucoHitter
 
 # Global background subtractor for motion detection
 _bg_subtractor = cv2.createBackgroundSubtractorMOG2(
@@ -12,19 +12,23 @@ _bg_subtractor = cv2.createBackgroundSubtractorMOG2(
 class ArucoDetector:
     """Detect ArUco markers and return their corners + center."""
     # use the new API:
-    _DICT   = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_100)
+    _DICT6   = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_100)
+    _DICT4 = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
     _PARAMS = cv2.aruco.DetectorParameters()
 
     @staticmethod
     def detect(frame: np.ndarray) -> List[ArucoMarker]:
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, _ = cv2.aruco.detectMarkers(
-            gray, ArucoDetector._DICT, parameters=ArucoDetector._PARAMS
+        corners6, ids6, _ = cv2.aruco.detectMarkers(
+            gray, ArucoDetector._DICT6, parameters=ArucoDetector._PARAMS
+        )
+        corners4, ids4, _ = cv2.aruco.detectMarkers(
+            gray, ArucoDetector._DICT4, parameters=ArucoDetector._PARAMS
         )
 
         markers: List[ArucoMarker] = []
-        if ids is not None:
-            for marker_corners, marker_id in zip(corners, ids.flatten()):
+        if ids6 is not None:
+            for marker_corners, marker_id in zip(corners6, ids6.flatten()):
                 pts = marker_corners.reshape(-1, 2)
                 pts_int = [(int(x), int(y)) for x, y in pts]
 
@@ -32,6 +36,17 @@ class ArucoDetector:
                 cy = int(np.mean(pts[:, 1]))
                 markers.append(
                     ArucoMarker(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                )
+
+        if ids4 is not None:
+            for marker_corners, marker_id in zip(corners4, ids4.flatten()):
+                pts = marker_corners.reshape(-1, 2)
+                pts_int = [(int(x), int(y)) for x, y in pts]
+
+                cx = int(np.mean(pts[:, 0]))
+                cy = int(np.mean(pts[:, 1]))
+                markers.append(
+                    ArucoHitter(id=int(marker_id), corners=pts_int, center=(cx, cy))
                 )
 
         return markers

@@ -1,17 +1,41 @@
 import cv2
 import math
 import numpy as np
-from typing import List, Optional
-from models import Ball, ArucoMarker
+from typing import List, Optional, Tuple
+from models import Ball, ArucoMarker, ArucoHitter
+
+
+def draw_line(
+    frame: np.ndarray,
+    p1: Tuple[int, int],
+    p2: Tuple[int, int],
+    color: Tuple[int, int, int] = (255, 255, 255),
+    thickness: int = 2
+) -> None:
+    """
+    Draw a straight line on the frame between two points.
+    Modifies the frame in place.
+
+    Args:
+        frame: the image to draw on
+        p1: starting point (x1, y1)
+        p2: ending point (x2, y2)
+        color: BGR color tuple
+        thickness: line thickness
+    """
+    cv2.line(frame, p1, p2, color, thickness)
+
 
 def render_overlay(
     frame: np.ndarray,
     balls: List[Ball],
-    markers: Optional[List[ArucoMarker]] = None
+    markers: Optional[List[ArucoMarker]] = None,
+    line_points: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
 ) -> np.ndarray:
     """
     Draw detected balls with their direction arrows and speed labels,
-    plus detected ArUco markers (corners, outline, center, and ID).
+    plus detected ArUco markers (corners, outline, center, and ID),
+    then draw a scenario-specific line if provided.
     """
     annotated = frame.copy()
 
@@ -45,30 +69,33 @@ def render_overlay(
     # --- draw ArUco markers ---
     if markers:
         for m in markers:
-            # outline polygon
             pts = np.array(m.corners, dtype=np.int32).reshape(-1, 1, 2)
-            outline_color = (0, 255, 255)      # yellow
-            corner_color  = (255, 0, 255)      # magenta
-            center_color  = (0, 128, 255)      # orange
+            outline_color = (0, 255, 255)
+            corner_color  = (255, 0, 255)
+            center_color  = (0, 128, 255)
+            cx, cy = m.center
 
-            cv2.polylines(annotated, [pts], isClosed=True, color=outline_color, thickness=2)
-
-            # corners (with index)
-            for idx, (cx, cy) in enumerate(m.corners):
-                cv2.circle(annotated, (cx, cy), 5, corner_color, -1)
+            if not isinstance(m, ArucoHitter):
+                cv2.polylines(annotated, [pts], isClosed=True, color=outline_color, thickness=2)
+                for idx, (px, py) in enumerate(m.corners):
+                    cv2.circle(annotated, (px, py), 5, corner_color, -1)
+                    cv2.putText(
+                        annotated, str(idx),
+                        (px + 5, py - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, corner_color, 1
+                    )
                 cv2.putText(
-                    annotated, str(idx),
-                    (cx + 5, cy - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, corner_color, 1
+                    annotated, f"ID:{m.id}",
+                    (cx + 5, cy + 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, center_color, 2
                 )
 
-            # center point and ID label
-            cx, cy = m.center
+            # Always draw center point
             cv2.circle(annotated, (cx, cy), 5, center_color, -1)
-            cv2.putText(
-                annotated, f"ID:{m.id}",
-                (cx + 5, cy + 15),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, center_color, 2
-            )
+
+    # --- draw scenario-specific line ---
+    if line_points:
+        pt1, pt2 = line_points
+        draw_line(annotated, pt1, pt2)
 
     return annotated
