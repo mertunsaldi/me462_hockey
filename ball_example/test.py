@@ -1,7 +1,8 @@
 import cv2
 
 def main():
-    # 0 = default camera. Change to 1, 2, ... to use other connected cameras.
+    # 0 = default camera. Change to 1, 2, ... to use other connected cameras. 4 worked for me.
+
     cap = cv2.VideoCapture(4)
     
     # Check if camera opened successfully
