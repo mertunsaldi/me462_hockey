@@ -5,72 +5,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ball Tracker</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #333;
-      color: #eee;
-      font-family: Arial, sans-serif;
-      height: 100vh;
-      overflow: hidden;
+    body{
+      margin:0; padding:0;
+      display:flex; flex-direction:column; align-items:center;
+      background:#333; color:#eee; font-family:Arial;
+      height:100vh; overflow:hidden;
     }
-    #status {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 10px;
-      border-radius: 5px;
-      line-height: 1.4;
-      z-index: 10;
+    #status{
+      position:absolute; top:10px; left:10px;
+      background:rgba(0,0,0,.6);
+      padding:10px; border-radius:5px;
+      line-height:1.4; z-index:10;
     }
-    #status div {
-      margin-bottom: 4px;
+    #status div{ margin-bottom:4px; }
+    #video-container{
+      max-width:85%; flex:1;
+      display:flex; justify-content:center; align-items:center;
     }
-    #video-container {
-      /* Desired display width; will shrink to fit viewport */
-      max-width: 85%;
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    #video{ width:100%; height:auto; display:block; }
+
+    /* connect and start buttons and cmd box */
+    #start-btn{
+      position:absolute;
+      top:10px;
+      right:160px;  /* left of connect button */
+      background:#f39c12;
+      color:#fff;
+      border:none;
+      padding:10px 16px;
+      border-radius:5px;
+      font-size:14px;
+      cursor:pointer;
+      z-index:11;
     }
-    #video {
-      /* Fill the container responsively */
-      width: 100%;
-      height: auto;
-      display: block;
+    #start-btn.running{
+      background:#27ae60;
+    }
+    #connect-btn{
+      position:absolute;
+      top:10px;
+      right:10px;
+      background:#008cba;
+      color:#fff;
+      border:none;
+      padding:10px 16px;
+      border-radius:5px;
+      font-size:14px;
+      cursor:pointer;
+      z-index:11;
+    }
+    #connect-btn.connected{
+      background:#2e8b57;
+    }
+    #cmd-box{
+      position:absolute;
+      top:56px;
+      right:10px;
+      width:180px;
+      padding:8px 10px;
+      border-radius:5px;
+      border:none;
+      font-size:14px;
+      outline:none;
+      opacity:.4;
+      pointer-events:none;
+    }
+    #cmd-box.enabled{
+      opacity:1;
+      pointer-events:auto;
+      background:#fff;
+      color:#000;
     }
   </style>
 </head>
 <body>
+
+  <!-- Start Scenario button -->
+  <button id="start-btn">Start Scenario</button>
+  <!-- Connect Pico button -->
+  <button id="connect-btn">Connect Pico</button>
+  <!-- Command input -->
+  <input id="cmd-box" type="text" placeholder="command + Enter">
+
   <div id="status">
     <div>Number of Balls: <span id="num_balls">0</span></div>
     <div>Speeds: <span id="speeds">[]</span></div>
-    <div>IDs: <span id="ball_ids"></span></div>   <!-- New line -->
+    <div>IDs: <span id="ball_ids"></span></div>
   </div>
+
   <div id="video-container">
     <img id="video" src="{{ url_for('video_feed') }}" alt="Video Stream">
   </div>
+
   <script>
-    async function updateStats() {
-      try {
-        const res = await fetch('/stats');
-        if (!res.ok) return;
-        const data = await res.json();
-        document.getElementById('num_balls').textContent = data.num_balls;
-        document.getElementById('speeds').textContent = '[' + data.speeds.join(', ') + ']';
-        document.getElementById('ball_ids').textContent = data.ids.join(', ');
-      } catch(err) {
-        console.error('Stats update error:', err);
-      }
-}
-    // Update stats every 250ms
+    /* helper to select element */
+    function qs(sel){ return document.querySelector(sel); }
+
+    /* live stats */
+    async function updateStats(){
+      try{
+        const r = await fetch('/stats');
+        if(!r.ok) return;
+        const d = await r.json();
+        qs('#num_balls').textContent = d.num_balls;
+        qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
+        qs('#ball_ids').textContent  = d.ball_ids.join(', ');
+      } catch(e){ console.error(e); }
+    }
     setInterval(updateStats, 250);
     updateStats();
+
+    /* Scenario start button */
+    const startBtn = qs('#start-btn');
+    startBtn.addEventListener('click', async () => {
+      if(startBtn.classList.contains('running')) return;
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting…';
+      try{
+        const r = await fetch('/start_scenario', { method: 'POST' });
+        const d = await r.json();
+        if(d.status === 'ok'){
+          startBtn.classList.add('running');
+          startBtn.textContent = 'Scenario Running';
+        } else {
+          alert('Failed to start scenario: ' + (d.message||''));
+          startBtn.textContent = 'Start Scenario';
+        }
+      } catch(err){
+        alert('Error: ' + err);
+        startBtn.textContent = 'Start Scenario';
+      } finally{
+        startBtn.disabled = false;
+      }
+    });
+
+    /* Pico connect button */
+    const connectBtn = qs('#connect-btn');
+    const cmdBox    = qs('#cmd-box');
+    connectBtn.addEventListener('click', async () => {
+      if(connectBtn.classList.contains('connected')) return;
+      connectBtn.disabled = true;
+      connectBtn.textContent = 'Connecting…';
+      try{
+        const r = await fetch('/connect_pico', { method: 'POST' });
+        const d = await r.json();
+        if(d.status === 'ok'){
+          connectBtn.classList.add('connected');
+          connectBtn.textContent = 'Pico Connected';
+          cmdBox.classList.add('enabled');
+          cmdBox.focus();
+        } else {
+          alert('Connect failed: ' + d.message);
+          connectBtn.textContent = 'Connect Pico';
+        }
+      } catch(e){
+        alert('Connect error: ' + e);
+        connectBtn.textContent = 'Connect Pico';
+      } finally{
+        connectBtn.disabled = false;
+      }
+    });
+
+    /* Command box enter */
+    cmdBox.addEventListener('keydown', async e => {
+      if(e.key !== 'Enter') return;
+      const cmd = cmdBox.value.trim();
+      if(!cmd) return;
+      try{
+        const r = await fetch('/send_cmd', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({cmd})
+        });
+        const d = await r.json();
+        if(d.status !== 'ok'){
+          alert('Pico error: ' + d.message);
+        } else {
+          cmdBox.value = '';
+        }
+      } catch(err){
+        alert('Send error: ' + err);
+      }
+    });
   </script>
 </body>
 </html>

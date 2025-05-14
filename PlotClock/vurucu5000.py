@@ -1,3 +1,5 @@
+# x [0, 70]
+# y [10, 55]
 import machine
 import math
 import time
