@@ -55,7 +55,7 @@ class ArucoDetector:
 class BallDetector:
     # ───── Tunable thresholds ───────────────────────────
     CIRCULARITY_THRESHOLD = 0.8
-    AREA_RATIO_THRESHOLD   = 0.75
+    AREA_RATIO_THRESHOLD   = 0.8
 
     # HSV range for your ball color (tweak these!)
     HSV_LOWER = np.array([  5, 100, 100], dtype=np.uint8)

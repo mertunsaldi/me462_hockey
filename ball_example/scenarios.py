@@ -7,6 +7,7 @@ from gadgets import PlotClock
 
 class Scenario:
     """Base class for game scenarios."""
+
     def update(self, detections: List[Union[Ball, ArucoMarker, ArucoHitter]]) -> None:
         raise NotImplementedError
 
@@ -21,30 +22,26 @@ class Scenario:
 
 
 class StandingBallHitter(Scenario):
-    """
-    • First, calibrate the attached PlotClock (internal FSM in PlotClock).
-    • Then draw ball→target line and label the start point in mm.
-    """
+    """Calibrates PlotClock, then strikes the ball toward the target."""
+
     def __init__(self, plotclock: PlotClock):
         self.clock = plotclock
-        # dynamic objects
         self.hitter: Optional[ArucoHitter] = None
         self.target: Optional[ArucoMarker] = None
         self.ball:   Optional[Ball] = None
-        # drawing state
-        self._line: Optional[Tuple[Tuple[int,int],Tuple[int,int]]] = None
-        self._start_px: Optional[Tuple[int,int]] = None
-        self._start_mm: Optional[Tuple[float,float]] = None
+        self._line:       Optional[Tuple[Tuple[int,int],Tuple[int,int]]] = None
+        self._start_px:   Optional[Tuple[int,int]] = None
+        self._start_mm:   Optional[Tuple[float,float]] = None
+        self._fired = False          # ensure we send drawto sequence only once
 
-    # ---------------------------------------------------------
+    # ------------------------------------------------------------------
     def update(self, detections):
-        # 1) ensure calibration complete
+        # 1) drive calibration first
         if not self.clock.calibration:
             self.clock.calibrate(detections)
-            # show nothing until calibrated
-            return
+            return   # nothing else until calibrated
 
-        # 2) normal gameplay logic
+        # 2) reset per‑frame state
         self.hitter = self.target = self.ball = None
         self._line = self._start_px = self._start_mm = None
 
@@ -57,16 +54,25 @@ class StandingBallHitter(Scenario):
             bx,by = self.ball.center
             tx,ty = self.target.center
             self._line = ((bx,by),(tx,ty))
+
+            # start point 60 px behind ball along target line
             dx,dy = tx-bx, ty-by
             dist = np.hypot(dx,dy)
             if dist>0:
-                sx = int(bx - dx/dist*50)
-                sy = int(by - dy/dist*50)
+                sx = int(bx - dx/dist*70)
+                sy = int(by - dy/dist*70)
                 self._start_px = (sx,sy)
-                # mm conversion
                 self._start_mm = self.clock.find_mm(sx,sy)
 
-    # --------------------------------------------------------- drawing helpers
+                # once per run: move hitter then strike
+                if not self._fired and self._start_mm:
+                    ball_mm = self.clock.find_mm(bx,by)
+                    self.clock.send_command('drawto', *self._start_mm)
+                    time.sleep(0.7)
+                    self.clock.send_command('setxy', *ball_mm)
+                    self._fired = True
+
+    # ------------------------------------------------------------------
     def get_line_points(self):
         return self._line
 
