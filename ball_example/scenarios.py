@@ -59,8 +59,9 @@ class StandingBallHitter(Scenario):
             dx,dy = tx-bx, ty-by
             dist = np.hypot(dx,dy)
             if dist>0:
-                sx = int(bx - dx/dist*70)
-                sy = int(by - dy/dist*70)
+                gap = 1.7 * (self.ball.radius)
+                sx = int(bx - dx/dist*gap)
+                sy = int(by - dy/dist*gap)
                 self._start_px = (sx,sy)
                 self._start_mm = self.clock.find_mm(sx,sy)
 

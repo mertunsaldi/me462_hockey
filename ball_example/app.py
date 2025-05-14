@@ -6,12 +6,12 @@ from detectors import ArucoDetector
 from renderers import render_overlay, draw_line
 from models import Game
 from scenarios import StandingBallHitter
-from ball_example.gadgets import PlotClock
+from gadgets import PlotClock
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Camera and tracking setup
-camera = Camera(src=0)
+camera = Camera(src=4)
 tracker_mgr = BallTracker()
 
 game = Game()

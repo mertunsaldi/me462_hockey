@@ -18,7 +18,7 @@ class Camera:
         self.src = src
         # Initialize video capture with given source (device index or path)
         self.cap = cv2.VideoCapture(self.src)
-
+        
         # Only override resolution if specified; otherwise use native
         if width is not None:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)

@@ -69,8 +69,8 @@ class BallDetector:
         min_dist: float = 70,
         param1: float   = 100,
         param2: float   = 100,
-        min_radius: int = 20,
-        max_radius: int = 100
+        min_radius: int = 15,
+        max_radius: int = 200
     ) -> List[Ball]:
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (9, 9), 2)
