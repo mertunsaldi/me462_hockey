@@ -66,11 +66,11 @@ class BallDetector:
     def detect(
         frame: np.ndarray,
         dp: float       = 1.2,
-        min_dist: float = 100,
+        min_dist: float = 70,
         param1: float   = 100,
         param2: float   = 100,
-        min_radius: int = 40,
-        max_radius: int = 200
+        min_radius: int = 20,
+        max_radius: int = 100
     ) -> List[Ball]:
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (9, 9), 2)

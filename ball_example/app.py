@@ -98,6 +98,7 @@ def stats():
         'marker_centers':[m.center for m in markers]
     })
 
+
 if __name__ == '__main__':
     camera.start()
     app.run(host='0.0.0.0', port=8000, threaded=True, debug=True)
