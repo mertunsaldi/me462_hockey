@@ -27,3 +27,14 @@ To do:
   
 - microswitch ile carpma sensoru yapilcak
 - top statikken detection gelistirilmeli.
+
+Yeni hafta için yapılacaklar
+
+Plot clock büyütme
+	
+	Yeni link boyutu belirlenmesi
+	Kodumuz link length değişimine uygun
+	Plot clockucu elektromıknatıs olabilir,
+
+Arena Boyutumuz?
+	Projektörü sigmaya eklenemk için kesim
