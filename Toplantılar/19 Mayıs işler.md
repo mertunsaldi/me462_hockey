@@ -38,3 +38,8 @@ Plot clock büyütme
 
 Arena Boyutumuz?
 	Projektörü sigmaya eklenemk için kesim
+ 
+ Seckin -> pi ve pi kamerasiyla detection deneyecek pazar sabahina kadar.
+Mert- > Seckinden kamera ve pi devralip, pi kamerasiyla ball detection gelistirilecek.
+Bekirhan, Tuna -> Arena ve yeni link boyu belirlenmesi, yeni link tasarimi, baski, assembly, ve calistirilmasi.
+Fatih -> duvar yuksekligi 6cmye dusurulup uretilebildigi kadar uretilicek
