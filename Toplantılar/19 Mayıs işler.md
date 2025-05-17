@@ -23,6 +23,7 @@ To do:
     - kodda link lengthlerin guncellenmesi
     - kalibrasyonun yapilmasi ve kodun denenmesi
 - plotclock daha yukari takilacak, altindan top gecip duvara carpabilmeli.
-- duvar yuksekligi kisaltilacak
+- duvar yuksekligi kisaltilacak (çok zor değil, çok gerekli de değil)
+  
 - microswitch ile carpma sensoru yapilcak
 - top statikken detection gelistirilmeli.
