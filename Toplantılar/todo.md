@@ -1,8 +1,0 @@
-- [ ] plotclock kesilip tekrar basılacak
-- [ ] plotclock başına, tercihen yeşil renk silindir basılacak ya da boyanabilir
-- [ ] plotclock kodu güncellenip serial üstünden string okur hale getirilecek
-- [ ] pc tarafında seriale string gönderilebilecek
-- [ ] kamera feedine yeşil silindiri algılayan ve aruco marker(hedef) okuyan kod yazılacak
-- [ ] hedef ve top arasına doğru çizilip vurucunun gitmesi gereken x,y ler belirlenecek
-- [ ] aynı çizgi üstünde vurdurma
-- [ ] arucoya temas ederse algıla = win 
