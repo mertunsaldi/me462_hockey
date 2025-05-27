@@ -58,8 +58,9 @@ class BallDetector:
     AREA_RATIO_THRESHOLD   = 0.8
 
     # HSV range for your ball color (tweak these!)
-    HSV_LOWER = np.array([  5, 100, 100], dtype=np.uint8)
-    HSV_UPPER = np.array([ 25, 255, 255], dtype=np.uint8)
+    HSV_LOWER = np.array([0, 100, 100], dtype=np.uint8)
+    HSV_UPPER = np.array([25, 255, 255], dtype=np.uint8)
+
     # ────────────────────────────────────────────────────
 
     @staticmethod
@@ -69,8 +70,8 @@ class BallDetector:
         min_dist: float = 70,
         param1: float   = 100,
         param2: float   = 100,
-        min_radius: int = 20,
-        max_radius: int = 100
+        min_radius: int = 25,
+        max_radius: int = 50
     ) -> List[Ball]:
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (9, 9), 2)
@@ -100,7 +101,8 @@ class BallDetector:
         fg_clean    = cv2.morphologyEx(fg_clean,   cv2.MORPH_CLOSE, kernel, iterations=2)
         color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN,  kernel, iterations=1)
 
-        combined = cv2.bitwise_and(fg_clean, color_clean)
+        #combined = cv2.bitwise_or(color_clean, fg_clean)
+        combined = color_clean
         contours, _ = cv2.findContours(combined, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contours:

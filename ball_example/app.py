@@ -5,13 +5,14 @@ from trackers import BallTracker
 from detectors import ArucoDetector
 from renderers import render_overlay, draw_line
 from models import Game
-from scenarios import StandingBallHitter
+from scenarios import *
 from ball_example.gadgets import PlotClock
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Camera and tracking setup
 camera = Camera(src=0)
+frame_size = camera.get_resolution()
 tracker_mgr = BallTracker()
 
 game = Game()
@@ -25,8 +26,8 @@ pico_connected = False
 # ------------------------------------------------------------------
 # Set your active scenario here (None for no scenario)
 # Options: None, 'standing', 'calib'
-
-_current_scenario = StandingBallHitter(plotclock)
+# _current_scenario = StandingBallHitter(plotclock)
+_current_scenario = BallReflector(plotclock, frame_size, speed_tol=0.5)
 # ------------------------------------------------------------------
 
 # Only run scenario after start is triggered
@@ -150,4 +151,4 @@ def send_cmd():
 
 if __name__ == '__main__':
     camera.start()
-    app.run(host='0.0.0.0', port=8000, threaded=True, debug=False)
+    app.run(host='0.0.0.0', port=8000, threaded=True, debug=True)

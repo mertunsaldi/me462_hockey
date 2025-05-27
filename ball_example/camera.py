@@ -72,3 +72,11 @@ class Camera:
         if self.thread:
             self.thread.join()
         self.cap.release()
+
+    def get_resolution(self) -> Tuple[int, int]:
+        """
+        Return the current capture resolution as (width, height) in pixels.
+        """
+        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        return width, height
