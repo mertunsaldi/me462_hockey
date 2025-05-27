@@ -27,7 +27,7 @@ pico_connected = False
 # Set your active scenario here (None for no scenario)
 # Options: None, 'standing', 'calib'
 # _current_scenario = StandingBallHitter(plotclock)
-_current_scenario = BallReflector(plotclock, frame_size, speed_tol=0.5)
+_current_scenario = BallAttacker(plotclock, frame_size, speed_tol=0.5)
 # ------------------------------------------------------------------
 
 # Only run scenario after start is triggered

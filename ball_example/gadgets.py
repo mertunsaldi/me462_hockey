@@ -127,8 +127,10 @@ class PlotClock(Gadgets):
             'setxy':  'setxy {0} {1}',
             'drawto': 'drawto {0} {1}',
         }
-        self.x_range = (0, 70)
-        self.y_range = (10, 55)
+        # self.x_range = (0, 70)
+        # self.y_range = (10, 55)
+        self.x_range = (0, 80)
+        self.y_range = (10, 80)
 
         # Calibration state --------------------------------------------------
         self._cal_state: int = 0          # 0=idle,1..n=fsm
