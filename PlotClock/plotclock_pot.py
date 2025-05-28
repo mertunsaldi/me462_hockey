@@ -46,9 +46,9 @@ class Button:
 
 # ─────────────────── CONSTANTS ─────────────────────────
 # adjust these values to have a 90 degree movement (during calibration mode)
-# increase these factors to servos rotate more
-SERVO_LEFT_FACTOR  = 700
-SERVO_RIGHT_FACTOR = 670
+# increase these factors to rotate servos more
+SERVO_LEFT_FACTOR  = 610
+SERVO_RIGHT_FACTOR = 560
 
 SERVO_LEFT_NULL    = 1950
 SERVO_RIGHT_NULL   =  815
@@ -57,10 +57,17 @@ Z_OFFSET = 230
 LIFT0, LIFT1, LIFT2 = 1110+Z_OFFSET, 925+Z_OFFSET, 735+Z_OFFSET
 LIFT_SPEED = 2000
 
-L1, L2, L3, L4 = 35.0, 55.1, 13.2, 45.0
-O1X, O1Y = 24.0, -25.0
-O2X, O2Y = 49.0, -25.0
-HOME_X, HOME_Y = 72.2, 45.5
+# use for calibration mode
+# L1, L2, L3, L4 = 35.0, 55.1, 13.2, 45.0
+# O1X, O1Y = 24.0, -25.0
+# O2X, O2Y = 49.0, -25.0
+# HOME_X, HOME_Y = 72.2, 45.5
+
+# new link lengths
+L1, L2, L3, L4 = 210, 280, 0, 280
+O1X, O1Y = 300.0, -80.0
+O2X, O2Y = 450.0, -80.0
+HOME_X, HOME_Y = 375, 240
 
 MOVE_DELAY_MS = 0
 
@@ -132,7 +139,7 @@ def set_XY(Tx, Ty):
 def drawTo(pX, pY):
     global lastX, lastY
     dx, dy = pX - lastX, pY - lastY
-    steps = max(1, int(7 * math.sqrt(dx*dx + dy*dy)))
+    steps = max(1, int(2 * math.sqrt(dx*dx + dy*dy)))
     for i in range(steps + 1):
         set_XY(lastX + dx * i / steps, lastY + dy * i / steps)
         time.sleep_ms(MOVE_DELAY_MS)
@@ -206,9 +213,16 @@ def loop():
         # --- 4) lift servo -----------------------------
         servo_lift.writeMicroseconds(angle_to_pulse(liftDeg))
     elif currentMode == 2:
-        drawTo(0, 20)
-        time.sleep_ms(10)
-        goHome()
+        #goHome()
+        # drawTo(0, 0)
+        # time.sleep_ms(1500)
+        # drawTo(0, 150)
+        # time.sleep_ms(1500)
+        # drawTo(700, 150)
+        # time.sleep_ms(1500)
+        drawTo(750, 100)
+        time.sleep_ms(1500)
+
 
     time.sleep_ms(10)
 
