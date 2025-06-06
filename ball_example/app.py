@@ -1,4 +1,4 @@
-import cv2, math, threading, time
+import cv2, math, threading
 from flask import Flask, render_template, Response, jsonify, request
 from camera import Camera
 from trackers import BallTracker
@@ -9,6 +9,11 @@ from scenarios import *
 from ball_example.gadgets import PlotClock
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
+
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # Camera and tracking setup
 camera = Camera(src=0)
@@ -27,11 +32,12 @@ pico_connected = False
 # Set your active scenario here (None for no scenario)
 # Options: None, 'standing', 'calib'
 # _current_scenario = StandingBallHitter(plotclock)
-_current_scenario = BallAttacker(plotclock, frame_size, speed_tol=0.5)
+_current_scenario = BallAttacker(plotclock, frame_size)
 # ------------------------------------------------------------------
 
 # Only run scenario after start is triggered
 scenario_enabled = False
+
 
 @app.route('/start_scenario', methods=['POST'])
 def start_scenario():
@@ -72,7 +78,7 @@ def generate_frames():
             frame,
             balls,
             markers,
-            line_points=None,      # handled below
+            line_points=None,  # handled below
             extra_points=extra_pts,
             extra_labels=extra_labels
         )
@@ -96,13 +102,16 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 @app.route('/stats')
 def stats():
@@ -119,6 +128,7 @@ def stats():
         'marker_centers': [m.center for m in markers]
     })
 
+
 @app.route('/connect_pico', methods=['POST'])
 def connect_pico():
     global pico_connected
@@ -132,6 +142,7 @@ def connect_pico():
             return jsonify({'status': 'ok'})
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @app.route('/send_cmd', methods=['POST'])
 def send_cmd():
@@ -149,6 +160,10 @@ def send_cmd():
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 if __name__ == '__main__':
-    camera.start()
-    app.run(host='0.0.0.0', port=8000, threaded=True, debug=True)
+    try:
+        camera.start()
+        app.run(host='0.0.0.0', port=8000, threaded=True, debug=True)
+    finally:
+        camera.stop()

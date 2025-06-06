@@ -6,13 +6,13 @@ from models import Ball
 from detectors import BallDetector
 
 # ---------- Tunable thresholds ----------
-SPATIAL_THRESHOLD   = 50.0     # px centroid distance to match / quick‑add check
-COLOR_THRESHOLD     = 80.0     # BGR distance for colour verification
+SPATIAL_THRESHOLD   = 60.0     # px centroid distance to match / quick‑add check
+COLOR_THRESHOLD     = 90.0     # BGR distance for colour verification
 VELOCITY_THRESHOLD  = 1.0      # px/frame – below → 0
-MISSING_THRESHOLD   = 5        # consecutive misses to drop a ball
-REINIT_INTERVAL     = 60       # frames between *forced* re‑detects
+MISSING_THRESHOLD   = 6        # consecutive misses to drop a ball
+REINIT_INTERVAL     = 70       # frames between *forced* re‑detects
 DT                  = 1.0      # Kalman Δt (frames)
-INTERSECT_TOLERANCE = 5.0      # allowed overlap between balls
+INTERSECT_TOLERANCE = 10.0      # allowed overlap between balls
 PATCH_HALF          = 2        # 5×5 colour patch (radius)
 # ---------------------------------------
 
