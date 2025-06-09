@@ -1,0 +1,32 @@
+# Writing Client Scenarios
+
+Clients may upload their own Python modules implementing custom logic. Each file must define a `ClientScenario` class derived from `ball_example.scenarios.Scenario`.
+
+```python
+from ball_example.scenarios import Scenario
+
+class ClientScenario(Scenario):
+    def update(self, detections):
+        # access PlotClock helpers or run your own logic
+        pass
+```
+
+Use `/load_scenario` to activate the scenario:
+
+```bash
+curl -X POST http://localhost:8000/load_scenario -H 'Content-Type: application/json' -d '{"path": "my_scenario.py"}'
+```
+
+Alternatively upload the file:
+
+```bash
+curl -X POST -F 'file=@my_scenario.py' http://localhost:8000/load_scenario
+```
+
+You can send runtime messages to the active scenario with `/send_message`:
+
+```bash
+curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"mode": "stop_defense"}'
+```
+
+**Security warning:** the server executes the uploaded Python code directly. Only run scenarios from trusted sources.
