@@ -91,11 +91,12 @@ class Game:
         """
         self.arucos.clear()
 
-    def add_arcuo(self, marker: ArucoMarker) -> None:
-        """
-        Add a single ArUco marker to the game state.
-        """
+    def add_aruco(self, marker: ArucoMarker) -> None:
+        """Add a single ArUco marker to the game state."""
         self.arucos.append(marker)
+
+    # Backwards compatibility with misspelled method name
+    add_arcuo = add_aruco
 
     # ─── Utility & dunders ─────────────────────────────────────────
 
