@@ -21,6 +21,15 @@ class Scenario:
     def get_extra_labels(self):
         return None
 
+    def process_message(self, data: Dict[str, Any]):
+        """Handle an incoming message for the scenario.
+
+        Subclasses may override this to implement custom behaviour. The
+        default implementation simply returns ``None`` which results in a
+        generic ``{"status": "ok"}`` response from the API.
+        """
+        return None
+
 
 class BallAttacker(Scenario):
     """
