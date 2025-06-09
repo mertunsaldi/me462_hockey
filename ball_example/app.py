@@ -161,6 +161,24 @@ def send_cmd():
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    """Dispatch an arbitrary JSON payload to the active scenario."""
+    if _current_scenario is None:
+        return jsonify({'status': 'error', 'message': 'no active scenario'}), 400
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'status': 'error', 'message': 'invalid JSON payload'}), 400
+
+    try:
+        resp = _current_scenario.process_message(data)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    return jsonify(resp or {'status': 'ok'})
+
+
 if __name__ == '__main__':
     try:
         camera.start()
