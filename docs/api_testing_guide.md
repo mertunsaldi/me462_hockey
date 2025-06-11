@@ -20,7 +20,15 @@ your local network.
    use `ip addr` on Linux or `ipconfig` on Windows.  Suppose the address is
    `192.168.1.100`.
 
-3. **Send commands from another device**
+3. **Connect the PlotClock**
+
+   Use the **Connect Pico** button on the web page or POST to `/connect_pico`:
+
+   ```bash
+   curl -X POST http://192.168.1.100:8000/connect_pico
+   ```
+
+4. **Send commands from another device**
 
    On another computer connected to the same network, you can use `curl` or a
    small Python script to post commands.  Below is an example using `curl`:
@@ -41,14 +49,14 @@ your local network.
    print(r.json())
    ```
 
-4. **Load a Python scenario**
+5. **Load a Python scenario**
 
    ```bash
    curl -X POST http://192.168.1.100:8000/load_scenario -H 'Content-Type: application/json' \
         -d '{"path": "myscenario.py"}'
    ```
 
-5. **Start the scenario**
+6. **Start the scenario**
 
    ```bash
    curl -X POST http://192.168.1.100:8000/start_scenario
@@ -61,7 +69,7 @@ your local network.
         -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
    ```
 
-6. **Video stream**
+7. **Video stream**
 
    Navigate to `http://192.168.1.100:8000/` in a browser to view the live
    camera feed and overlay.

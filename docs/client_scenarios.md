@@ -47,10 +47,11 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    ```bash
    curl -X POST -F 'file=@examples/standing_hitter_client.py' http://localhost:8000/load_scenario
    ```
-3. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario, press
-   **Start Scenario** (or POST to `/start_scenario`) to begin execution. The
-   server automatically connects to the PlotClock if needed.
-4. Optionally send messages while it is running:
+3. Connect the PlotClock using the **Connect Pico** button (or POST to
+   `/connect_pico`).  The button will turn green once the connection succeeds.
+4. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario,
+   press **Start Scenario** (or POST to `/start_scenario`) to begin execution.
+5. Optionally send messages while it is running:
    ```bash
    curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
    ```
