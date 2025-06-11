@@ -30,3 +30,21 @@ curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/js
 ```
 
 **Security warning:** the server executes the uploaded Python code directly. Only run scenarios from trusted sources.
+
+## Example: Standing Ball Hitter
+
+The repository contains an example scenario in `examples/standing_hitter_client.py` which simply reuses the built-in `StandingBallHitter` logic.
+
+1. Start the server on the host machine:
+   ```bash
+   python -m ball_example.app
+   ```
+2. From another terminal (or another machine on the same network) upload the scenario:
+   ```bash
+   curl -X POST -F 'file=@examples/standing_hitter_client.py' http://localhost:8000/load_scenario
+   ```
+3. The scenario will begin running immediately. Open `http://<host-ip>:8000/` in a browser to view the video stream.
+4. Optionally send messages while it is running:
+   ```bash
+   curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
+   ```
