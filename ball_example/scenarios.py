@@ -82,6 +82,19 @@ class BallAttacker(Scenario):
         self._phase = None
         self._prev_time = None  # for frame period
         self._cur_speed_ps = None  # puck speed px / s
+        self._initialized = False
+
+    def on_start(self) -> None:
+        """Reset state and begin calibration."""
+        self.clock.calibration = None
+        self.clock._cal_state = 0
+        self.clock._px_hits = []
+        self._work_lines = None
+        self._locked_M = self._locked_norm = None
+        self._phase = None
+        self._prev_time = None
+        self._cur_speed_ps = None
+        self._initialized = False
 
     # ===============================================================
     def _ray_hits_rectangle(self, bx, by, dx, dy):
@@ -101,13 +114,11 @@ class BallAttacker(Scenario):
 
     # ------------------------------------------------------------------
     def update(self, detections):
-        # 0) calibration ------------------------------------------------
-        if not self.clock.calibration:
-            self.clock.calibrate(detections)
-            return
-
-        # 1) rectangle once --------------------------------------------
-        if self._work_lines is None:
+        # -- initialization --------------------------------------------
+        if not self._initialized:
+            if not self.clock.calibration:
+                self.clock.calibrate(detections)
+                return
             x0, x1 = self.clock.x_range
             y0, y1 = self.clock.y_range
             p00 = self.clock.mm_to_pixel((x0, y0))
@@ -115,6 +126,7 @@ class BallAttacker(Scenario):
             p11 = self.clock.mm_to_pixel((x1, y1))
             p01 = self.clock.mm_to_pixel((x0, y1))
             self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
+            self._initialized = True
 
         # 2) detections -------------------------------------------------
         ball = next((d for d in detections if isinstance(d, Ball)), None)
@@ -292,10 +304,13 @@ class FixedTargetAttacker(BallAttacker):
         super().__init__(plotclock, frame_size)
         self._target_mm = target_mm
 
+    def on_start(self) -> None:
+        super().on_start()
+
     def update(self, detections):
         # inject a fake ArUco target at the desired coordinates
-        if not self.clock.calibration:
-            self.clock.calibrate(detections)
+        if not self.clock.calibration or not self._initialized:
+            super().update(detections)
             return
 
         target_px = self.clock.mm_to_pixel(self._target_mm)
@@ -326,6 +341,20 @@ class BallReflector(Scenario):
         self.cmd_interval_s = 0.1  # min time between commands
         self._last_cmd_time = 0.0  # unix-time of last setxy
         self._work_lines = None  # list[(p1,p2)…] rectangle edges (px)
+        self._initialized = False
+
+    def on_start(self) -> None:
+        """Reset state and begin calibration."""
+        self.clock.calibration = None
+        self.clock._cal_state = 0
+        self.clock._px_hits = []
+        self._line = None
+        self._meet_px = None
+        self._fired = False
+        self._goal_px = None
+        self._last_cmd_time = 0.0
+        self._work_lines = None
+        self._initialized = False
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
@@ -335,13 +364,11 @@ class BallReflector(Scenario):
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
     def update(self, detections):
-        # ── 0. Calibration ───────────────────────────────────────────
-        if not self.clock.calibration:
-            self.clock.calibrate(detections)
-            return
-
-        # ── 1. Build work-area rectangle once ───────────────────────
-        if self._work_lines is None:
+        # -- initialization --------------------------------------------
+        if not self._initialized:
+            if not self.clock.calibration:
+                self.clock.calibrate(detections)
+                return
             x0, x1 = self.clock.x_range
             y0, y1 = self.clock.y_range
             try:
@@ -352,6 +379,7 @@ class BallReflector(Scenario):
                 self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
             except RuntimeError:
                 self._work_lines = []
+            self._initialized = True
 
         # ── 2. Reset overlay state every frame ──────────────────────
         self._line = self._meet_px = None
