@@ -6,7 +6,11 @@ your local network.
 1. **Run the server**
 
    ```bash
+   # package form (recommended)
    python -m ball_example.app
+
+   # or run the script directly
+   python ball_example/app.py
    ```
    The server listens on port `8000` by default.
 

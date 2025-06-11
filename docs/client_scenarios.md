@@ -35,9 +35,13 @@ curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/js
 
 The repository contains an example scenario in `examples/standing_hitter_client.py` which simply reuses the built-in `StandingBallHitter` logic.
 
-1. Start the server on the host machine:
+1. Start the server on the host machine. You can either run the package or execute the script directly:
    ```bash
+   # package form (recommended)
    python -m ball_example.app
+
+   # or run the script directly
+   python ball_example/app.py
    ```
 2. From another terminal (or another machine on the same network) upload the scenario:
    ```bash
