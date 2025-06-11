@@ -7,6 +7,7 @@ import time
 import numpy as np
 from models import Ball, ArucoMarker, ArucoHitter
 
+
 class Gadgets:
     """
     Base class for gadget communications.
@@ -83,10 +84,11 @@ class Gadgets:
             self._reader_thread.start()
 
     def send_command(self, cmd_name: str, *params: Any) -> None:
-        """Send a formatted command or raw string to the device."""
+        """
+        Send a formatted command or raw string to the device. Use commands dict or raw.
+        """
         if not self._ser or not self._ser.is_open:
-            # Automatically try to open the serial port if not connected
-            self.start_comms()
+            raise RuntimeError("Serial port not open; call start_comms() first.")
         if cmd_name in self.commands:
             fmt = self.commands[cmd_name]
             cmd_str = fmt.format(*params)
