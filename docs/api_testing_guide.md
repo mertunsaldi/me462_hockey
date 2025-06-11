@@ -41,21 +41,27 @@ your local network.
    print(r.json())
    ```
 
-5. **Load a Python scenario**
+4. **Load a Python scenario**
 
    ```bash
    curl -X POST http://192.168.1.100:8000/load_scenario -H 'Content-Type: application/json' \
         -d '{"path": "myscenario.py"}'
    ```
 
-   After a scenario is running you can send messages:
+5. **Start the scenario**
+
+   ```bash
+   curl -X POST http://192.168.1.100:8000/start_scenario
+   ```
+
+   After the scenario is running you can send messages:
 
    ```bash
    curl -X POST http://192.168.1.100:8000/send_message \
         -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
    ```
 
-4. **Video stream**
+6. **Video stream**
 
    Navigate to `http://192.168.1.100:8000/` in a browser to view the live
    camera feed and overlay.

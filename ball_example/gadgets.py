@@ -83,11 +83,10 @@ class Gadgets:
             self._reader_thread.start()
 
     def send_command(self, cmd_name: str, *params: Any) -> None:
-        """
-        Send a formatted command or raw string to the device. Use commands dict or raw.
-        """
+        """Send a formatted command or raw string to the device."""
         if not self._ser or not self._ser.is_open:
-            raise RuntimeError("Serial port not open; call start_comms() first.")
+            # Automatically try to open the serial port if not connected
+            self.start_comms()
         if cmd_name in self.commands:
             fmt = self.commands[cmd_name]
             cmd_str = fmt.format(*params)

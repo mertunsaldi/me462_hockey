@@ -46,9 +46,16 @@ scenario_enabled = False
 @app.route("/start_scenario", methods=["POST"])
 def start_scenario():
     """Activate the currently loaded scenario."""
-    global scenario_enabled
+    global scenario_enabled, pico_connected
     if _current_scenario is None:
         return jsonify({"status": "error", "message": "no scenario loaded"}), 400
+    if not pico_connected:
+        try:
+            plotclock.start_comms()
+            plotclock.send_command("mode", 4)
+            pico_connected = True
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
     if not scenario_enabled:
         try:
             _current_scenario.on_start()
