@@ -18,11 +18,12 @@ class ScenarioLoadError(Exception):
     pass
 
 
-def load_scenario(path: str) -> Scenario:
-    """Load a client scenario from a Python file.
+def load_scenario(path: str, *args: Any, **kwargs: Any) -> Scenario:
+    """Load a client scenario from ``path`` and instantiate it.
 
-    The module must define a ``ClientScenario`` class derived from
-    :class:`ball_example.scenarios.Scenario`.
+    The Python file must define a ``ClientScenario`` class derived from
+    :class:`ball_example.scenarios.Scenario`. Any extra ``args`` and
+    ``kwargs`` are passed to the constructor of ``ClientScenario``.
     """
     spec = importlib.util.spec_from_file_location("client_module", path)
     if spec is None or spec.loader is None:
@@ -40,6 +41,6 @@ def load_scenario(path: str) -> Scenario:
     if not issubclass(cls, Scenario):
         raise ScenarioLoadError("ClientScenario must subclass Scenario")
     try:
-        return cls()
+        return cls(*args, **kwargs)
     except Exception as e:
         raise ScenarioLoadError(f"Could not instantiate ClientScenario: {e}")

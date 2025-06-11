@@ -26,6 +26,8 @@ def test_load_scenario_and_message(tmp_path):
     scenario_code = (
         "from ball_example.scenarios import Scenario\n"
         "class ClientScenario(Scenario):\n"
+        "    def __init__(self, plotclock, frame_size):\n"
+        "        pass\n"
         "    def update(self, d): pass\n"
         "    def process_message(self, m):\n"
         "        self.last = m\n"

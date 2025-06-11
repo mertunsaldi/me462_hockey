@@ -89,7 +89,7 @@ def load_scenario_route():
     if not path:
         return jsonify({"status": "error", "message": "no path provided"}), 400
     try:
-        _current_scenario = load_scenario(path)
+        _current_scenario = load_scenario(path, plotclock, frame_size)
         scenario_enabled = False
         return jsonify({"status": "ok"})
     except ScenarioLoadError as e:
