@@ -1,4 +1,5 @@
 #### Not: Yeni APInin kullanılması ile iligli rehberler docs altındaki "api_testing_guide.md" ve "client_scenarios.md" altında bulunabilir.
+Şu anki örnekte (examples/ball_reflector_client.py) önceden yazılmış bir senaryoyu inherit ettim kolay deneyebilmek açısından, ama normalde bu dosya clientlar tarafından oluşturulan bir Scenario subclassını içermeli yalnızca.
 
 - [ ] bir master pico yapılacak
   - [ ]   sensör girdilerini toplayıp bilgisayara yollayacak
