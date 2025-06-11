@@ -91,6 +91,7 @@
     <div>Number of Balls: <span id="num_balls">0</span></div>
     <div>Speeds: <span id="speeds">[]</span></div>
     <div>IDs: <span id="ball_ids"></span></div>
+    <div>Scenario: <span id="scenario_status">None</span></div>
   </div>
 
   <div id="video-container">
@@ -110,13 +111,33 @@
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
         qs('#ball_ids').textContent  = d.ball_ids.join(', ');
+        const scSpan = qs('#scenario_status');
+        if(d.scenario_loaded){
+          scSpan.textContent = d.scenario_name + (d.scenario_running ? ' (running)' : ' (ready)');
+        } else {
+          scSpan.textContent = 'None';
+        }
+
+        if(!d.scenario_loaded){
+          startBtn.disabled = true;
+          startBtn.classList.remove('running');
+          startBtn.textContent = 'Start Scenario';
+        } else if(d.scenario_running){
+          startBtn.disabled = true;
+          startBtn.classList.add('running');
+          startBtn.textContent = 'Scenario Running';
+        } else {
+          startBtn.disabled = false;
+          startBtn.classList.remove('running');
+          startBtn.textContent = 'Start Scenario';
+        }
       } catch(e){ console.error(e); }
     }
+    const startBtn = qs('#start-btn');
     setInterval(updateStats, 250);
     updateStats();
 
     /* Scenario start button */
-    const startBtn = qs('#start-btn');
     startBtn.addEventListener('click', async () => {
       if(startBtn.classList.contains('running')) return;
       startBtn.disabled = true;

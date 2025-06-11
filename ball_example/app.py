@@ -35,6 +35,7 @@ pico_connected = False
 # Set your active scenario here (None for no scenario)
 # Options: None, 'standing', 'calib'
 # _current_scenario = StandingBallHitter(plotclock)
+# The currently loaded scenario instance, if any
 _current_scenario = None
 # ------------------------------------------------------------------
 
@@ -44,8 +45,15 @@ scenario_enabled = False
 
 @app.route("/start_scenario", methods=["POST"])
 def start_scenario():
+    """Activate the currently loaded scenario."""
     global scenario_enabled
-    scenario_enabled = True
+    if _current_scenario is None:
+        return jsonify({"status": "error", "message": "no scenario loaded"}), 400
+    if not scenario_enabled:
+        try:
+            _current_scenario.on_start()
+        finally:
+            scenario_enabled = True
     return jsonify({"status": "ok"})
 
 
@@ -59,8 +67,7 @@ def load_commands():
     try:
         ordered = sort_plotclocks(plotclocks)
         _current_scenario = CommandScenario(ordered, frame_size, commands)
-        _current_scenario.on_start()
-        scenario_enabled = True
+        scenario_enabled = False
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -81,8 +88,7 @@ def load_scenario_route():
         return jsonify({"status": "error", "message": "no path provided"}), 400
     try:
         _current_scenario = load_scenario(path)
-        _current_scenario.on_start()
-        scenario_enabled = True
+        scenario_enabled = False
         return jsonify({"status": "ok"})
     except ScenarioLoadError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -168,6 +174,7 @@ def stats():
         balls = list(game.balls)
         markers = list(game.arucos)
     speeds = [round(math.hypot(*map(float, b.velocity)), 2) for b in balls]
+    scenario_name = _current_scenario.__class__.__name__ if _current_scenario else None
     return jsonify(
         {
             "num_balls": len(balls),
@@ -176,6 +183,9 @@ def stats():
             "num_markers": len(markers),
             "marker_ids": [m.id for m in markers],
             "marker_centers": [m.center for m in markers],
+            "scenario_loaded": _current_scenario is not None,
+            "scenario_running": _current_scenario is not None and scenario_enabled,
+            "scenario_name": scenario_name,
         }
     )
 
