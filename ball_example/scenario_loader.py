@@ -3,7 +3,11 @@ import sys
 from types import ModuleType
 from typing import Any
 
-from .scenarios import Scenario
+# Import the base class either from the package context or the top-level module.
+try:  # when running "python -m ball_example.app"
+    from .scenarios import Scenario  # type: ignore
+except Exception:  # fallback when app.py is executed directly
+    from scenarios import Scenario
 
 
 class ScenarioLoadError(Exception):
