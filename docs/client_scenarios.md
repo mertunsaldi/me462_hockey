@@ -45,7 +45,7 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    ```
 2. From another terminal (or another machine on the same network) upload the scenario:
    ```bash
-   curl -X POST -F 'file=@examples/standing_hitter_client.py' http://localhost:8000/load_scenario
+   curl -X POST -F 'file=@examples/ball_reflector_client.py' http://localhost:8000/load_scenario
    ```
 3. Connect the PlotClock using the **Connect Pico** button (or POST to
    `/connect_pico`).  The button will turn green once the connection succeeds.
