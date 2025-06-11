@@ -7,6 +7,7 @@ import time
 import numpy as np
 from models import Ball, ArucoMarker, ArucoHitter
 
+
 class Gadgets:
     """
     Base class for gadget communications.
