@@ -51,6 +51,9 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    `/connect_pico`).  The button will turn green once the connection succeeds.
 4. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario,
    press **Start Scenario** (or POST to `/start_scenario`) to begin execution.
+   When a scenario starts, its `on_start()` method runs. The built-in
+   `StandingBallHitter` clears any previous calibration so you should see the
+   calibration routine whenever you start it.
 5. Optionally send messages while it is running:
    ```bash
    curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'

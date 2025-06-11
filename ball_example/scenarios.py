@@ -456,6 +456,13 @@ class StandingBallHitter(Scenario):
         self._start_mm: Optional[Tuple[float, float]] = None
         self._fired = False  # ensure we send drawto sequence only once
 
+    def on_start(self) -> None:
+        """Reset calibration and state when the scenario begins."""
+        self.clock.calibration = None
+        self.clock._cal_state = 0
+        self.clock._px_hits = []
+        self._fired = False
+
     # ------------------------------------------------------------------
     def update(self, detections):
         # 1) drive calibration first
