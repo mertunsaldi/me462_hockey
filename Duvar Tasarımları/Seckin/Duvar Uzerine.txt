@@ -1,0 +1,16 @@
+
+Duvarların mekanik birleşimi Silindir slotlar ve magnetlerle sağlanacak
+
+Elektronik bağlamak için güç göndermek önemli mi?
+
+  * Biz moduler bir tasarım yapmak istiyoruz yani tasarım küçük olmalı
+  * Önceki tasarımda ana bir güç ünitesi vardı ve her şey ona bağlıydı
+      * Bu tasarımda ayaklar olmayacak ve bir sürü terrainde oynanabilecek
+      * O yüzden güç ünitesi çok bulky olacak ve güç kaynağı gerekecek
+  
+ * Bütün gadgetlar eğer şarj edilebilir piller ile çalışırsa daha lean bir tasarım olur
+      * Ama uzun süreler kullanılmak istenirse kullanılamaz (Reinforcement learning vs. işler için)
+
+* Elimizde modüler güç ünitesi kutusu olsa?
+      * Nasıl olacak?
+      * Ana pico ya da pi ile beraber mi üretilmesi gerekiyor?
