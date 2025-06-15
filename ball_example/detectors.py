@@ -71,23 +71,50 @@ class BallDetector:
         param1: float   = 70,
         param2: float   = 70,
         min_radius: int = 30,
-        max_radius: int = 50
+        max_radius: int = 50,
+        scale: float    = 1.0,
     ) -> List[Ball]:
+        """Detect balls in ``frame``.
+
+        ``scale`` allows the expensive processing to run on a smaller
+        version of the image.  The returned ball coordinates are scaled
+        back to the original resolution.
+        """
+
+        orig_frame = frame
+        if scale != 1.0:
+            frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+
+        # Adjust thresholds for the scaled image
+        min_dist_s   = int(min_dist * scale)
+        min_radius_s = max(1, int(min_radius * scale))
+        max_radius_s = int(max_radius * scale)
 
         balls: List[Ball] = []
 
         # 1) Static Hough (unchanged) …
         circles = cv2.HoughCircles(
-            blurred, cv2.HOUGH_GRADIENT, dp, min_dist,
+            blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
             param1=param1, param2=param2,
-            minRadius=min_radius, maxRadius=max_radius
+            minRadius=min_radius_s, maxRadius=max_radius_s
         )
         if circles is not None:
             for x, y, r in np.round(circles[0]).astype(int):
-                color = tuple(int(c) for c in frame[y, x]) if 0 <= x < frame.shape[1] and 0 <= y < frame.shape[0] else (0,255,0)
-                balls.append(Ball(center=(x,y), radius=r, color=color))
+                if scale != 1.0:
+                    x_o = int(x / scale)
+                    y_o = int(y / scale)
+                    r_o = int(r / scale)
+                else:
+                    x_o, y_o, r_o = x, y, r
+                color = (
+                    tuple(int(c) for c in orig_frame[y_o, x_o])
+                    if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                    else (0, 255, 0)
+                )
+                balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         # 2) Build combined mask: BG-subtractor + HSV color mask
         bg_mask = _bg_subtractor.apply(frame)
@@ -107,7 +134,7 @@ class BallDetector:
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area < np.pi*(min_radius**2) or area > np.pi*(max_radius**2):
+            if area < np.pi * (min_radius_s ** 2) or area > np.pi * (max_radius_s ** 2):
                 continue
 
             perim = cv2.arcLength(cnt, True)
@@ -124,18 +151,27 @@ class BallDetector:
                 continue
 
             x, y, r = int(x_f), int(y_f), int(r_f)
-            if any(np.hypot(x-b.center[0], y-b.center[1]) < max(r, b.radius)*0.6 for b in balls):
+            if scale != 1.0:
+                x_o = int(x / scale)
+                y_o = int(y / scale)
+                r_o = int(r / scale)
+            else:
+                x_o, y_o, r_o = x, y, r
+            if any(np.hypot(x_o - b.center[0], y_o - b.center[1]) < max(r_o, b.radius) * 0.6 for b in balls):
                 continue
 
-            color = tuple(int(c) for c in frame[y, x]) if 0 <= x < frame.shape[1] and 0 <= y < frame.shape[0] else (0,255,0)
-            balls.append(Ball(center=(x,y), radius=r, color=color))
-
+            color = (
+                tuple(int(c) for c in orig_frame[y_o, x_o])
+                if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                else (0, 255, 0)
+            )
+            balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
         # 3) Fallback blob detector …
         if not balls:
             params = cv2.SimpleBlobDetector_Params()
             params.filterByArea       = True
-            params.minArea            = np.pi*(min_radius**2)
-            params.maxArea            = np.pi*(max_radius**2)
+            params.minArea            = np.pi*(min_radius_s**2)
+            params.maxArea            = np.pi*(max_radius_s**2)
             params.filterByCircularity= True
             params.minCircularity     = BallDetector.CIRCULARITY_THRESHOLD
             params.filterByConvexity  = True
@@ -147,8 +183,18 @@ class BallDetector:
             keypoints = detector.detect(blurred)
             for kp in keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
-                r    = int(kp.size/2)
-                color= tuple(int(c) for c in frame[y, x]) if 0<=x<frame.shape[1] and 0<=y<frame.shape[0] else (0,255,0)
-                balls.append(Ball(center=(x,y), radius=r, color=color))
+                r    = int(kp.size / 2)
+                if scale != 1.0:
+                    x_o = int(x / scale)
+                    y_o = int(y / scale)
+                    r_o = int(r / scale)
+                else:
+                    x_o, y_o, r_o = x, y, r
+                color = (
+                    tuple(int(c) for c in orig_frame[y_o, x_o])
+                    if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                    else (0, 255, 0)
+                )
+                balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         return balls

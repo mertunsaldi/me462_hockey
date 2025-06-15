@@ -18,7 +18,8 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 # Camera and tracking setup
-camera = Camera(src=4)
+# Use MJPEG at 1280x720 for smoother FPS on Linux
+camera = Camera(src=4, width=1280, height=720, fourcc="MJPG")
 frame_size = camera.get_resolution()
 tracker_mgr = BallTracker()
 
