@@ -6,7 +6,7 @@ from detectors import ArucoDetector
 from renderers import render_overlay, draw_line
 from models import Game
 from scenarios import *
-from ball_example.gadgets import PlotClock
+from gadgets import PlotClock
 from simple_api import CommandScenario, sort_plotclocks
 from scenario_loader import load_scenario, ScenarioLoadError
 
