@@ -18,7 +18,7 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 # Camera and tracking setup
-camera = Camera(src=0)
+camera = Camera(src=4)
 frame_size = camera.get_resolution()
 tracker_mgr = BallTracker()
 
