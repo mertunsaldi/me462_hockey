@@ -37,6 +37,8 @@ class KalmanTracker:
 
 class BallTracker:
     """CSRT + Kalman multi‑ball tracker with colour verification & quick‑add."""
+        # keep as attribute for backward compatibility
+    DETECTION_SCALE = DETECTION_SCALE
     def __init__(self):
         self.trackers: Dict[str, cv2.TrackerCSRT] = {}
         self.kalman  : Dict[str, KalmanTracker]   = {}
