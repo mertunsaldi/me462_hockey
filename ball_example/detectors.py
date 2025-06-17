@@ -55,7 +55,11 @@ class ArucoDetector:
 class BallDetector:
     # ───── Tunable thresholds ───────────────────────────
     CIRCULARITY_THRESHOLD = 0.75
-    AREA_RATIO_THRESHOLD   = 0.8
+    AREA_RATIO_THRESHOLD  = 0.8
+    # reject contours with large holes
+    SOLIDITY_THRESHOLD    = 0.9
+    # edge density limit for Hough circles
+    EDGE_DENSITY_THRESHOLD = 0.15
 
     # HSV range for your ball color (tweak these!)
     HSV_LOWER = np.array([0, 0, 0], dtype=np.uint8)
@@ -71,23 +75,60 @@ class BallDetector:
         param1: float   = 70,
         param2: float   = 70,
         min_radius: int = 30,
-        max_radius: int = 50
+        max_radius: int = 50,
+        scale: float    = 1.0,
     ) -> List[Ball]:
+        """Detect balls in ``frame``.
+
+        ``scale`` allows the expensive processing to run on a smaller
+        version of the image.  The returned ball coordinates are scaled
+        back to the original resolution.
+        """
+
+        orig_frame = frame
+        if scale != 1.0:
+            frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+        edges   = cv2.Canny(blurred, 100, 200)
+        
+        # Adjust thresholds for the scaled image
+        min_dist_s   = int(min_dist * scale)
+        min_radius_s = max(1, int(min_radius * scale))
+        max_radius_s = int(max_radius * scale)
 
         balls: List[Ball] = []
 
         # 1) Static Hough (unchanged) …
         circles = cv2.HoughCircles(
-            blurred, cv2.HOUGH_GRADIENT, dp, min_dist,
+            blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
             param1=param1, param2=param2,
-            minRadius=min_radius, maxRadius=max_radius
+            minRadius=min_radius_s, maxRadius=max_radius_s
         )
         if circles is not None:
             for x, y, r in np.round(circles[0]).astype(int):
-                color = tuple(int(c) for c in frame[y, x]) if 0 <= x < frame.shape[1] and 0 <= y < frame.shape[0] else (0,255,0)
-                balls.append(Ball(center=(x,y), radius=r, color=color))
+
+                # check interior edge density to avoid hollow shapes
+                mask = np.zeros_like(gray)
+                cv2.circle(mask, (x, y), max(1, int(r * 0.8)), 255, -1)
+                inner_edges = cv2.bitwise_and(edges, edges, mask=mask)
+                density = np.count_nonzero(inner_edges) / (np.pi * (max(1, r * 0.8) ** 2))
+                if density > BallDetector.EDGE_DENSITY_THRESHOLD:
+                    continue
+
+                if scale != 1.0:
+                    x_o = int(x / scale)
+                    y_o = int(y / scale)
+                    r_o = int(r / scale)
+                else:
+                    x_o, y_o, r_o = x, y, r
+                color = (
+                    tuple(int(c) for c in orig_frame[y_o, x_o])
+                    if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                    else (0, 255, 0)
+                )
+                balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         # 2) Build combined mask: BG-subtractor + HSV color mask
         bg_mask = _bg_subtractor.apply(frame)
@@ -103,11 +144,19 @@ class BallDetector:
 
         #combined = cv2.bitwise_or(color_clean, fg_clean)
         combined = color_clean
-        contours, _ = cv2.findContours(combined, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(combined, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < np.pi*(min_radius**2) or area > np.pi*(max_radius**2):
+        for idx, cnt in enumerate(contours):
+            if hierarchy is not None and hierarchy[0][idx][3] != -1:
+                continue  # skip holes
+            hole_area = 0.0
+            child = hierarchy[0][idx][2] if hierarchy is not None else -1
+            while child != -1:
+                hole_area += cv2.contourArea(contours[child])
+                child = hierarchy[0][child][0]
+
+            area = cv2.contourArea(cnt) - hole_area
+            if area < np.pi * (min_radius_s ** 2) or area > np.pi * (max_radius_s ** 2):
                 continue
 
             perim = cv2.arcLength(cnt, True)
@@ -119,23 +168,38 @@ class BallDetector:
                 continue
 
             (x_f, y_f), r_f = cv2.minEnclosingCircle(cnt)
-            area_ratio = area / (np.pi*(r_f**2))
+            area_ratio = area / (np.pi * (r_f ** 2))
+            solidity = area / cv2.contourArea(cv2.convexHull(cnt)) if cv2.contourArea(cv2.convexHull(cnt)) > 0 else 0
+            if solidity < BallDetector.SOLIDITY_THRESHOLD:
+                continue
+
             if area_ratio < BallDetector.AREA_RATIO_THRESHOLD:
                 continue
 
             x, y, r = int(x_f), int(y_f), int(r_f)
-            if any(np.hypot(x-b.center[0], y-b.center[1]) < max(r, b.radius)*0.6 for b in balls):
+
+            if any(np.hypot(int(x / scale if scale != 1.0 else x) - b.center[0], int(y / scale if scale != 1.0 else y) - b.center[1]) < max(int(r / scale if scale != 1.0 else r), b.radius) * 0.6 for b in balls):
                 continue
 
-            color = tuple(int(c) for c in frame[y, x]) if 0 <= x < frame.shape[1] and 0 <= y < frame.shape[0] else (0,255,0)
-            balls.append(Ball(center=(x,y), radius=r, color=color))
-
+            if scale != 1.0:
+                x_o = int(x / scale)
+                y_o = int(y / scale)
+                r_o = int(r / scale)
+            else:
+                x_o, y_o, r_o = x, y, r
+            
+            color = (
+                tuple(int(c) for c in orig_frame[y_o, x_o])
+                if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                else (0, 255, 0)
+            )
+            balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
         # 3) Fallback blob detector …
         if not balls:
             params = cv2.SimpleBlobDetector_Params()
             params.filterByArea       = True
-            params.minArea            = np.pi*(min_radius**2)
-            params.maxArea            = np.pi*(max_radius**2)
+            params.minArea            = np.pi*(min_radius_s**2)
+            params.maxArea            = np.pi*(max_radius_s**2)
             params.filterByCircularity= True
             params.minCircularity     = BallDetector.CIRCULARITY_THRESHOLD
             params.filterByConvexity  = True
@@ -147,8 +211,39 @@ class BallDetector:
             keypoints = detector.detect(blurred)
             for kp in keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
-                r    = int(kp.size/2)
-                color= tuple(int(c) for c in frame[y, x]) if 0<=x<frame.shape[1] and 0<=y<frame.shape[0] else (0,255,0)
-                balls.append(Ball(center=(x,y), radius=r, color=color))
+                r    = int(kp.size / 2)
+                mask = np.zeros_like(gray)
+                cv2.circle(mask, (x, y), max(1, int(r * 0.8)), 255, -1)
+                inner_edges = cv2.bitwise_and(edges, edges, mask=mask)
+                density = np.count_nonzero(inner_edges) / (np.pi * (max(1, r * 0.8) ** 2))
+                if density > BallDetector.EDGE_DENSITY_THRESHOLD:
+                    continue
+
+                if scale != 1.0:
+                    x_o = int(x / scale)
+                    y_o = int(y / scale)
+                    r_o = int(r / scale)
+                else:
+                    x_o, y_o, r_o = x, y, r
+                color = (
+                    tuple(int(c) for c in orig_frame[y_o, x_o])
+                    if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
+                    else (0, 255, 0)
+                )
+                balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         return balls
+
+    @staticmethod
+    def get_mask(frame: np.ndarray, scale: float = 1.0) -> np.ndarray:
+        """Return the cleaned color mask used for detection."""
+        if scale != 1.0:
+            frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        color_mask = cv2.inRange(hsv, BallDetector.HSV_LOWER, BallDetector.HSV_UPPER)
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        
+        return color_clean

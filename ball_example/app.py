@@ -1,24 +1,27 @@
-import cv2, math, threading
+import cv2, math, threading, time
+import numpy as np
 from flask import Flask, render_template, Response, jsonify, request
 from camera import Camera
 from trackers import BallTracker
 from detectors import ArucoDetector
+from detectors import BallDetector
 from renderers import render_overlay, draw_line
 from models import Game
 from scenarios import *
-from ball_example.gadgets import PlotClock
+from gadgets import PlotClock
 from simple_api import CommandScenario, sort_plotclocks
 from scenario_loader import load_scenario, ScenarioLoadError
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-import logging
+#import logging
 
-log = logging.getLogger("werkzeug")
-log.setLevel(logging.ERROR)
+#log = logging.getLogger("werkzeug")
+#log.setLevel(logging.ERROR)
 
 # Camera and tracking setup
-camera = Camera(src=0)
+# Use MJPEG at 1280x720 for smoother FPS on Linux
+camera = Camera(src=2, width=1280, height=720, fourcc="MJPG")
 frame_size = camera.get_resolution()
 tracker_mgr = BallTracker()
 
@@ -30,6 +33,42 @@ plotclock = PlotClock(port=None, baudrate=115200, timeout=0.2)
 plotclocks = [plotclock]
 pico_lock = threading.Lock()
 pico_connected = False
+
+@app.before_first_request
+def _ensure_camera_running():
+    """Start the camera thread when the server handles the first request."""
+    if not camera.running:
+        camera.start()
+        
+# Manual tuning state
+manual_mode = False
+_default_params = {
+    "circ": BallDetector.CIRCULARITY_THRESHOLD,
+    "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
+    "solidity": BallDetector.SOLIDITY_THRESHOLD,
+    "edge_density": BallDetector.EDGE_DENSITY_THRESHOLD,
+    "h_low": int(BallDetector.HSV_LOWER[0]),
+    "s_low": int(BallDetector.HSV_LOWER[1]),
+    "v_low": int(BallDetector.HSV_LOWER[2]),
+    "h_up": int(BallDetector.HSV_UPPER[0]),
+    "s_up": int(BallDetector.HSV_UPPER[1]),
+    "v_up": int(BallDetector.HSV_UPPER[2]),
+}
+_manual_params = _default_params.copy()
+
+def _apply_params(params):
+    BallDetector.CIRCULARITY_THRESHOLD = float(params["circ"])
+    BallDetector.AREA_RATIO_THRESHOLD  = float(params["area_ratio"])
+    BallDetector.SOLIDITY_THRESHOLD    = float(params["solidity"])
+    BallDetector.EDGE_DENSITY_THRESHOLD= float(params["edge_density"])
+    BallDetector.HSV_LOWER = np.array([params["h_low"], params["s_low"], params["v_low"]], dtype=np.uint8)
+    BallDetector.HSV_UPPER = np.array([params["h_up"], params["s_up"], params["v_up"]], dtype=np.uint8)
+
+def _reset_defaults():
+    global _manual_params
+    _manual_params = _default_params.copy()
+    _apply_params(_default_params)
+
 
 # ------------------------------------------------------------------
 # Set your active scenario here (None for no scenario)
@@ -158,6 +197,24 @@ def generate_frames():
         )
 
 
+def generate_processed_frames():
+    while True:
+        grabbed, frame = camera.read()
+        if not grabbed:
+            time.sleep(0.01)
+            continue
+
+        mask = BallDetector.get_mask(frame, scale=BallTracker.DETECTION_SCALE)
+        mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+        ok, buf = cv2.imencode(".jpg", mask_bgr)
+        if not ok:
+            continue
+
+        yield (
+            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
+        )
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -167,6 +224,13 @@ def index():
 def video_feed():
     return Response(
         generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.route("/processed_feed")
+def processed_feed():
+    return Response(
+        generate_processed_frames(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
 
@@ -235,6 +299,46 @@ def send_message():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route("/tune")
+def tune_page():
+    return render_template("tune.html")
+
+
+@app.route("/manual_params", methods=["GET", "POST"])
+def manual_params_route():
+    global manual_mode, _manual_params
+    if request.method == "GET":
+        return jsonify({"manual": manual_mode, **_manual_params})
+    data = request.get_json(silent=True) or {}
+    param = data.get("param")
+    value = data.get("value")
+    if param not in _manual_params:
+        return jsonify({"status": "error", "message": "bad param"}), 400
+    _manual_params[param] = value
+    if manual_mode:
+        _apply_params(_manual_params)
+        grabbed, frame = camera.read()
+        if grabbed:
+            tracker_mgr.force_redetect(frame)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/manual_mode", methods=["POST"])
+def manual_mode_route():
+    global manual_mode
+    data = request.get_json(silent=True) or {}
+    enable = bool(data.get("enable"))
+    manual_mode = enable
+    if manual_mode:
+        _apply_params(_manual_params)
+    else:
+        _reset_defaults()
+    grabbed, frame = camera.read()
+    if grabbed:
+        tracker_mgr.force_redetect(frame)
+    return jsonify({"status": "ok", "manual": manual_mode})
 
 
 if __name__ == "__main__":

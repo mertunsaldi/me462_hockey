@@ -40,3 +40,23 @@ def test_load_scenario_and_message(tmp_path):
 
     msg_resp = client.post("/send_message", json={"foo": 1})
     assert msg_resp.status_code == 200
+
+
+def test_manual_mode_endpoints():
+    client = hockey_app.app.test_client()
+    r = client.get("/manual_params")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "manual" in data
+    r2 = client.post("/manual_mode", json={"enable": True})
+    assert r2.status_code == 200
+    r3 = client.post("/manual_params", json={"param": "edge_density", "value": 0.2})
+    assert r3.status_code == 200
+    r4 = client.post("/manual_mode", json={"enable": False})
+    assert r4.status_code == 200
+
+
+def test_processed_feed_route():
+    client = hockey_app.app.test_client()
+    r = client.get("/processed_feed")
+    assert r.status_code == 200   

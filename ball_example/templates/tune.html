@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Detection Tuning</title>
+<style>
+ body{background:#222;color:#eee;font-family:Arial;margin:0;padding:0;display:flex;flex-direction:column;align-items:center}
+ #video{max-width:90%;margin-top:10px}
+ .slider{margin:8px;width:80%}
+ label{display:block;margin-bottom:4px}
+ input[type=range]{width:100%}
+ #mode-btn{margin-top:10px;padding:8px 12px;border:none;border-radius:4px;background:#f39c12;color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<h3>Manual Detection Tuning</h3>
+<button id="mode-btn">Enable Manual Mode</button>
+<img id="video" src="{{ url_for('processed_feed') }}" alt="Processed">
+<div class="slider">
+<label>Edge Density: <span id="edge_density_val"></span></label>
+<input id="edge_density" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Solidity: <span id="solidity_val"></span></label>
+<input id="solidity" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Hue Low: <span id="h_low_val"></span></label>
+<input id="h_low" type="range" min="0" max="179" step="1">
+</div>
+<div class="slider">
+<label>Hue High: <span id="h_up_val"></span></label>
+<input id="h_up" type="range" min="0" max="179" step="1">
+</div>
+<script>
+let mode=false;
+async function loadParams(){
+ const r=await fetch('/manual_params');
+ if(!r.ok) return;
+ const d=await r.json();
+ mode=d.manual;
+ document.getElementById('mode-btn').textContent=mode?'Disable Manual Mode':'Enable Manual Mode';
+ ['edge_density','solidity','h_low','h_up'].forEach(k=>{
+   if(d[k]!==undefined){
+     const el=document.getElementById(k);
+     el.value=d[k];
+     document.getElementById(k+'_val').textContent=d[k];
+   }
+ });
+}
+async function setParam(name,val){
+ await fetch('/manual_params',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({param:name,value:val})});
+}
+['edge_density','solidity','h_low','h_up'].forEach(k=>{
+ const el=document.getElementById(k);
+ el.addEventListener('input',()=>{
+   const v=el.value;
+   document.getElementById(k+'_val').textContent=v;
+   setParam(k,parseFloat(v));
+ });
+});
+const modeBtn=document.getElementById('mode-btn');
+modeBtn.addEventListener('click',async()=>{
+ const r=await fetch('/manual_mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enable:!mode})});
+ if(r.ok){const d=await r.json();mode=d.manual;modeBtn.textContent=mode?'Disable Manual Mode':'Enable Manual Mode';loadParams();}
+});
+loadParams();
+</script>
+</body>
+</html>

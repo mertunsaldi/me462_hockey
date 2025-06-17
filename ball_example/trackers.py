@@ -14,6 +14,8 @@ REINIT_INTERVAL     = 70       # frames between *forced* re‑detects
 DT                  = 1.0      # Kalman Δt (frames)
 INTERSECT_TOLERANCE = 10.0      # allowed overlap between balls
 PATCH_HALF          = 2        # 5×5 colour patch (radius)
+# Run detection on a scaled-down image to reduce CPU load
+DETECTION_SCALE    = 0.5
 # ---------------------------------------
 
 # ---------- Kalman helper --------------
@@ -59,12 +61,29 @@ class BallTracker:
             t=cv2.TrackerCSRT_create(); t.init(frame,(x-r,y-r,2*r,2*r))
             self.trackers[bid]=t; self.kalman[bid]=KalmanTracker(b.center); self.missing[bid]=0
 
+
+    def force_redetect(self, frame: np.ndarray):
+        """Clear all state and redetect balls using current parameters."""
+        self.trackers.clear()
+        self.kalman.clear()
+        self.missing.clear()
+        self.balls.clear()
+        self.next_id = 0
+        for d in BallDetector.detect(frame, scale=DETECTION_SCALE):
+            bid = f"ball_{self.next_id}"
+            self.next_id += 1
+            d.id = bid
+            self.balls[bid] = d
+        self._reset_trackers(frame)
+        self.frame_count = 0
+        
+
     # ---------------- main update ----------------
     def update(self, frame: np.ndarray) -> List[Ball]:
         self.frame_count += 1
         # ------- if nothing tracked, detect now -------
         if not self.balls:
-            for d in BallDetector.detect(frame):
+            for d in BallDetector.detect(frame, scale=DETECTION_SCALE):
                 bid=f"ball_{self.next_id}"; self.next_id+=1; d.id=bid; self.balls[bid]=d
             self._reset_trackers(frame)
 
@@ -109,7 +128,7 @@ class BallTracker:
         self.balls = updates
 
         # ------- quick‑add new balls every frame ------
-        for d in BallDetector.detect(frame):
+        for d in BallDetector.detect(frame, scale=DETECTION_SCALE):
             # skip if near existing ball
             if any(math.hypot(d.center[0]-b.center[0], d.center[1]-b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                 continue
@@ -127,7 +146,7 @@ class BallTracker:
         if self.frame_count >= REINIT_INTERVAL:
             self.frame_count = 0
             # run detection and merge with existing state (simple add if distinct)
-            for d in BallDetector.detect(frame):
+            for d in BallDetector.detect(frame, scale=DETECTION_SCALE):
                 if any(math.hypot(d.center[0]-b.center[0], d.center[1]-b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                     continue
                 bid=f"ball_{self.next_id}"; self.next_id+=1; d.id=bid
