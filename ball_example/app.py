@@ -2,7 +2,7 @@ import cv2, math, threading, time
 import numpy as np
 from flask import Flask, render_template, Response, jsonify, request
 from camera import Camera
-from trackers import BallTracker
+from trackers import BallTracker, DETECTION_SCALE
 from detectors import ArucoDetector
 from detectors import BallDetector
 from renderers import render_overlay, draw_line
@@ -34,11 +34,21 @@ plotclocks = [plotclock]
 pico_lock = threading.Lock()
 pico_connected = False
 
-@app.before_first_request
-def _ensure_camera_running():
-    """Start the camera thread when the server handles the first request."""
-    if not camera.running:
-        camera.start()
+_cam_started = False
+if hasattr(app, "before_first_request"):
+    @app.before_first_request
+    def _ensure_camera_running():
+        global _cam_started
+        if not _cam_started and not camera.running:
+            camera.start()
+            _cam_started = True
+else:
+    @app.before_request
+    def _ensure_camera_running():
+        global _cam_started
+        if not _cam_started and not camera.running:
+            camera.start()
+            _cam_started = True
         
 # Manual tuning state
 manual_mode = False
@@ -47,6 +57,8 @@ _default_params = {
     "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
     "solidity": BallDetector.SOLIDITY_THRESHOLD,
     "edge_density": BallDetector.EDGE_DENSITY_THRESHOLD,
+    "blur": BallDetector.BLUR_KERNEL,
+    "sigma": BallDetector.BLUR_SIGMA,
     "h_low": int(BallDetector.HSV_LOWER[0]),
     "s_low": int(BallDetector.HSV_LOWER[1]),
     "v_low": int(BallDetector.HSV_LOWER[2]),
@@ -60,6 +72,8 @@ def _apply_params(params):
     BallDetector.CIRCULARITY_THRESHOLD = float(params["circ"])
     BallDetector.AREA_RATIO_THRESHOLD  = float(params["area_ratio"])
     BallDetector.SOLIDITY_THRESHOLD    = float(params["solidity"])
+    BallDetector.BLUR_KERNEL = int(params["blur"])
+    BallDetector.BLUR_SIGMA  = float(params["sigma"])
     BallDetector.EDGE_DENSITY_THRESHOLD= float(params["edge_density"])
     BallDetector.HSV_LOWER = np.array([params["h_low"], params["s_low"], params["v_low"]], dtype=np.uint8)
     BallDetector.HSV_UPPER = np.array([params["h_up"], params["s_up"], params["v_up"]], dtype=np.uint8)

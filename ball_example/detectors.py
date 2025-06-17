@@ -61,6 +61,10 @@ class BallDetector:
     # edge density limit for Hough circles
     EDGE_DENSITY_THRESHOLD = 0.15
 
+    # Gaussian blur parameters
+    BLUR_KERNEL = 9  # odd integer
+    BLUR_SIGMA  = 2.0
+
     # HSV range for your ball color (tweak these!)
     HSV_LOWER = np.array([0, 0, 0], dtype=np.uint8)
     HSV_UPPER = np.array([120, 120, 120], dtype=np.uint8)
@@ -90,7 +94,16 @@ class BallDetector:
             frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
 
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+
+        k = max(1, int(BallDetector.BLUR_KERNEL))
+        if k % 2 == 0:
+            k += 1
+        blurred = cv2.GaussianBlur(
+            gray,
+            (k, k),
+            BallDetector.BLUR_SIGMA,
+        )
+
         edges   = cv2.Canny(blurred, 100, 200)
         
         # Adjust thresholds for the scaled image
@@ -247,3 +260,5 @@ class BallDetector:
         color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel, iterations=1)
         
         return color_clean
+        
+        

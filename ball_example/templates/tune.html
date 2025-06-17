@@ -25,6 +25,24 @@
 <input id="solidity" type="range" min="0" max="1" step="0.01">
 </div>
 <div class="slider">
+
+<label>Circularity: <span id="circ_val"></span></label>
+<input id="circ" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Area Ratio: <span id="area_ratio_val"></span></label>
+<input id="area_ratio" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Blur Kernel: <span id="blur_val"></span></label>
+<input id="blur" type="range" min="1" max="31" step="2">
+</div>
+<div class="slider">
+<label>Blur Sigma: <span id="sigma_val"></span></label>
+<input id="sigma" type="range" min="0" max="10" step="0.1">
+</div>
+<div class="slider">
+
 <label>Hue Low: <span id="h_low_val"></span></label>
 <input id="h_low" type="range" min="0" max="179" step="1">
 </div>
@@ -32,15 +50,34 @@
 <label>Hue High: <span id="h_up_val"></span></label>
 <input id="h_up" type="range" min="0" max="179" step="1">
 </div>
+
+<div class="slider">
+<label>Saturation Low: <span id="s_low_val"></span></label>
+<input id="s_low" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Value Low: <span id="v_low_val"></span></label>
+<input id="v_low" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Saturation High: <span id="s_up_val"></span></label>
+<input id="s_up" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Value High: <span id="v_up_val"></span></label>
+<input id="v_up" type="range" min="0" max="255" step="1">
+</div>
+
 <script>
 let mode=false;
+const paramKeys=['edge_density','solidity','circ','area_ratio','blur','sigma','h_low','s_low','v_low','h_up','s_up','v_up'];
 async function loadParams(){
  const r=await fetch('/manual_params');
  if(!r.ok) return;
  const d=await r.json();
  mode=d.manual;
  document.getElementById('mode-btn').textContent=mode?'Disable Manual Mode':'Enable Manual Mode';
- ['edge_density','solidity','h_low','h_up'].forEach(k=>{
+ paramKeys.forEach(k=>{
    if(d[k]!==undefined){
      const el=document.getElementById(k);
      el.value=d[k];
@@ -51,7 +88,7 @@ async function loadParams(){
 async function setParam(name,val){
  await fetch('/manual_params',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({param:name,value:val})});
 }
-['edge_density','solidity','h_low','h_up'].forEach(k=>{
+paramKeys.forEach(k=>{
  const el=document.getElementById(k);
  el.addEventListener('input',()=>{
    const v=el.value;
