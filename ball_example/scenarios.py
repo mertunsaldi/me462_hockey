@@ -475,7 +475,7 @@ class StandingBallHitter(Scenario):
     """Calibrates PlotClock, then strikes the ball toward the target."""
 
     def __init__(self, plotclock: PlotClock):
-        self.clock = plotclock
+        self.plotclock = plotclock
         self.hitter: Optional[ArucoHitter] = None
         self.target: Optional[ArucoMarker] = None
         self.ball: Optional[Ball] = None
@@ -486,16 +486,16 @@ class StandingBallHitter(Scenario):
 
     def on_start(self) -> None:
         """Reset calibration and state when the scenario begins."""
-        self.clock.calibration = None
-        self.clock._cal_state = 0
-        self.clock._px_hits = []
+        self.plotclock.calibration = None
+        self.plotclock._cal_state = 0
+        self.plotclock._px_hits = []
         self._fired = False
 
     # ------------------------------------------------------------------
     def update(self, detections):
         # 1) drive calibration first
-        if not self.clock.calibration:
-            self.clock.calibrate(detections)
+        if not self.plotclock.calibration:
+            self.plotclock.calibrate(detections)
             return  # nothing else until calibrated
 
         # 2) reset per‑frame state
@@ -522,14 +522,14 @@ class StandingBallHitter(Scenario):
                 sx = int(bx - dx / dist * 70)
                 sy = int(by - dy / dist * 70)
                 self._start_px = (sx, sy)
-                self._start_mm = self.clock.find_mm(sx, sy)
+                self._start_mm = self.plotclock.find_mm(sx, sy)
 
                 # once per run: move hitter then strike
                 if not self._fired and self._start_mm:
-                    ball_mm = self.clock.find_mm(bx, by)
-                    self.clock.send_command("drawto", *self._start_mm)
+                    ball_mm = self.plotclock.find_mm(bx, by)
+                    self.plotclock.send_command("drawto", *self._start_mm)
                     time.sleep(0.7)
-                    self.clock.send_command("setxy", *ball_mm)
+                    self.plotclock.send_command("setxy", *ball_mm)
                     self._fired = True
 
     # ------------------------------------------------------------------
