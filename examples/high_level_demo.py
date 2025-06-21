@@ -13,7 +13,7 @@ Rules
 import time
 import cv2
 from ball_example.game_api import GameAPI
-from ball_example.high_level import (
+from high_level import (
     discover_plotclocks,
     calibrate_clocks,
 )
@@ -23,11 +23,16 @@ api.start()
 
 # gather initial detections
 print("Waiting for detections...")
-time.sleep(2.0)
-with api.lock:
-    detections = list(api.arucos)
+clocks = []
+start = time.time()
+while time.time() - start < 5.0 and len(clocks) < 1:
+    time.sleep(0.1)
+    with api.lock:
+        detections = list(api.arucos)
+    clocks = discover_plotclocks(detections)
 
-clocks = discover_plotclocks(detections)
+if not clocks:
+    raise RuntimeError("No PlotClocks detected")
 
 def _get_dets():
     with api.lock:

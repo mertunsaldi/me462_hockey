@@ -85,3 +85,15 @@ Navigate to `http://192.168.1.100:8000/` in a browser to view the live
 
 Only trusted clients should be allowed to issue commands, as they can control the
 connected PlotClocks.
+
+## Python helper module
+
+For quick scripting you can import helper functions directly from the project
+root:
+
+```python
+from high_level import discover_plotclocks, calibrate_clocks
+```
+
+These wrappers simplify PlotClock discovery and calibration when using the
+`GameAPI` class programmatically.
