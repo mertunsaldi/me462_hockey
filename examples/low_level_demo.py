@@ -1,15 +1,16 @@
 """Low level API usage example.
 
 This script shows how to access raw detections and send direct commands to a
-PlotClock.  A simple Tkinter GUI displays the annotated camera feed using only
-low level methods from :class:`GameAPI`.
+PlotClock. A simple Tkinter GUI displays the camera feed that we annotate
+ourselves using the low level data exposed by :class:`GameAPI`.
 """
 
 import time
 import cv2
-from ball_example.game_api import GameAPI
 import tkinter as tk
 from PIL import Image, ImageTk
+from ball_example.game_api import GameAPI
+from ball_example.renderers import render_overlay
 
 
 def main() -> None:
@@ -24,9 +25,13 @@ def main() -> None:
     label.pack()
 
     def update_frame() -> None:
-        frame = api.get_annotated_frame()
+        frame = api.raw_pipe.get_raw_frame()
         if frame is not None:
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            with api.lock:
+                balls = list(api.balls)
+                markers = list(api.arucos)
+            annotated = render_overlay(frame, balls, markers)
+            img = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
             im_pil = Image.fromarray(img)
             im_tk = ImageTk.PhotoImage(im_pil)
             label.configure(image=im_tk)
