@@ -33,10 +33,7 @@ def main() -> None:
             label.image = im_tk
         root.after(30, update_frame)
 
-    root.after(0, update_frame)
-
-    while True:
-        time.sleep(0.1)
+    def poll_state() -> None:
         with api.lock:
             balls = list(api.balls)
             markers = list(api.arucos)
@@ -49,9 +46,11 @@ def main() -> None:
                 api.send_cmd("home")
             except Exception as e:
                 print("pico error", e)
-        if not root.winfo_exists():
-            break
 
+        root.after(100, poll_state)
+
+    root.after(0, update_frame)
+    root.after(0, poll_state)
     root.mainloop()
 
 
