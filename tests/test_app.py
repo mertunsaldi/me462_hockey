@@ -22,6 +22,12 @@ def test_load_commands_ok():
     assert resp.get_json()["status"] == "ok"
 
 
+def test_stop_scenario_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.post("/stop_scenario")
+    assert r.status_code == 200
+
+
 def test_load_scenario_and_message(tmp_path):
     scenario_code = (
         "from ball_example.scenarios import Scenario\n"
@@ -42,6 +48,14 @@ def test_load_scenario_and_message(tmp_path):
     assert msg_resp.status_code == 200
 
 
+def test_stats_extended_fields():
+    client = hockey_app.app.test_client()
+    r = client.get("/stats")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "ball_details" in data
+
+
 def test_manual_mode_endpoints():
     client = hockey_app.app.test_client()
     r = client.get("/manual_params")
@@ -59,4 +73,4 @@ def test_manual_mode_endpoints():
 def test_processed_feed_route():
     client = hockey_app.app.test_client()
     r = client.get("/processed_feed")
-    assert r.status_code == 200   
+    assert r.status_code == 200

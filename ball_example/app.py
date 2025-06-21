@@ -2,17 +2,9 @@ import cv2, math, threading, time
 import numpy as np
 from typing import Optional
 from flask import Flask, render_template, Response, jsonify, request
-from camera import Camera
-from trackers import BallTracker, DETECTION_SCALE
-from detectors import ArucoDetector
-from detectors import BallDetector
-from pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
-from renderers import render_overlay, draw_line
-from models import Game
-from scenarios import *
-from gadgets import PlotClock
-from simple_api import CommandScenario, sort_plotclocks
-from scenario_loader import load_scenario, ScenarioLoadError
+
+from .game_api import GameAPI
+from .detectors import BallDetector
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -21,50 +13,17 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 #log = logging.getLogger("werkzeug")
 #log.setLevel(logging.ERROR)
 
-# Camera and tracking setup
-# Use MJPEG at 1280x720 for smoother FPS on Linux
-camera = Camera(src=2, width=1280, height=720, fourcc="MJPG")
-frame_size = camera.get_resolution()
-tracker_mgr = BallTracker()
-raw_pipe = RawImagePipeline(camera)
-mask_pipe = MaskedImagePipeline(raw_pipe, scale=DETECTION_SCALE)
+# Core processing API
+api = GameAPI()
 
-annotated_pipe: Optional[AnnotatedImagePipeline] = None
-
-game = Game()
-lock = threading.Lock()
-
-# PlotClock communication setup
-plotclock = PlotClock(port=None, baudrate=115200, timeout=0.2)
-plotclocks = [plotclock]
-pico_lock = threading.Lock()
-pico_connected = False
-
-_cam_started = False
 if hasattr(app, "before_first_request"):
     @app.before_first_request
     def _ensure_camera_running():
-        global _cam_started
-        global annotated_pipe
-        if not _cam_started and not camera.running:
-            camera.start()
-            raw_pipe.start()
-            mask_pipe.start()
-            annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
-            annotated_pipe.start()
-            _cam_started = True
+        api.start()
 else:
     @app.before_request
     def _ensure_camera_running():
-        global _cam_started
-        global annotated_pipe
-        if not _cam_started and not camera.running:
-            camera.start()
-            raw_pipe.start()
-            mask_pipe.start()
-            annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
-            annotated_pipe.start()
-            _cam_started = True
+        api.start()
         
 # Manual tuning state
 manual_mode = False
@@ -101,44 +60,36 @@ def _reset_defaults():
 
 
 # ------------------------------------------------------------------
-# Set your active scenario here (None for no scenario)
-# Options: None, 'standing', 'calib'
-# _current_scenario = StandingBallHitter(plotclock)
-# The currently loaded scenario instance, if any
-_current_scenario = None
-# ------------------------------------------------------------------
-
-# Only run scenario after start is triggered
-scenario_enabled = False
 
 
 @app.route("/start_scenario", methods=["POST"])
 def start_scenario():
     """Activate the currently loaded scenario."""
-    global scenario_enabled
-    if _current_scenario is None:
-        return jsonify({"status": "error", "message": "no scenario loaded"}), 400
+    try:
+        api.start_scenario()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
-    if not scenario_enabled:
-        try:
-            _current_scenario.on_start()
-        finally:
-            scenario_enabled = True
 
-    return jsonify({"status": "ok"})
+@app.route("/stop_scenario", methods=["POST"])
+def stop_scenario():
+    """Deactivate the running scenario if any."""
+    try:
+        api.stop_scenario()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 
 @app.route("/load_commands", methods=["POST"])
 def load_commands():
-    global _current_scenario, scenario_enabled
     data = request.get_json(silent=True) or {}
     commands = data.get("commands")
     if not isinstance(commands, list):
         return jsonify({"status": "error", "message": "commands must be a list"}), 400
     try:
-        ordered = sort_plotclocks(plotclocks)
-        _current_scenario = CommandScenario(ordered, frame_size, commands)
-        scenario_enabled = False
+        api.load_commands(commands)
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -147,7 +98,6 @@ def load_commands():
 @app.route("/load_scenario", methods=["POST"])
 def load_scenario_route():
     """Load a custom scenario from a Python file path or uploaded file."""
-    global _current_scenario, scenario_enabled
     if "file" in request.files:
         up = request.files["file"]
         path = "/tmp/" + up.filename
@@ -158,8 +108,7 @@ def load_scenario_route():
     if not path:
         return jsonify({"status": "error", "message": "no path provided"}), 400
     try:
-        _current_scenario = load_scenario(path, plotclock, frame_size)
-        scenario_enabled = False
+        api.load_scenario(path)
         return jsonify({"status": "ok"})
     except ScenarioLoadError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -167,55 +116,11 @@ def load_scenario_route():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-def _process_annotated(frame):
-    mask = mask_pipe.get_masked_frame()
-
-    balls = tracker_mgr.update(frame, mask=mask)
-    markers = ArucoDetector.detect(frame)
-
-    with lock:
-        game.set_balls(balls)
-        game.set_arucos(markers)
-
-    scenario_line = None
-    extra_pts = None
-    extra_labels = None
-    if _current_scenario and scenario_enabled:
-        detections = balls + markers
-        _current_scenario.update(detections)
-        scenario_line = _current_scenario.get_line_points()
-        extra_pts = _current_scenario.get_extra_points()
-        extra_labels = _current_scenario.get_extra_labels()
-
-    annotated = render_overlay(
-        frame,
-        balls,
-        markers,
-        line_points=None,
-        extra_points=extra_pts,
-        extra_labels=extra_labels,
-    )
-
-    if _current_scenario and scenario_enabled and scenario_line:
-        lines = (
-            scenario_line if isinstance(scenario_line, list) else [scenario_line]
-        )
-        for idx, (p1, p2) in enumerate(lines):
-            if len(lines) == 2:
-                color = (255, 0, 0) if idx == 0 else (0, 0, 255)
-            else:
-                color = (255, 255, 255)
-            draw_line(annotated, p1, p2, color=color, thickness=2)
-
-    return annotated
 
 
 def generate_frames():
     while True:
-        if annotated_pipe is None:
-            time.sleep(0.01)
-            continue
-        annotated = annotated_pipe.get_annotated_frame()
+        annotated = api.get_annotated_frame()
         if annotated is None:
             time.sleep(0.01)
             continue
@@ -231,7 +136,7 @@ def generate_frames():
 
 def generate_processed_frames():
     while True:
-        mask = mask_pipe.get_masked_frame()
+        mask = api.get_processed_frame()
         if mask is None:
             time.sleep(0.01)
             continue
@@ -266,66 +171,41 @@ def processed_feed():
 
 @app.route("/stats")
 def stats():
-    with lock:
-        balls = list(game.balls)
-        markers = list(game.arucos)
-    speeds = [round(math.hypot(*map(float, b.velocity)), 2) for b in balls]
-    scenario_name = _current_scenario.__class__.__name__ if _current_scenario else None
-    return jsonify(
-        {
-            "num_balls": len(balls),
-            "ball_ids": [b.id for b in balls],
-            "speeds": speeds,
-            "num_markers": len(markers),
-            "marker_ids": [m.id for m in markers],
-            "marker_centers": [m.center for m in markers],
-            "scenario_loaded": _current_scenario is not None,
-            "scenario_running": _current_scenario is not None and scenario_enabled,
-            "scenario_name": scenario_name,
-        }
-    )
+    return jsonify(api.stats())
 
 
 @app.route("/connect_pico", methods=["POST"])
 def connect_pico():
-    global pico_connected
-    with pico_lock:
-        if pico_connected:
-            return jsonify({"status": "ok"})
-        try:
-            plotclock.start_comms()
-            plotclock.send_command("mode", 4)
-            pico_connected = True
-            return jsonify({"status": "ok"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
+    try:
+        api.connect_pico()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/send_cmd", methods=["POST"])
 def send_cmd():
-    global pico_connected
-    if not pico_connected:
+    try:
+        api.connect_pico()
+    except Exception:
         return jsonify({"status": "error", "message": "not connected"}), 400
     data = request.get_json(silent=True) or {}
     cmd = data.get("cmd", "").strip()
     if not cmd:
         return jsonify({"status": "error", "message": "empty cmd"}), 400
-    with pico_lock:
-        try:
-            plotclock.send_command(cmd)
-            return jsonify({"status": "ok"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
+    try:
+        api.send_cmd(cmd)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/send_message", methods=["POST"])
 def send_message():
     """Dispatch a control message to the running scenario."""
-    if not _current_scenario:
-        return jsonify({"status": "error", "message": "no scenario"}), 400
     data = request.get_json(silent=True) or {}
     try:
-        _current_scenario.process_message(data)
+        api.process_message(data)
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -349,10 +229,10 @@ def manual_params_route():
     _manual_params[param] = value
     if manual_mode:
         _apply_params(_manual_params)
-        frame = raw_pipe.get_raw_frame()
-        mask = mask_pipe.get_masked_frame()
+        frame = api.raw_pipe.get_raw_frame()
+        mask = api.mask_pipe.get_masked_frame()
         if frame is not None:
-            tracker_mgr.force_redetect(frame, mask=mask)
+            api.tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok"})
 
 
@@ -366,24 +246,20 @@ def manual_mode_route():
         _apply_params(_manual_params)
     else:
         _reset_defaults()
-    frame = raw_pipe.get_raw_frame()
-    mask = mask_pipe.get_masked_frame()
+    frame = api.raw_pipe.get_raw_frame()
+    mask = api.mask_pipe.get_masked_frame()
     if frame is not None:
-        tracker_mgr.force_redetect(frame, mask=mask)
+        api.tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok", "manual": manual_mode})
 
 
 if __name__ == "__main__":
     try:
-        camera.start()
-        raw_pipe.start()
-        mask_pipe.start()
-        annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
-        annotated_pipe.start()
+        api.start()
         app.run(host="0.0.0.0", port=8000, threaded=True, debug=False, use_reloader=False)
     finally:
-        raw_pipe.stop()
-        mask_pipe.stop()
-        if annotated_pipe:
-            annotated_pipe.stop()
-        camera.stop()
+        if api.annotated_pipe:
+            api.annotated_pipe.stop()
+        api.raw_pipe.stop()
+        api.mask_pipe.stop()
+        api.camera.stop()

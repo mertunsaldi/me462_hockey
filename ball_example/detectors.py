@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import List, Optional
-from models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter
 
 # Global background subtractor for motion detection
 _bg_subtractor = cv2.createBackgroundSubtractorMOG2(

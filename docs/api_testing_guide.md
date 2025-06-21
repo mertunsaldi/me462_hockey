@@ -71,8 +71,17 @@ your local network.
 
 7. **Video stream**
 
-   Navigate to `http://192.168.1.100:8000/` in a browser to view the live
+Navigate to `http://192.168.1.100:8000/` in a browser to view the live
    camera feed and overlay.
+
+8. **Retrieve game statistics**
+
+   ```bash
+   curl http://192.168.1.100:8000/stats
+   ```
+
+   The JSON response now includes `ball_details` with each ball's center,
+   radius and velocity components in addition to the previous fields.
 
 Only trusted clients should be allowed to issue commands, as they can control the
 connected PlotClocks.

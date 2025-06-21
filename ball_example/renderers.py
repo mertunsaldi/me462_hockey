@@ -2,7 +2,7 @@ import cv2
 import math
 import numpy as np
 from typing import List, Optional, Tuple
-from models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter
 
 
 def draw_line(

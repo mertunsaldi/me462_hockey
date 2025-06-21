@@ -3,8 +3,8 @@ import math
 import threading
 import numpy as np
 from typing import Dict, List, Tuple, Optional
-from models import Ball
-from detectors import BallDetector
+from .models import Ball
+from .detectors import BallDetector
 
 # ---------- Tunable thresholds ----------
 SPATIAL_THRESHOLD   = 60.0     # px centroid distance to match / quick‑add check
