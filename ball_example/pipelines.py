@@ -4,7 +4,7 @@ from typing import Optional, Callable
 import numpy as np
 
 from camera import Camera
-from detectors import BallDetector
+from detectors import compute_color_mask
 from trackers import DETECTION_SCALE
 
 
@@ -68,7 +68,7 @@ class MaskedImagePipeline:
             if frame is None:
                 time.sleep(0.01)
                 continue
-            mask = BallDetector.get_mask(frame, scale=self.scale)
+            mask = compute_color_mask(frame, scale=self.scale)
             with self.lock:
                 self.frame = mask
 

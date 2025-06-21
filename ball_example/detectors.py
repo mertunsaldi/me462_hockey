@@ -253,18 +253,18 @@ class BallDetector:
 
         return balls
 
-    @staticmethod
-    def get_mask(frame: np.ndarray, scale: float = 1.0) -> np.ndarray:
-        """Return the cleaned color mask used for detection."""
-        if scale != 1.0:
-            frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
 
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        color_mask = cv2.inRange(hsv, BallDetector.HSV_LOWER, BallDetector.HSV_UPPER)
+def compute_color_mask(frame: np.ndarray, scale: float = 1.0) -> np.ndarray:
+    """Return the cleaned color mask used for detection."""
+    if scale != 1.0:
+        frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel, iterations=1)
-        
-        return color_clean
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    color_mask = cv2.inRange(hsv, BallDetector.HSV_LOWER, BallDetector.HSV_UPPER)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    return color_clean
         
         
