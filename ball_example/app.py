@@ -1,10 +1,12 @@
 import cv2, math, threading, time
 import numpy as np
+from typing import Optional
 from flask import Flask, render_template, Response, jsonify, request
 from camera import Camera
 from trackers import BallTracker, DETECTION_SCALE
 from detectors import ArucoDetector
 from detectors import BallDetector
+from pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
 from renderers import render_overlay, draw_line
 from models import Game
 from scenarios import *
@@ -24,6 +26,10 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 camera = Camera(src=2, width=1280, height=720, fourcc="MJPG")
 frame_size = camera.get_resolution()
 tracker_mgr = BallTracker()
+raw_pipe = RawImagePipeline(camera)
+mask_pipe = MaskedImagePipeline(raw_pipe, scale=DETECTION_SCALE)
+
+annotated_pipe: Optional[AnnotatedImagePipeline] = None
 
 game = Game()
 lock = threading.Lock()
@@ -39,15 +45,25 @@ if hasattr(app, "before_first_request"):
     @app.before_first_request
     def _ensure_camera_running():
         global _cam_started
+        global annotated_pipe
         if not _cam_started and not camera.running:
             camera.start()
+            raw_pipe.start()
+            mask_pipe.start()
+            annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
+            annotated_pipe.start()
             _cam_started = True
 else:
     @app.before_request
     def _ensure_camera_running():
         global _cam_started
+        global annotated_pipe
         if not _cam_started and not camera.running:
             camera.start()
+            raw_pipe.start()
+            mask_pipe.start()
+            annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
+            annotated_pipe.start()
             _cam_started = True
         
 # Manual tuning state
@@ -151,56 +167,58 @@ def load_scenario_route():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+def _process_annotated(frame):
+    mask = mask_pipe.get_masked_frame()
+
+    balls = tracker_mgr.update(frame, mask=mask)
+    markers = ArucoDetector.detect(frame)
+
+    with lock:
+        game.set_balls(balls)
+        game.set_arucos(markers)
+
+    scenario_line = None
+    extra_pts = None
+    extra_labels = None
+    if _current_scenario and scenario_enabled:
+        detections = balls + markers
+        _current_scenario.update(detections)
+        scenario_line = _current_scenario.get_line_points()
+        extra_pts = _current_scenario.get_extra_points()
+        extra_labels = _current_scenario.get_extra_labels()
+
+    annotated = render_overlay(
+        frame,
+        balls,
+        markers,
+        line_points=None,
+        extra_points=extra_pts,
+        extra_labels=extra_labels,
+    )
+
+    if _current_scenario and scenario_enabled and scenario_line:
+        lines = (
+            scenario_line if isinstance(scenario_line, list) else [scenario_line]
+        )
+        for idx, (p1, p2) in enumerate(lines):
+            if len(lines) == 2:
+                color = (255, 0, 0) if idx == 0 else (0, 0, 255)
+            else:
+                color = (255, 255, 255)
+            draw_line(annotated, p1, p2, color=color, thickness=2)
+
+    return annotated
+
+
 def generate_frames():
     while True:
-        grabbed, frame = camera.read()
-        if not grabbed:
+        if annotated_pipe is None:
             time.sleep(0.01)
             continue
-
-        # 1) detect objects
-        balls = tracker_mgr.update(frame)
-        markers = ArucoDetector.detect(frame)
-
-        # 2) update game state
-        with lock:
-            game.set_balls(balls)
-            game.set_arucos(markers)
-
-        # 3) run scenario logic (if any and enabled)
-        scenario_line = None
-        extra_pts = None
-        extra_labels = None
-        if _current_scenario and scenario_enabled:
-            detections = balls + markers
-            _current_scenario.update(detections)
-            scenario_line = _current_scenario.get_line_points()
-            extra_pts = _current_scenario.get_extra_points()
-            extra_labels = _current_scenario.get_extra_labels()
-
-        # 4) render overlays for balls/markers and extra points
-        annotated = render_overlay(
-            frame,
-            balls,
-            markers,
-            line_points=None,  # handled below
-            extra_points=extra_pts,
-            extra_labels=extra_labels,
-        )
-
-        # 5) draw scenario lines (axes or ball-target line)
-        if _current_scenario and scenario_enabled and scenario_line:
-            # scenario_line may be a single tuple or list of tuples
-            lines = (
-                scenario_line if isinstance(scenario_line, list) else [scenario_line]
-            )
-            for idx, (p1, p2) in enumerate(lines):
-                # if two axes, color X red, Y blue; otherwise white
-                if len(lines) == 2:
-                    color = (255, 0, 0) if idx == 0 else (0, 0, 255)
-                else:
-                    color = (255, 255, 255)
-                draw_line(annotated, p1, p2, color=color, thickness=2)
+        annotated = annotated_pipe.get_annotated_frame()
+        if annotated is None:
+            time.sleep(0.01)
+            continue
 
         ok, buf = cv2.imencode(".jpg", annotated)
         if not ok:
@@ -213,12 +231,10 @@ def generate_frames():
 
 def generate_processed_frames():
     while True:
-        grabbed, frame = camera.read()
-        if not grabbed:
+        mask = mask_pipe.get_masked_frame()
+        if mask is None:
             time.sleep(0.01)
             continue
-
-        mask = BallDetector.get_mask(frame, scale=BallTracker.DETECTION_SCALE)
         mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
         ok, buf = cv2.imencode(".jpg", mask_bgr)
@@ -333,9 +349,10 @@ def manual_params_route():
     _manual_params[param] = value
     if manual_mode:
         _apply_params(_manual_params)
-        grabbed, frame = camera.read()
-        if grabbed:
-            tracker_mgr.force_redetect(frame)
+        frame = raw_pipe.get_raw_frame()
+        mask = mask_pipe.get_masked_frame()
+        if frame is not None:
+            tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok"})
 
 
@@ -349,15 +366,24 @@ def manual_mode_route():
         _apply_params(_manual_params)
     else:
         _reset_defaults()
-    grabbed, frame = camera.read()
-    if grabbed:
-        tracker_mgr.force_redetect(frame)
+    frame = raw_pipe.get_raw_frame()
+    mask = mask_pipe.get_masked_frame()
+    if frame is not None:
+        tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok", "manual": manual_mode})
 
 
 if __name__ == "__main__":
     try:
         camera.start()
+        raw_pipe.start()
+        mask_pipe.start()
+        annotated_pipe = AnnotatedImagePipeline(raw_pipe, _process_annotated)
+        annotated_pipe.start()
         app.run(host="0.0.0.0", port=8000, threaded=True, debug=False, use_reloader=False)
     finally:
+        raw_pipe.stop()
+        mask_pipe.stop()
+        if annotated_pipe:
+            annotated_pipe.stop()
         camera.stop()

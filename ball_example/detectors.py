@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import List
+from typing import List, Optional
 from models import Ball, ArucoMarker, ArucoHitter
 
 # Global background subtractor for motion detection
@@ -74,6 +74,8 @@ class BallDetector:
     @staticmethod
     def detect(
         frame: np.ndarray,
+        *,
+        mask: Optional[np.ndarray] = None,
         dp: float       = 1.2,
         min_dist: float = 70,
         param1: float   = 70,
@@ -92,6 +94,8 @@ class BallDetector:
         orig_frame = frame
         if scale != 1.0:
             frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+            if mask is not None:
+                mask = cv2.resize(mask, (frame.shape[1], frame.shape[0]), interpolation=cv2.INTER_NEAREST)
 
         gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -143,20 +147,22 @@ class BallDetector:
                 )
                 balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
-        # 2) Build combined mask: BG-subtractor + HSV color mask
-        bg_mask = _bg_subtractor.apply(frame)
-        _, fg_mask = cv2.threshold(bg_mask, 244, 255, cv2.THRESH_BINARY)
+        # 2) Build or use provided mask
+        if mask is None:
+            bg_mask = _bg_subtractor.apply(frame)
+            _, fg_mask = cv2.threshold(bg_mask, 244, 255, cv2.THRESH_BINARY)
 
-        hsv        = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        color_mask = cv2.inRange(hsv, BallDetector.HSV_LOWER, BallDetector.HSV_UPPER)
+            hsv        = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            color_mask = cv2.inRange(hsv, BallDetector.HSV_LOWER, BallDetector.HSV_UPPER)
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        fg_clean    = cv2.morphologyEx(fg_mask,    cv2.MORPH_OPEN,  kernel, iterations=2)
-        fg_clean    = cv2.morphologyEx(fg_clean,   cv2.MORPH_CLOSE, kernel, iterations=2)
-        color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN,  kernel, iterations=1)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+            fg_clean    = cv2.morphologyEx(fg_mask,    cv2.MORPH_OPEN,  kernel, iterations=2)
+            fg_clean    = cv2.morphologyEx(fg_clean,   cv2.MORPH_CLOSE, kernel, iterations=2)
+            color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN,  kernel, iterations=1)
 
-        #combined = cv2.bitwise_or(color_clean, fg_clean)
-        combined = color_clean
+            combined = color_clean
+        else:
+            combined = mask
         contours, hierarchy = cv2.findContours(combined, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
         for idx, cnt in enumerate(contours):
