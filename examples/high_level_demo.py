@@ -31,21 +31,25 @@ def main() -> None:
         clocks = discover_plotclocks(detections)
 
     if not clocks:
-        raise RuntimeError("No PlotClocks detected")
+        print("No PlotClocks detected, continuing without scenarios")
 
-    def _get_dets():
-        with api.lock:
-            return api.balls + api.arucos
+    attacker = None
+    defender = None
 
-    print("Calibrating clocks…")
-    calibrate_clocks(clocks, _get_dets)
+    if clocks:
+        def _get_dets():
+            with api.lock:
+                return api.balls + api.arucos
 
-    attacker = clocks[0].attack(api.frame_size, (100.0, 0.0))
-    defender = clocks[1].defend(api.frame_size) if len(clocks) > 1 else None
+        print("Calibrating clocks…")
+        calibrate_clocks(clocks, _get_dets)
 
-    attacker.on_start()
-    if defender:
-        defender.on_start()
+        attacker = clocks[0].attack(api.frame_size, (100.0, 0.0))
+        defender = clocks[1].defend(api.frame_size) if len(clocks) > 1 else None
+
+        attacker.on_start()
+        if defender:
+            defender.on_start()
 
     root = tk.Tk()
     root.title("High Level Demo")
@@ -55,7 +59,8 @@ def main() -> None:
     def update_loop() -> None:
         with api.lock:
             dets = api.balls + api.arucos
-        attacker.update(dets)
+        if attacker:
+            attacker.update(dets)
         if defender:
             defender.update(dets)
 
@@ -69,10 +74,10 @@ def main() -> None:
             label.configure(image=im_tk)
             label.image = im_tk
 
-        if not attacker.finished:
-            root.after(30, update_loop)
-        else:
+        if attacker and attacker.finished:
             root.quit()
+        else:
+            root.after(30, update_loop)
 
     root.after(0, update_loop)
     root.mainloop()
