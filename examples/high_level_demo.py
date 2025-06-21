@@ -19,12 +19,13 @@ from high_level import discover_plotclocks, calibrate_clocks
 
 def main() -> None:
     api = GameAPI()
+    api.set_cam_source(1)
     api.start()
 
     print("Waiting for detections...")
     clocks = []
     start = time.time()
-    while time.time() - start < 5.0 and len(clocks) < 1:
+    while time.time() - start < 0.5 and len(clocks) < 1:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
