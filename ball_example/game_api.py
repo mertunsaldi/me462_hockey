@@ -53,12 +53,44 @@ class GameAPI:
         self._cam_started = False
 
     # ------------------------------------------------------------------
+    def set_cam_source(
+        self,
+        src: int | str,
+        *,
+        width: int | None = None,
+        height: int | None = None,
+        fourcc: str | None = "MJPG",
+    ) -> None:
+        """Switch to a different camera source and restart pipelines if running."""
+
+        was_running = self._cam_started
+
+        if self.annotated_pipe:
+            self.annotated_pipe.stop()
+        self.raw_pipe.stop()
+        self.mask_pipe.stop()
+        self.camera.stop()
+
+        self.camera = Camera(src=src, width=width, height=height, fourcc=fourcc)
+        self.frame_size = self.camera.get_resolution()
+        self.raw_pipe = RawImagePipeline(self.camera)
+        self.mask_pipe = MaskedImagePipeline(self.raw_pipe, scale=DETECTION_SCALE)
+        self.annotated_pipe = AnnotatedImagePipeline(self.raw_pipe, self._process_annotated)
+        self._cam_started = False
+
+        if was_running:
+            self.start()
+
+    # ------------------------------------------------------------------
     def start(self) -> None:
         if not self._cam_started and not self.camera.running:
             self.camera.start()
             self.raw_pipe.start()
             self.mask_pipe.start()
-            self.annotated_pipe = AnnotatedImagePipeline(self.raw_pipe, self._process_annotated)
+            if self.annotated_pipe is None:
+                self.annotated_pipe = AnnotatedImagePipeline(
+                    self.raw_pipe, self._process_annotated
+                )
             self.annotated_pipe.start()
             self._cam_started = True
 

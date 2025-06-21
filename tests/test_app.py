@@ -74,3 +74,11 @@ def test_processed_feed_route():
     client = hockey_app.app.test_client()
     r = client.get("/processed_feed")
     assert r.status_code == 200
+
+
+def test_game_api_set_cam_source():
+    from ball_example.game_api import GameAPI
+    api = GameAPI()
+    api.set_cam_source(0)
+    assert api.camera.src == 0
+
