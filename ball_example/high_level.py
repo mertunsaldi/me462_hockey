@@ -58,15 +58,3 @@ def calibrate_clocks(
         if all(c.calibration for c in clocks):
             break
         time.sleep(0.05)
-
-
-def attack(clock: PlotClock, frame_size: Tuple[int, int], target_mm: Tuple[float, float]):
-    """Create a FixedTargetAttacker scenario for *clock*."""
-    return FixedTargetAttacker(clock, frame_size, target_mm)
-
-
-def defend(clock: PlotClock, frame_size: Tuple[int, int]):
-    """Create a BallReflector scenario for *clock*."""
-    return BallReflector(clock, frame_size)
-
-
