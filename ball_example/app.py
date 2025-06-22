@@ -20,6 +20,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # Core processing API
 api = GameAPI()
+api.set_cam_source(1)
 
 if hasattr(app, "before_first_request"):
     @app.before_first_request
