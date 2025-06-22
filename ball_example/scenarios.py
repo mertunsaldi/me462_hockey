@@ -267,8 +267,6 @@ class BallAttacker(Scenario):
     # ------------------------------------------------------------------
     def get_line_points(self):
         lines = []
-        if self._work_lines:
-            lines.extend(self._work_lines)
         if self._ray_line:
             lines.append(self._ray_line)
         if self._target_line:
@@ -459,10 +457,7 @@ class BallReflector(Scenario):
 
     # ------------------------------------------------------------------
     def get_line_points(self):
-        # rectangle edges + current trajectory line
-        if self._work_lines:
-            return self._work_lines + ([self._line] if self._line else [])
-        return self._line
+        return [self._line] if self._line else None
 
     def get_extra_points(self):
         return [self._meet_px] if self._meet_px else None
