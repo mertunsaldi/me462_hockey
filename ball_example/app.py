@@ -3,6 +3,11 @@ import numpy as np
 from typing import Optional
 from flask import Flask, render_template, Response, jsonify, request
 
+if __package__ in (None, ""):
+    import os, sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    __package__ = "ball_example"
+
 from .game_api import GameAPI
 from .detectors import BallDetector
 
