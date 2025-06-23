@@ -48,12 +48,13 @@ def test_load_scenario_and_message(tmp_path):
     assert msg_resp.status_code == 200
 
 
-def test_stats_extended_fields():
+def test_stats_endpoint_returns_debug_info():
     client = hockey_app.app.test_client()
     r = client.get("/stats")
     assert r.status_code == 200
     data = r.get_json()
     assert "ball_details" in data
+    assert "image_params" in data
 
 
 def test_manual_mode_endpoints():

@@ -185,10 +185,13 @@ class GameAPI:
             self._current_scenario.process_message(message)
 
     # ------------------------------------------------------------------
-    def stats(self) -> Dict[str, Any]:
+    def debug_info(self) -> Dict[str, Any]:
+        """Extended diagnostics about the current system state."""
+
         with self.lock:
             balls = list(self.balls)
             markers = list(self.arucos)
+
         speeds = [round(math.hypot(*map(float, b.velocity)), 2) for b in balls]
         ball_details = [
             {
@@ -199,8 +202,14 @@ class GameAPI:
             }
             for b in balls
         ]
-        scenario_name = self._current_scenario.__class__.__name__ if self._current_scenario else None
-        return {
+
+        scenario_name = (
+            self._current_scenario.__class__.__name__
+            if self._current_scenario
+            else None
+        )
+
+        info: Dict[str, Any] = {
             "num_balls": len(balls),
             "ball_ids": [b.id for b in balls],
             "speeds": speeds,
@@ -209,18 +218,10 @@ class GameAPI:
             "marker_ids": [m.id for m in markers],
             "marker_centers": [m.center for m in markers],
             "scenario_loaded": self._current_scenario is not None,
-            "scenario_running": self._current_scenario is not None and self.scenario_enabled,
+            "scenario_running": self._current_scenario is not None
+            and self.scenario_enabled,
             "scenario_name": scenario_name,
         }
-
-    # ------------------------------------------------------------------
-    def debug_info(self) -> Dict[str, Any]:
-        """Extended diagnostics about the current system state."""
-
-        stats = self.stats()
-        with self.lock:
-            balls = list(self.balls)
-            markers = list(self.arucos)
 
         marker_details = [
             {
@@ -252,7 +253,7 @@ class GameAPI:
             "detection_scale": DETECTION_SCALE,
         }
 
-        stats.update(
+        info.update(
             {
                 "markers": marker_details,
                 "gadgets": gadget_details,
@@ -261,4 +262,4 @@ class GameAPI:
                 "frame_size": self.frame_size,
             }
         )
-        return stats
+        return info
