@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Debug Info</title>
+<style>
+  body{background:#222;color:#eee;font-family:Arial;margin:0;padding:0;}
+  pre{white-space:pre-wrap;word-break:break-word;background:#333;padding:10px;margin:0;}
+</style>
+</head>
+<body>
+<pre id="dbg">loading...</pre>
+<script>
+async function update(){
+  try{
+    const r=await fetch('/debug_data');
+    if(!r.ok) return;
+    const d=await r.json();
+    document.getElementById('dbg').textContent=JSON.stringify(d,null,2);
+  }catch(e){console.error(e);}
+}
+setInterval(update,500);
+update();
+</script>
+</body>
+</html>

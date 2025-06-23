@@ -180,6 +180,12 @@ def stats():
     return jsonify(api.stats())
 
 
+@app.route("/debug_data")
+def debug_data():
+    """Return extended diagnostic information."""
+    return jsonify(api.debug_info())
+
+
 @app.route("/connect_pico", methods=["POST"])
 def connect_pico():
     try:
@@ -220,6 +226,12 @@ def send_message():
 @app.route("/tune")
 def tune_page():
     return render_template("tune.html")
+
+
+@app.route("/debug")
+def debug_page():
+    """Display debugging information."""
+    return render_template("debug.html")
 
 
 @app.route("/manual_params", methods=["GET", "POST"])

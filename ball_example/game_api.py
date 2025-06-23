@@ -212,3 +212,53 @@ class GameAPI:
             "scenario_running": self._current_scenario is not None and self.scenario_enabled,
             "scenario_name": scenario_name,
         }
+
+    # ------------------------------------------------------------------
+    def debug_info(self) -> Dict[str, Any]:
+        """Extended diagnostics about the current system state."""
+
+        stats = self.stats()
+        with self.lock:
+            balls = list(self.balls)
+            markers = list(self.arucos)
+
+        marker_details = [
+            {
+                "id": m.id,
+                "center": m.center,
+                "corners": m.corners,
+                "type": m.__class__.__name__,
+            }
+            for m in markers
+        ]
+
+        gadget_details = [
+            {
+                "class": g.__class__.__name__,
+                "calibrated": bool(getattr(g, "calibration", None)),
+            }
+            for g in self.plotclocks
+        ]
+
+        image_params = {
+            "circularity": BallDetector.CIRCULARITY_THRESHOLD,
+            "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
+            "solidity": BallDetector.SOLIDITY_THRESHOLD,
+            "edge_density": BallDetector.EDGE_DENSITY_THRESHOLD,
+            "blur_kernel": BallDetector.BLUR_KERNEL,
+            "blur_sigma": BallDetector.BLUR_SIGMA,
+            "hsv_lower": BallDetector.HSV_LOWER.tolist(),
+            "hsv_upper": BallDetector.HSV_UPPER.tolist(),
+            "detection_scale": DETECTION_SCALE,
+        }
+
+        stats.update(
+            {
+                "markers": marker_details,
+                "gadgets": gadget_details,
+                "image_params": image_params,
+                "camera_source": self.camera.src,
+                "frame_size": self.frame_size,
+            }
+        )
+        return stats

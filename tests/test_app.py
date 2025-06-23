@@ -76,6 +76,15 @@ def test_processed_feed_route():
     assert r.status_code == 200
 
 
+def test_debug_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.get("/debug_data")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "image_params" in data
+    assert "gadgets" in data
+
+
 def test_game_api_set_cam_source():
     from ball_example.game_api import GameAPI
     api = GameAPI()
