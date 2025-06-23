@@ -20,7 +20,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # Core processing API
 api = GameAPI()
-api.set_cam_source(1)
+api.set_cam_source(0)
 
 if hasattr(app, "before_first_request"):
     @app.before_first_request
@@ -40,6 +40,8 @@ _default_params = {
     "edge_density": BallDetector.EDGE_DENSITY_THRESHOLD,
     "blur": BallDetector.BLUR_KERNEL,
     "sigma": BallDetector.BLUR_SIGMA,
+    "min_r": BallDetector.MIN_RADIUS,
+    "max_r": BallDetector.MAX_RADIUS,
     "h_low": int(BallDetector.HSV_LOWER[0]),
     "s_low": int(BallDetector.HSV_LOWER[1]),
     "v_low": int(BallDetector.HSV_LOWER[2]),
@@ -56,6 +58,8 @@ def _apply_params(params):
     BallDetector.BLUR_KERNEL = int(params["blur"])
     BallDetector.BLUR_SIGMA  = float(params["sigma"])
     BallDetector.EDGE_DENSITY_THRESHOLD= float(params["edge_density"])
+    BallDetector.MIN_RADIUS = int(params["min_r"])
+    BallDetector.MAX_RADIUS = int(params["max_r"])
     BallDetector.HSV_LOWER = np.array([params["h_low"], params["s_low"], params["v_low"]], dtype=np.uint8)
     BallDetector.HSV_UPPER = np.array([params["h_up"], params["s_up"], params["v_up"]], dtype=np.uint8)
 
@@ -175,9 +179,11 @@ def processed_feed():
     )
 
 
-@app.route("/stats")
-def stats():
-    return jsonify(api.stats())
+
+@app.route("/debug_data")
+def debug_data():
+    """Return extended diagnostic information."""
+    return jsonify(api.debug_info())
 
 
 @app.route("/connect_pico", methods=["POST"])
@@ -220,6 +226,12 @@ def send_message():
 @app.route("/tune")
 def tune_page():
     return render_template("tune.html")
+
+
+@app.route("/debug")
+def debug_page():
+    """Display debugging information."""
+    return render_template("debug.html")
 
 
 @app.route("/manual_params", methods=["GET", "POST"])

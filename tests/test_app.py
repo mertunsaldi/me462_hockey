@@ -48,12 +48,15 @@ def test_load_scenario_and_message(tmp_path):
     assert msg_resp.status_code == 200
 
 
-def test_stats_extended_fields():
+def test_debug_data_endpoint_returns_debug_info():
     client = hockey_app.app.test_client()
-    r = client.get("/stats")
+    r = client.get("/debug_data")
     assert r.status_code == 200
     data = r.get_json()
     assert "ball_details" in data
+    assert "image_params" in data
+    assert "min_radius" in data["image_params"]
+    assert "max_radius" in data["image_params"]
 
 
 def test_manual_mode_endpoints():
@@ -62,18 +65,30 @@ def test_manual_mode_endpoints():
     assert r.status_code == 200
     data = r.get_json()
     assert "manual" in data
+    assert "min_r" in data and "max_r" in data
     r2 = client.post("/manual_mode", json={"enable": True})
     assert r2.status_code == 200
     r3 = client.post("/manual_params", json={"param": "edge_density", "value": 0.2})
     assert r3.status_code == 200
-    r4 = client.post("/manual_mode", json={"enable": False})
+    r4 = client.post("/manual_params", json={"param": "min_r", "value": 10})
     assert r4.status_code == 200
+    r5 = client.post("/manual_mode", json={"enable": False})
+    assert r5.status_code == 200
 
 
 def test_processed_feed_route():
     client = hockey_app.app.test_client()
     r = client.get("/processed_feed")
     assert r.status_code == 200
+
+
+def test_debug_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.get("/debug_data")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "image_params" in data
+    assert "gadgets" in data
 
 
 def test_game_api_set_cam_source():

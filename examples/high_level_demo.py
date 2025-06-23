@@ -19,7 +19,7 @@ from high_level import discover_plotclocks, calibrate_clocks
 
 def main() -> None:
     api = GameAPI()
-    api.set_cam_source(1)
+    api.set_cam_source(0)
     api.start()
 
     print("Waiting for detections...")

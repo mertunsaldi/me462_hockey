@@ -8,8 +8,8 @@ starting common behaviors like attack or defense.
 import time
 from typing import Iterable, List, Tuple, Callable
 
-from .gadgets import PlotClock
-from .models import ArucoHitter, ArucoMarker
+from .gadgets import PlotClock, ArenaManager
+from .models import ArucoHitter, ArucoMarker, ArucoManager
 from .scenarios import FixedTargetAttacker, BallReflector
 
 
@@ -22,13 +22,19 @@ __all__ = [
 
 
 def discover_plotclocks(detections: Iterable[ArucoMarker]) -> List[PlotClock]:
-    """Return PlotClock objects based on ArUco hitter detections.
+    """Return PlotClock objects based on ArUco detections.
 
-    Each detected :class:`ArucoHitter` spawns a new :class:`PlotClock`.
+    ``ArucoManager`` results produce :class:`ArenaManager` instances while
+    ``ArucoHitter`` results produce regular :class:`PlotClock` objects.
     The clocks are not calibrated automatically.
     """
-    hitters = [d for d in detections if isinstance(d, ArucoHitter)]
-    return [PlotClock() for _ in hitters]
+    clocks: List[PlotClock] = []
+    for d in detections:
+        if isinstance(d, ArucoManager):
+            clocks.append(ArenaManager())
+        elif isinstance(d, ArucoHitter):
+            clocks.append(PlotClock())
+    return clocks
 
 
 def calibrate_clocks(
