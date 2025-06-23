@@ -79,6 +79,10 @@ class BallDetector:
     HSV_LOWER = np.array([0, 0, 0], dtype=np.uint8)
     HSV_UPPER = np.array([120, 120, 120], dtype=np.uint8)
 
+    # Default ball size limits
+    MIN_RADIUS = 30
+    MAX_RADIUS = 50
+
     # ────────────────────────────────────────────────────
 
     @staticmethod
@@ -90,8 +94,8 @@ class BallDetector:
         min_dist: float = 70,
         param1: float   = 70,
         param2: float   = 70,
-        min_radius: int = 30,
-        max_radius: int = 50,
+        min_radius: int | None = None,
+        max_radius: int | None = None,
         scale: float    = 1.0,
     ) -> List[Ball]:
         """Detect balls in ``frame``.
@@ -100,6 +104,11 @@ class BallDetector:
         version of the image.  The returned ball coordinates are scaled
         back to the original resolution.
         """
+
+        if min_radius is None:
+            min_radius = BallDetector.MIN_RADIUS
+        if max_radius is None:
+            max_radius = BallDetector.MAX_RADIUS
 
         orig_frame = frame
         if scale != 1.0:

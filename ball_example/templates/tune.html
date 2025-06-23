@@ -42,6 +42,14 @@
 <input id="sigma" type="range" min="0" max="10" step="0.1">
 </div>
 <div class="slider">
+<label>Min Radius: <span id="min_r_val"></span></label>
+<input id="min_r" type="range" min="1" max="150" step="1">
+</div>
+<div class="slider">
+<label>Max Radius: <span id="max_r_val"></span></label>
+<input id="max_r" type="range" min="1" max="300" step="1">
+</div>
+<div class="slider">
 
 <label>Hue Low: <span id="h_low_val"></span></label>
 <input id="h_low" type="range" min="0" max="179" step="1">
@@ -70,7 +78,7 @@
 
 <script>
 let mode=false;
-const paramKeys=['edge_density','solidity','circ','area_ratio','blur','sigma','h_low','s_low','v_low','h_up','s_up','v_up'];
+const paramKeys=['edge_density','solidity','circ','area_ratio','blur','sigma','min_r','max_r','h_low','s_low','v_low','h_up','s_up','v_up'];
 async function loadParams(){
  const r=await fetch('/manual_params');
  if(!r.ok) return;

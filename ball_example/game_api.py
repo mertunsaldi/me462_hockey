@@ -250,6 +250,8 @@ class GameAPI:
             "blur_sigma": BallDetector.BLUR_SIGMA,
             "hsv_lower": BallDetector.HSV_LOWER.tolist(),
             "hsv_upper": BallDetector.HSV_UPPER.tolist(),
+            "min_radius": BallDetector.MIN_RADIUS,
+            "max_radius": BallDetector.MAX_RADIUS,
             "detection_scale": DETECTION_SCALE,
         }
 

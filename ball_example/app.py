@@ -40,6 +40,8 @@ _default_params = {
     "edge_density": BallDetector.EDGE_DENSITY_THRESHOLD,
     "blur": BallDetector.BLUR_KERNEL,
     "sigma": BallDetector.BLUR_SIGMA,
+    "min_r": BallDetector.MIN_RADIUS,
+    "max_r": BallDetector.MAX_RADIUS,
     "h_low": int(BallDetector.HSV_LOWER[0]),
     "s_low": int(BallDetector.HSV_LOWER[1]),
     "v_low": int(BallDetector.HSV_LOWER[2]),
@@ -56,6 +58,8 @@ def _apply_params(params):
     BallDetector.BLUR_KERNEL = int(params["blur"])
     BallDetector.BLUR_SIGMA  = float(params["sigma"])
     BallDetector.EDGE_DENSITY_THRESHOLD= float(params["edge_density"])
+    BallDetector.MIN_RADIUS = int(params["min_r"])
+    BallDetector.MAX_RADIUS = int(params["max_r"])
     BallDetector.HSV_LOWER = np.array([params["h_low"], params["s_low"], params["v_low"]], dtype=np.uint8)
     BallDetector.HSV_UPPER = np.array([params["h_up"], params["s_up"], params["v_up"]], dtype=np.uint8)
 
