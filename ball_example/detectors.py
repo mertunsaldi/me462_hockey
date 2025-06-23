@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import List, Optional
-from .models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter, Obstacle, ArucoManager
 
 # Global background subtractor for motion detection
 _bg_subtractor = cv2.createBackgroundSubtractorMOG2(
@@ -34,9 +34,14 @@ class ArucoDetector:
 
                 cx = int(np.mean(pts[:, 0]))
                 cy = int(np.mean(pts[:, 1]))
-                markers.append(
-                    ArucoMarker(id=int(marker_id), corners=pts_int, center=(cx, cy))
-                )
+                if int(marker_id) in (0, 1):
+                    markers.append(
+                        Obstacle(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                    )
+                else:
+                    markers.append(
+                        ArucoMarker(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                    )
 
         if ids4 is not None:
             for marker_corners, marker_id in zip(corners4, ids4.flatten()):
@@ -45,9 +50,14 @@ class ArucoDetector:
 
                 cx = int(np.mean(pts[:, 0]))
                 cy = int(np.mean(pts[:, 1]))
-                markers.append(
-                    ArucoHitter(id=int(marker_id), corners=pts_int, center=(cx, cy))
-                )
+                if int(marker_id) == 0:
+                    markers.append(
+                        ArucoManager(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                    )
+                else:
+                    markers.append(
+                        ArucoHitter(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                    )
 
         return markers
 

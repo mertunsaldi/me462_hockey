@@ -15,6 +15,16 @@ class ArucoHitter(ArucoMarker):
     pass
 
 
+class Obstacle(ArucoMarker):
+    """Represents a detected obstacle marker."""
+    pass
+
+
+class ArucoManager(ArucoMarker):
+    """Represents an arena manager ArUco marker."""
+    pass
+
+
 class Ball:
     """
     Represents a detected ball in the frame.

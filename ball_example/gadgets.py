@@ -261,3 +261,8 @@ class PlotClock(Gadgets):
         lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
         for p1, p2 in lines:
             draw_line(frame, p1, p2, color=color, thickness=thickness)
+
+
+class ArenaManager(PlotClock):
+    """Placeholder class for arena manager devices."""
+    pass

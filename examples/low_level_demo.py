@@ -16,7 +16,7 @@ from ball_example.renderers import render_overlay
 def main() -> None:
     """Run the low level demo."""
     api = GameAPI()
-    api.set_cam_source(1)
+    api.set_cam_source(0)
     api.start()
 
     root = tk.Tk()
