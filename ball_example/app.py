@@ -175,10 +175,6 @@ def processed_feed():
     )
 
 
-@app.route("/stats")
-def stats():
-    return jsonify(api.debug_info())
-
 
 @app.route("/debug_data")
 def debug_data():

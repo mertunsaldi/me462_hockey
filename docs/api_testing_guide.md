@@ -77,10 +77,10 @@ Navigate to `http://192.168.1.100:8000/` in a browser to view the live
 8. **Retrieve debug information**
 
    ```bash
-   curl http://192.168.1.100:8000/stats
+   curl http://192.168.1.100:8000/debug_data
    ```
 
-   This endpoint now exposes all diagnostics from `GameAPI.debug_info`,
+   This endpoint exposes all diagnostics from `GameAPI.debug_info`,
    including `ball_details` and image processing parameters.
 
 Only trusted clients should be allowed to issue commands, as they can control the

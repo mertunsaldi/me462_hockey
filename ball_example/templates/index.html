@@ -119,7 +119,7 @@
     /* live stats */
     async function updateStats(){
       try{
-        const r = await fetch('/stats');
+        const r = await fetch('/debug_data');
         if(!r.ok) return;
         const d = await r.json();
         qs('#num_balls').textContent = d.num_balls;
