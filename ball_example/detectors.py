@@ -70,7 +70,7 @@ class BallDetector:
         min_dist: float = 70,
         param1: float   = 70,
         param2: float   = 70,
-        min_radius: int = 30,
+        min_radius: int = 15,
         max_radius: int = 50,
         scale: float    = 1.0,
     ) -> List[Ball]:
