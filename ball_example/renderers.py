@@ -2,7 +2,7 @@ import cv2
 import math
 import numpy as np
 from typing import List, Optional, Tuple
-from models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter
 
 
 def draw_line(
@@ -63,21 +63,14 @@ def render_overlay(
     markers: Optional[List[ArucoMarker]] = None,
     line_points: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None,
     extra_points: Optional[List[Tuple[int, int]]] = None,
-    extra_labels: Optional[List[str]] = None
+    extra_labels: Optional[List[str]] = None,
+    arena_pts: Optional[List[Tuple[int, int]]] = None,
+    obstacle_pts: Optional[List[Tuple[int, int]]] = None,
 ) -> np.ndarray:
-    """
-    Draw detected balls, ArUco markers, a scenario line, and extra points.
+    """Draw overlay elements on a copy of ``frame``.
 
-    Args:
-        frame: input image
-        balls: list of Ball objects
-        markers: optional list of ArUcoMarker objects
-        line_points: optional endpoints (p1, p2) to draw a line
-        extra_points: optional list of (x, y) to draw additional markers
-        extra_labels: optional list of labels corresponding to extra_points
-
-    Returns:
-        annotated image copy
+    The overlay can include detected balls, ArUco markers, a line, extra points,
+    the arena polygon and virtual obstacle points.
     """
     annotated = frame.copy()
 
@@ -127,6 +120,13 @@ def render_overlay(
                 )
             cv2.circle(annotated, (cx, cy), 5, center_color, -1)
 
+    # --- draw arena polygon ---
+    if arena_pts:
+        overlay = annotated.copy()
+        poly = np.array(arena_pts, dtype=np.int32).reshape(-1, 1, 2)
+        cv2.fillPoly(overlay, [poly], (0, 0, 255))
+        cv2.addWeighted(overlay, 0.3, annotated, 0.7, 0, annotated)
+
     # --- draw line ---
     if line_points:
         pt1, pt2 = line_points
@@ -135,5 +135,8 @@ def render_overlay(
     # --- draw extra points ---
     if extra_points:
         draw_points(annotated, extra_points, labels=extra_labels)
+
+    if obstacle_pts:
+        draw_points(annotated, obstacle_pts, color=(255, 0, 255), radius=6)
 
     return annotated

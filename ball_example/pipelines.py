@@ -3,9 +3,9 @@ import time
 from typing import Optional, Callable
 import numpy as np
 
-from camera import Camera
-from detectors import compute_color_mask
-from trackers import DETECTION_SCALE
+from .camera import Camera
+from .detectors import compute_color_mask
+from .trackers import DETECTION_SCALE
 
 
 class RawImagePipeline:

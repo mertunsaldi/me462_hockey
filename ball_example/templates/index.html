@@ -227,6 +227,31 @@
         alert('Send error: ' + err);
       }
     });
+
+    /* Click to reposition obstacle */
+    const video = qs('#video');
+    video.addEventListener('click', async e => {
+      const rect = video.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const scaleX = video.naturalWidth / rect.width;
+      const scaleY = video.naturalHeight / rect.height;
+      const px = Math.round(x * scaleX);
+      const py = Math.round(y * scaleY);
+      try{
+        const r = await fetch('/move_obstacle', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({x: px, y: py})
+        });
+        const d = await r.json();
+        if(d.status !== 'ok'){
+          alert('Move error: ' + (d.message||''));
+        }
+      }catch(err){
+        alert('Move error: ' + err);
+      }
+    });
   </script>
 </body>
 </html>

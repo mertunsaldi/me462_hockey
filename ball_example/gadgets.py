@@ -5,7 +5,7 @@ import serial
 import serial.tools.list_ports
 import time
 import numpy as np
-from models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter
 
 
 class Gadgets:

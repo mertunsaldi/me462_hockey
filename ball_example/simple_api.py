@@ -14,8 +14,8 @@ classes.
 from typing import List, Dict, Any, Iterable
 import math
 
-from scenarios import Scenario, FixedTargetAttacker, BallReflector
-from gadgets import PlotClock
+from .scenarios import Scenario, FixedTargetAttacker, BallReflector
+from .gadgets import PlotClock
 
 
 def sort_plotclocks(clocks: Iterable["PlotClock"]) -> List[PlotClock]:

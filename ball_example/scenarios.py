@@ -2,8 +2,8 @@ import math
 import numpy as np
 import time
 from typing import List, Optional, Tuple, Union, Dict, Any
-from models import Ball, ArucoMarker, ArucoHitter
-from gadgets import PlotClock
+from .models import Ball, ArucoMarker, ArucoHitter
+from .gadgets import PlotClock
 
 
 class Scenario:
