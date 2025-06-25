@@ -25,6 +25,11 @@ class ArucoManager(ArucoMarker):
     pass
 
 
+class ArucoWall(ArucoMarker):
+    """Represents a wall marker used to define the arena corners."""
+    pass
+
+
 class Ball:
     """
     Represents a detected ball in the frame.
@@ -55,4 +60,16 @@ class Ball:
             f"<Ball id={self.id[:8]} center={self.center} "
             f"radius={self.radius} velocity={self.velocity}>"
         )
+
+
+class Arena:
+    """Represents the playing arena defined by ArucoWall markers."""
+
+    def __init__(self, walls: List[ArucoWall]):
+        self.walls = list(walls)
+
+    def get_corner_positions(self) -> List[Tuple[int, int]]:
+        """Return the center coordinates of all wall markers."""
+        return [w.center for w in self.walls]
+
 
