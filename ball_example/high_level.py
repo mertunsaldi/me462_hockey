@@ -85,27 +85,23 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
 
     centers = [w.center for w in walls]
 
-    # Sort markers counter clockwise around their centroid
-    cx = sum(p[0] for p in centers) / len(centers)
-    cy = sum(p[1] for p in centers) / len(centers)
+    # Connect each wall marker to its two nearest neighbours using the centers
+    edges: set[tuple[int, int]] = set()
 
-    def _angle(w: ArucoWall) -> float:
-        from math import atan2
+    for i, w in enumerate(walls):
+        dists: list[tuple[float, int]] = []
+        for j, other in enumerate(walls):
+            if i == j:
+                continue
+            dx = w.center[0] - other.center[0]
+            dy = w.center[1] - other.center[1]
+            dists.append((dx * dx + dy * dy, j))
+        dists.sort(key=lambda x: x[0])
+        for _, j in dists[:2]:
+            pair = tuple(sorted((i, j)))
+            edges.add(pair)
 
-        x, y = w.center
-        return atan2(y - cy, x - cx)
-
-    walls_sorted = sorted(walls, key=_angle)
-
-    # Draw wall segments and connect neighbouring markers 3 -> 2
-    for w in walls_sorted:
-        draw_line(frame, w.corners[2], w.corners[3])
-
-    n = len(walls_sorted)
-    if n > 1:
-        for i in range(n):
-            w1 = walls_sorted[i]
-            w2 = walls_sorted[(i + 1) % n]
-            draw_line(frame, w1.corners[2], w2.corners[3])
+    for i, j in edges:
+        draw_line(frame, walls[i].center, walls[j].center)
 
     draw_points(frame, centers)
