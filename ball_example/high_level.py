@@ -80,13 +80,13 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
     else:
         walls = list(arena)
 
-    points = [w.center for w in walls]
+    centers = [w.center for w in walls]
 
-    # connect each point to its two nearest neighbors
+    # connect each marker to its two nearest neighbors based on center distance
     edges: set[tuple[int, int]] = set()
-    for i, p in enumerate(points):
+    for i, p in enumerate(centers):
         dists = []
-        for j, q in enumerate(points):
+        for j, q in enumerate(centers):
             if i == j:
                 continue
             dx = p[0] - q[0]
@@ -94,10 +94,15 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
             dists.append((dx * dx + dy * dy, j))
         dists.sort(key=lambda x: x[0])
         for _, j in dists[:2]:
-            pair = tuple(sorted((i, j)))
-            edges.add(pair)
+            if (j, i) not in edges:
+                edges.add((i, j))
 
+    # draw the wall segment for each marker between corners 2 and 3
+    for w in walls:
+        draw_line(frame, w.corners[2], w.corners[3])
+
+    # connect markers using their corner 3 -> next corner 2
     for i, j in edges:
-        draw_line(frame, points[i], points[j])
+        draw_line(frame, walls[i].corners[3], walls[j].corners[2])
 
-    draw_points(frame, points)
+    draw_points(frame, centers)
