@@ -1,7 +1,14 @@
 import machine
 import utime
+import select
+import sys
 
 uart = machine.UART(0, baudrate=115200, tx=machine.Pin(0), rx=machine.Pin(1))
+
+# ─────────────────── USB‑SERIAL (non‑blocking) ─────────────────────────
+_serial_poll = select.poll()
+_serial_poll.register(sys.stdin, select.POLLIN)
+_serial_buf = bytearray()
 
 def send_command(cmd):
     uart.write((cmd + "\n").encode())
@@ -21,7 +28,7 @@ def read_response(timeout_ms=2000):
 print("Command: ")
 while True:
     try:
-        cmd = input()
+        cmd = _serial_buf
         if cmd:
             print("Sended:", cmd)
             send_command(cmd)
