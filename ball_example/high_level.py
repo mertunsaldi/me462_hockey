@@ -80,29 +80,32 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
     else:
         walls = list(arena)
 
+    if not walls:
+        return
+
     centers = [w.center for w in walls]
 
-    # connect each marker to its two nearest neighbors based on center distance
-    edges: set[tuple[int, int]] = set()
-    for i, p in enumerate(centers):
-        dists = []
-        for j, q in enumerate(centers):
-            if i == j:
-                continue
-            dx = p[0] - q[0]
-            dy = p[1] - q[1]
-            dists.append((dx * dx + dy * dy, j))
-        dists.sort(key=lambda x: x[0])
-        for _, j in dists[:2]:
-            if (j, i) not in edges:
-                edges.add((i, j))
+    # Sort markers counter clockwise around their centroid
+    cx = sum(p[0] for p in centers) / len(centers)
+    cy = sum(p[1] for p in centers) / len(centers)
 
-    # draw the wall segment for each marker between corners 2 and 3
-    for w in walls:
+    def _angle(w: ArucoWall) -> float:
+        from math import atan2
+
+        x, y = w.center
+        return atan2(y - cy, x - cx)
+
+    walls_sorted = sorted(walls, key=_angle)
+
+    # Draw wall segments and connect neighbouring markers 3 -> 2
+    for w in walls_sorted:
         draw_line(frame, w.corners[2], w.corners[3])
 
-    # connect markers using their corner 3 -> next corner 2
-    for i, j in edges:
-        draw_line(frame, walls[i].corners[3], walls[j].corners[2])
+    n = len(walls_sorted)
+    if n > 1:
+        for i in range(n):
+            w1 = walls_sorted[i]
+            w2 = walls_sorted[(i + 1) % n]
+            draw_line(frame, w1.corners[3], w2.corners[2])
 
     draw_points(frame, centers)
