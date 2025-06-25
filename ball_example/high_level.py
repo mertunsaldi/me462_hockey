@@ -76,32 +76,16 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
     """Draw an arena based on ArucoWall markers onto ``frame``."""
 
     if isinstance(arena, Arena):
-        walls = arena.walls
+        corners = arena.get_arena_corners()
     else:
-        walls = list(arena)
+        corners = Arena(list(arena)).get_arena_corners()
 
-    if not walls:
+    if len(corners) < 2:
         return
 
-    centers = [w.center for w in walls]
+    for i in range(len(corners)):
+        p1 = corners[i]
+        p2 = corners[(i + 1) % len(corners)]
+        draw_line(frame, p1, p2)
 
-    # Connect each wall marker to its two nearest neighbours using the centers
-    edges: set[tuple[int, int]] = set()
-
-    for i, w in enumerate(walls):
-        dists: list[tuple[float, int]] = []
-        for j, other in enumerate(walls):
-            if i == j:
-                continue
-            dx = w.center[0] - other.center[0]
-            dy = w.center[1] - other.center[1]
-            dists.append((dx * dx + dy * dy, j))
-        dists.sort(key=lambda x: x[0])
-        for _, j in dists[:2]:
-            pair = tuple(sorted((i, j)))
-            edges.add(pair)
-
-    for i, j in edges:
-        draw_line(frame, walls[i].center, walls[j].center)
-
-    draw_points(frame, centers)
+    draw_points(frame, corners)
