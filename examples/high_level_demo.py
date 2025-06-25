@@ -43,20 +43,20 @@ def main() -> None:
     attacker = None
     defender = None
 
-    if clocks:
-        def _get_dets():
-            with api.lock:
-                return api.balls + api.arucos
-
-        print("Calibrating clocks…")
-        calibrate_clocks(clocks, _get_dets)
-
-        attacker = clocks[0].attack(api.frame_size, (100.0, 0.0))
-        defender = clocks[1].defend(api.frame_size) if len(clocks) > 1 else None
-
-        attacker.on_start()
-        if defender:
-            defender.on_start()
+    # if clocks:
+    #     def _get_dets():
+    #         with api.lock:
+    #             return api.balls + api.arucos
+    #
+    #     print("Calibrating clocks…")
+    #     calibrate_clocks(clocks, _get_dets)
+    #
+    #     attacker = clocks[0].attack(api.frame_size, (100.0, 0.0))
+    #     defender = clocks[1].defend(api.frame_size) if len(clocks) > 1 else None
+    #
+    #     attacker.on_start()
+    #     if defender:
+    #         defender.on_start()
 
     root = tk.Tk()
     root.title("High Level Demo")
