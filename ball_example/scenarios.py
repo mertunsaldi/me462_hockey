@@ -196,7 +196,7 @@ class BallAttacker(Scenario):
             return
 
         # send first move toward S
-        self.clock.send_command("setxy", *start_mm)
+        self.clock.send_command(f"P1.p.setXY({start_mm[0]}, {start_mm[1]})")
 
         # lock everything
         self._locked_M = np.array([mx, my])
@@ -254,7 +254,7 @@ class BallAttacker(Scenario):
             )
 
             if score >= 1.0:  # θ  — strike threshold
-                self.clock.send_command("setxy", *self._meet_mm)
+                self.clock.send_command(f"P1.p.setXY({self._meet_mm[0]}, {self._meet_mm[1]})")
                 self._phase = self.PHASE_STRIKE
 
     # ------------------------------------------------------------------
@@ -335,7 +335,7 @@ class BallReflector(Scenario):
         # state variables
         self._line = None  # ((x1,y1),(x2,y2))
         self._meet_px = None  # (mx, my) in pixels
-        self._fired = False  # ensure single drawto
+        self._fired = False  # ensure single strike sequence only once
         self._goal_px = None  # last commanded point in pixels
         self.reach_tol_px = 30  # tolerance (≈ 6–8 mm on a 640×480 frame)
         self.cmd_interval_s = 0.1  # min time between commands
@@ -453,7 +453,7 @@ class BallReflector(Scenario):
             goal_reached = (hx - gx) ** 2 + (hy - gy) ** 2 <= self.reach_tol_px**2
 
         if self._goal_px is None or goal_reached and time_ok:
-            self.clock.send_command("setxy", *meet_mm)
+            self.clock.send_command(f"P1.p.setXY({meet_mm[0]}, {meet_mm[1]})")
             self._goal_px = self._meet_px
             self._last_cmd_time = now
 
@@ -482,7 +482,7 @@ class StandingBallHitter(Scenario):
         self._line: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
         self._start_px: Optional[Tuple[int, int]] = None
         self._start_mm: Optional[Tuple[float, float]] = None
-        self._fired = False  # ensure we send drawto sequence only once
+        self._fired = False  # ensure we send move-strike sequence only once
 
     def on_start(self) -> None:
         """Reset calibration and state when the scenario begins."""
@@ -527,9 +527,13 @@ class StandingBallHitter(Scenario):
                 # once per run: move hitter then strike
                 if not self._fired and self._start_mm:
                     ball_mm = self.clock.find_mm(bx, by)
-                    self.clock.send_command("drawto", *self._start_mm)
+                    self.clock.send_command(
+                        f"P1.p.setXY({self._start_mm[0]}, {self._start_mm[1]})"
+                        )
                     time.sleep(0.7)
-                    self.clock.send_command("setxy", *ball_mm)
+                    self.clock.send_command(
+                        f"P1.p.setXY({ball_mm[0]}, {ball_mm[1]})"
+                        )
                     self._fired = True
 
     # ------------------------------------------------------------------

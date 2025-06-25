@@ -124,9 +124,8 @@ class PlotClock(Gadgets):
     def __init__(self, port: Optional[str] = None, *, baudrate: int = 115200, timeout: float = 20):
         super().__init__(port, baudrate=baudrate, timeout=timeout)
         self.commands = {
-            'mode':   'mode {0}',
-            'setxy':  'setxy {0} {1}',
-            'drawto': 'drawto {0} {1}',
+        #istersek buraya commandlar ekleyebiliriz
+        "mode": "mode {0}",    
         }
         # self.x_range = (0, 70)
         # self.y_range = (10, 55)
@@ -135,7 +134,7 @@ class PlotClock(Gadgets):
 
         # Calibration state --------------------------------------------------
         self._cal_state: int = 0          # 0=idle,1..n=fsm
-        self._mm_pts: List[Tuple[float,float]] = [(10,40),(10,20),(40,20)]
+        self._mm_pts: List[Tuple[float,float]] = [(100,300),(100,200),(200,200)]
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
         self._delay: float = 2.0          # seconds between moves
@@ -160,7 +159,7 @@ class PlotClock(Gadgets):
         # FSM --------------------------------------------------
         if self._cal_state == 0:
             x,y = self._mm_pts[0]
-            self.send_command('drawto', x, y)
+            self.send_command(f"P1.p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 1
             return None
@@ -168,7 +167,7 @@ class PlotClock(Gadgets):
         if self._cal_state == 1 and now-self._last_cmd_t >= self._delay and hitter:
             self._px_hits.append(hitter.center)
             x,y = self._mm_pts[1]
-            self.send_command('drawto', x, y)
+            self.send_command(f"P1.p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 2
             return None
@@ -176,7 +175,7 @@ class PlotClock(Gadgets):
         if self._cal_state == 2 and now-self._last_cmd_t >= self._delay and hitter:
             self._px_hits.append(hitter.center)
             x,y = self._mm_pts[2]
-            self.send_command('drawto', x, y)
+            self.send_command(f"P1.p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 3
             return None

@@ -201,7 +201,7 @@ def connect_pico():
             return jsonify({"status": "ok"})
         try:
             plotclock.start_comms()
-            plotclock.send_command("mode", 4)
+            plotclock.send_command("P1.p.setXY(0, 200)")
             pico_connected = True
             return jsonify({"status": "ok"})
         except Exception as e:
