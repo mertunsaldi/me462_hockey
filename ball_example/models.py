@@ -115,7 +115,7 @@ class Arena:
                 px_per_mm_vals.append(d / w.real_edge_mm)
         px_per_mm = sum(px_per_mm_vals) / len(px_per_mm_vals) if px_per_mm_vals else 1.0
 
-        long_thresh = 4 * walls[0].real_edge_mm * px_per_mm
+        long_thresh = 3 * walls[0].real_edge_mm * px_per_mm
         offset = walls[0].real_edge_mm / 2 * px_per_mm
 
         def _shift_line(p1: tuple[float, float], p2: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
