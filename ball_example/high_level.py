@@ -16,8 +16,6 @@ from .scenarios import FixedTargetAttacker, BallReflector
 __all__ = [
     "discover_plotclocks",
     "calibrate_clocks",
-    "attack",
-    "defend",
 ]
 
 
