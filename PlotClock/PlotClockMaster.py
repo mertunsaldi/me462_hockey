@@ -18,7 +18,7 @@ def read_response(timeout_ms=2000):
                     return str(line)
         utime.sleep_ms(10)
     return None
-
+print("Command: ")
 while True:
     try:
         cmd = input()

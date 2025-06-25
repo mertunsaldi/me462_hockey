@@ -2,6 +2,8 @@ import machine
 import math
 import utime
 
+utime.sleep_ms(1000	)
+
 DEVICE_ID = "P1"
 
 class Servo:
@@ -174,22 +176,21 @@ def wait_ms(ms):
 uart = machine.UART(0, baudrate=115200, tx=machine.Pin(0), rx=machine.Pin(1))
 
 
-servoLeft = Servo(4,975,1000)
-servoRight = Servo(3,1000,1025)
-plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
+#servoLeft = Servo(4,975,1000)
+#servoRight = Servo(3,1000,1025)
+#plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
 
-#servoLeft = Servo(4,950,1040)
-#servoRight = Servo(3,950,930)
-#plotClock = PlotClock(servoLeft, servoRight,270,328,150,98,20)
+servoLeft = Servo(4,950,1040)
+servoRight = Servo(3,950,930)
+plotClock = PlotClock(servoLeft, servoRight,270,328,150,98,20)
 
 device_objects = {
     'p': plotClock,
     'sl': servoLeft,
     'sr': servoRight,
 }
-
 def parse_command(cmd):
-    # cmd örn: "P1.p.goHome()" veya "P1.sl.setAngle(1.57)"
+    # Komut örneği: "P1.p.goHome()" veya "P1.sl.setAngle(1.57)"
     id_part, sep, code_part = cmd.partition(".")
     if id_part != DEVICE_ID:
         return
@@ -198,30 +199,45 @@ def parse_command(cmd):
         if obj_name in device_objects:
             result = eval(f'device_objects["{obj_name}"].{method_part}')
             if result is not None:
-                uart.write(f"{DEVICE_ID}:{result}\n".encode())
-            else:
-                #uart.write(f"{DEVICE_ID}:OK\n".encode())
-                pass
+                uart.write(f"{DEVICE_ID}:{str(result)}\n".encode())  # Güvenli encode
         else:
             uart.write(f"{DEVICE_ID}:ERR:Unknown object \"{obj_name}\"\n".encode())
     except Exception as e:
         uart.write(f"{DEVICE_ID}:ERR:{e}\n".encode())
 
 buffer = b""
+
 def readCommand(buffer):
-    if uart.any():
-        data = uart.read(uart.any())
-        if data is not None:
-            buffer += data
-        while b'\n' in buffer:
-            line, buffer = buffer.split(b'\n', 1)
-            cmd = line.decode().rstrip('\r')
-            parse_command(cmd)
+    try:
+        if uart.any():
+            data = uart.read(uart.any())
+            if data:
+                buffer += data
+            while b'\n' in buffer:
+                line, buffer = buffer.split(b'\n', 1)
+                try:
+                    cmd = line.decode().strip()
+                    parse_command(cmd)
+                except UnicodeError:
+                    # Geçersiz karakter varsa komutu atla
+                    pass
+    except Exception as e:
+        uart.write(f"{DEVICE_ID}:ERR:UART exception {e}\n".encode())
     return buffer
+led = machine.Pin("LED", machine.Pin.OUT)  # Dahili LED
+led_on = False
+interval = 500  # milisaniye
+last_toggle_time = utime.ticks_ms()
 
 plotClock.goHome()
+uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
+
 while True:
     buffer = readCommand(buffer)
     plotClock.update()
 
-    
+    current_time = utime.ticks_ms()
+    if utime.ticks_diff(current_time, last_toggle_time) >= interval:
+        led_on = not led_on
+        led.value(led_on)
+        last_toggle_time = current_time
