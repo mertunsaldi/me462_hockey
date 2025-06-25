@@ -106,6 +106,6 @@ def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
         for i in range(n):
             w1 = walls_sorted[i]
             w2 = walls_sorted[(i + 1) % n]
-            draw_line(frame, w1.corners[3], w2.corners[2])
+            draw_line(frame, w1.corners[2], w2.corners[3])
 
     draw_points(frame, centers)
