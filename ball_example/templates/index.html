@@ -170,10 +170,13 @@
         }
       } catch(e){ console.error(e); }
     }
-    const startBtn = qs('#start-btn');
-    const tuneBtn  = qs('#tune-btn');
-    const cmdList  = qs('#cmd-list');
-    let clockIds   = [];
+    const startBtn   = qs('#start-btn');
+    const tuneBtn    = qs('#tune-btn');
+    const connectBtn = qs('#connect-btn');
+    const cmdBox     = qs('#cmd-box');
+    const cmdList    = qs('#cmd-list');
+    const picoLog    = qs('#pico-log');
+    let clockIds     = [];
     const servoCmds = [
       'getAngle()',
       'setAngle(rad)',
@@ -194,7 +197,6 @@
     ];
     setInterval(updateStats, 250);
     updateStats();
-    updateCmdList();
 
     async function pollPicoLog(){
       try{
@@ -211,6 +213,7 @@
     }
     setInterval(pollPicoLog, 500);
     pollPicoLog();
+    updateCmdList();
 
     function updateCmdList(){
       const val = cmdBox.value;
@@ -268,9 +271,6 @@
     });
 
     /* Pico connect button */
-    const connectBtn = qs('#connect-btn');
-    const cmdBox    = qs('#cmd-box');
-    const picoLog   = qs('#pico-log');
     connectBtn.addEventListener('click', async () => {
       if(connectBtn.classList.contains('connected')) return;
       connectBtn.disabled = true;
