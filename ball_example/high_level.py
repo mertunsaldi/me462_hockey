@@ -8,7 +8,7 @@ starting common behaviors like attack or defense.
 import time
 from typing import Iterable, List, Tuple, Callable
 
-from .gadgets import PlotClock, ArenaManager
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from .models import (
     ArucoHitter,
     ArucoMarker,

@@ -181,7 +181,12 @@ class PlotClock(Gadgets):
         if self.calibration:  # already calibrated
             return self.calibration
 
-        hitter = next((d for d in detections if isinstance(d,ArucoHitter)), None)
+        hitter = None
+        for d in detections:
+            if isinstance(d, ArucoHitter):
+                if self.device_id is None or d.id == self.device_id:
+                    hitter = d
+                    break
         now = time.time()
 
         # FSM --------------------------------------------------
