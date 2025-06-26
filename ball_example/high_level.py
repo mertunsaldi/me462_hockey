@@ -69,8 +69,17 @@ def calibrate_clocks(
     while time.time() - start < timeout:
         detections = list(get_detections())
         for c in clocks:
-            if not c.calibration:
-                c.calibrate(detections)
+            if c.calibration:
+                continue
+            if c.device_id is not None:
+                sub_dets = [
+                    d
+                    for d in detections
+                    if not hasattr(d, "id") or d.id == c.device_id
+                ]
+            else:
+                sub_dets = detections
+            c.calibrate(sub_dets)
         if all(c.calibration for c in clocks):
             break
         time.sleep(0.05)
