@@ -109,6 +109,9 @@ class Gadgets:
         self._ser = None
 
 
+from .master_pico import MasterPico
+
+
 class PlotClock(Gadgets):
     """
     Gadget for driving a PlotClock ("vurucu5000") firmware over serial.
@@ -121,8 +124,15 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     # Construction / serial helpers
     # ──────────────────────────────────────────────────────────
-    def __init__(self, port: Optional[str] = None, *, baudrate: int = 115200, timeout: float = 20):
-        super().__init__(port, baudrate=baudrate, timeout=timeout)
+    def __init__(
+        self,
+        *,
+        device_id: Optional[int] = None,
+        master: Optional[MasterPico] = None,
+    ):
+        super().__init__(None, baudrate=115200, timeout=20)
+        self.device_id = device_id
+        self.master = master
         self.commands = {
         #istersek buraya commandlar ekleyebiliriz
         "mode": "mode {0}",    
@@ -144,6 +154,24 @@ class PlotClock(Gadgets):
         self._u_x: Optional[np.ndarray] = None
         self._u_y: Optional[np.ndarray] = None
         self._origin_px: Optional[np.ndarray] = None
+
+    # ------------------------------------------------------------------
+    def send_command(self, cmd_name: str, *params: Any) -> None:
+        """Send a command either via master or direct serial."""
+        if self.master is not None:
+            if self.device_id is None:
+                raise RuntimeError("device_id not set for PlotClock")
+            if cmd_name in self.commands:
+                fmt = self.commands[cmd_name]
+                cmd_str = fmt.format(*params)
+            else:
+                cmd_str = cmd_name
+            prefix = f"P{self.device_id}."
+            if not cmd_str.startswith(prefix):
+                cmd_str = prefix + cmd_str
+            self.master.send_command(cmd_str)
+        else:
+            super().send_command(cmd_name, *params)
 
     # ──────────────────────────────────────────────────────────
     # Calibration public helper

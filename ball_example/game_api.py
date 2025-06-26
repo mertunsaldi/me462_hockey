@@ -21,8 +21,9 @@ from .trackers import BallTracker, DETECTION_SCALE
 from .detectors import ArucoDetector, BallDetector
 from .pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
-from .models import Ball, ArucoMarker
+from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
 from .gadgets import PlotClock
+from .master_pico import MasterPico
 from .scenarios import *
 from .simple_api import CommandScenario, sort_plotclocks
 from .scenario_loader import load_scenario, ScenarioLoadError
@@ -43,8 +44,8 @@ class GameAPI:
         self.arucos: List[ArucoMarker] = []
         self.lock = threading.Lock()
 
-        self.plotclock = PlotClock(port=None, baudrate=115200, timeout=0.2)
-        self.plotclocks = [self.plotclock]
+        self.master_pico = MasterPico(port=None, baudrate=115200, timeout=0.2)
+        self.plotclocks: Dict[int, PlotClock] = {}
         self.pico_lock = threading.Lock()
         self.pico_connected = False
 
@@ -104,6 +105,11 @@ class GameAPI:
             self.balls = balls
             self.arucos = markers
 
+        if self.pico_connected:
+            for m in markers:
+                if isinstance(m, (ArucoHitter, ArucoManager)) and m.id not in self.plotclocks:
+                    self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
+
         scenario_line = None
         extra_pts = None
         extra_labels = None
@@ -148,24 +154,30 @@ class GameAPI:
         with self.pico_lock:
             if self.pico_connected:
                 return
-            self.plotclock.start_comms()
-            self.plotclock.send_command("P1.p.setXY(0, 200)")
+            self.master_pico.connect()
             self.pico_connected = True
 
     def send_cmd(self, cmd: str) -> None:
         if not self.pico_connected:
             raise RuntimeError("not connected")
         with self.pico_lock:
-            self.plotclock.send_command(cmd)
+            self.master_pico.send_command(cmd)
+
+    def read_pico_lines(self) -> List[str]:
+        with self.pico_lock:
+            return self.master_pico.get_lines()
 
     # ------------------------------------------------------------------
     def load_commands(self, commands: List[Dict[str, Any]]) -> None:
-        ordered = sort_plotclocks(self.plotclocks)
+        ordered = sort_plotclocks(list(self.plotclocks.values()))
         self._current_scenario = CommandScenario(ordered, self.frame_size, commands)
         self.scenario_enabled = False
 
     def load_scenario(self, path: str) -> None:
-        self._current_scenario = load_scenario(path, self.plotclock, self.frame_size)
+        if not self.plotclocks:
+            raise RuntimeError("no plotclock available")
+        first_clock = list(self.plotclocks.values())[0]
+        self._current_scenario = load_scenario(path, first_clock, self.frame_size)
         self.scenario_enabled = False
 
     def start_scenario(self) -> None:
@@ -238,7 +250,7 @@ class GameAPI:
                 "class": g.__class__.__name__,
                 "calibrated": bool(getattr(g, "calibration", None)),
             }
-            for g in self.plotclocks
+            for g in self.plotclocks.values()
         ]
 
         image_params = {

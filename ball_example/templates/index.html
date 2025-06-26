@@ -89,6 +89,20 @@
       background:#fff;
       color:#000;
     }
+    #pico-log{
+      position:absolute;
+      top:86px;
+      right:10px;
+      width:180px;
+      height:120px;
+      overflow:auto;
+      padding:6px 8px;
+      border-radius:5px;
+      background:rgba(255,255,255,0.8);
+      color:#000;
+      font-size:12px;
+      white-space:pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -99,7 +113,9 @@
   <!-- Connect Pico button -->
   <button id="connect-btn">Connect Pico</button>
   <!-- Command input -->
-  <input id="cmd-box" type="text" placeholder="command + Enter">
+  <input id="cmd-box" type="text" placeholder="command + Enter" list="cmd-list" autocomplete="off">
+  <datalist id="cmd-list"></datalist>
+  <pre id="pico-log"></pre>
 
   <div id="status">
     <div>Number of Balls: <span id="num_balls">0</span></div>
@@ -117,6 +133,8 @@
     function qs(sel){ return document.querySelector(sel); }
 
     /* live stats */
+    let idsInitialized = false;
+
     async function updateStats(){
       try{
         const r = await fetch('/debug_data');
@@ -125,6 +143,16 @@
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
         qs('#ball_ids').textContent  = d.ball_ids.join(', ');
+        if(!idsInitialized && Array.isArray(d.markers)){
+          const ids = d.markers
+            .filter(m => m.type === 'ArucoHitter' || m.type === 'ArucoManager')
+            .map(m => m.id);
+          if(ids.length){
+            clockIds = Array.from(new Set(ids));
+            idsInitialized = true;
+            updateCmdList();
+          }
+        }
         const scSpan = qs('#scenario_status');
         if(d.scenario_loaded){
           scSpan.textContent = d.scenario_name + (d.scenario_running ? ' (running)' : ' (ready)');
@@ -147,14 +175,82 @@
         }
       } catch(e){ console.error(e); }
     }
-    const startBtn = qs('#start-btn');
-    const tuneBtn  = qs('#tune-btn');
+    const startBtn   = qs('#start-btn');
+    const tuneBtn    = qs('#tune-btn');
+    const connectBtn = qs('#connect-btn');
+    const cmdBox     = qs('#cmd-box');
+    const cmdList    = qs('#cmd-list');
+    const picoLog    = qs('#pico-log');
+    let clockIds     = [];
+    const servoCmds = [
+      'getAngle()',
+      'setAngle(rad)',
+      'calibrateRotation(rad)'
+    ];
+    const pCmds = [
+      'setup(L1,L2,L3,L4,hitDia,servoMarginAngle=2.5/180*math.pi)',
+      'getXY()',
+      'getMaxX()',
+      'getMinY()',
+      'getStartAngle()',
+      'startPoseCalibration()',
+      'goHome()',
+      'checkTarget()',
+      'gotoXY()',
+      'setXY()',
+      'setXYrel()'
+    ];
     setInterval(updateStats, 250);
     updateStats();
+
+    async function pollPicoLog(){
+      try{
+        const r = await fetch('/pico_lines');
+        if(!r.ok) return;
+        const d = await r.json();
+        for(const line of d.lines){
+          picoLog.textContent += line + '\n';
+        }
+        if(d.lines && d.lines.length){
+          picoLog.scrollTop = picoLog.scrollHeight;
+        }
+      }catch(e){ console.error(e); }
+    }
+    setInterval(pollPicoLog, 500);
+    pollPicoLog();
+    updateCmdList();
+
+    function updateCmdList(){
+      const val = cmdBox.value;
+      cmdList.innerHTML = '';
+      let opts = [];
+      if(!val || val.indexOf('.') === -1){
+        opts = clockIds.map(id => `P${id}.`);
+      } else if(/P\d+\.$/.test(val)){
+        opts = ['p.','sr.','sl.'].map(s => val + s);
+      } else {
+        const m = val.match(/^(P\d+\.(?:p|sr|sl))\.?/);
+        if(m){
+          const prefix = m[1];
+          if(prefix.endsWith('p')){
+            opts = pCmds.map(c => `${prefix}.${c}.`);
+          } else {
+            opts = servoCmds.map(c => `${prefix}.${c}.`);
+          }
+        }
+      }
+      for(const o of opts){
+        const option = document.createElement('option');
+        option.value = o;
+        cmdList.appendChild(option);
+      }
+    }
     /* open tuning page */
     tuneBtn.addEventListener('click', () => {
       window.open('/tune', '_blank');
     });
+    cmdBox.addEventListener('input', updateCmdList);
+    cmdBox.addEventListener('paste', () => setTimeout(updateCmdList, 0));
     
     /* Scenario start button */
     startBtn.addEventListener('click', async () => {
@@ -180,8 +276,6 @@
     });
 
     /* Pico connect button */
-    const connectBtn = qs('#connect-btn');
-    const cmdBox    = qs('#cmd-box');
     connectBtn.addEventListener('click', async () => {
       if(connectBtn.classList.contains('connected')) return;
       connectBtn.disabled = true;
@@ -194,6 +288,7 @@
           connectBtn.textContent = 'Pico Connected';
           cmdBox.classList.add('enabled');
           cmdBox.focus();
+          updateCmdList();
         } else {
           alert('Connect failed: ' + d.message);
           connectBtn.textContent = 'Connect Pico';
