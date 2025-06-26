@@ -139,10 +139,10 @@ class BallDetector:
         # 1) Static Hough (unchanged) …
         circles = cv2.HoughCircles(
             blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
-            blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
-            param1=param1, param2=param2,
-            minRadius=min_radius_s, maxRadius=max_radius_s
-            minRadius=min_radius_s, maxRadius=max_radius_s
+            param1=param1,
+            param2=param2,
+            minRadius=min_radius_s,
+            maxRadius=max_radius_s,
         )
         if circles is not None:
             for x, y, r in np.round(circles[0]).astype(int):
