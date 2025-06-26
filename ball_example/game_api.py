@@ -149,7 +149,7 @@ class GameAPI:
             if self.pico_connected:
                 return
             self.plotclock.start_comms()
-            self.plotclock.send_command("mode", 4)
+            self.plotclock.send_command("P1.p.setXY(0, 200)")
             self.pico_connected = True
 
     def send_cmd(self, cmd: str) -> None:
