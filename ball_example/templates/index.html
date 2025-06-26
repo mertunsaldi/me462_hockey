@@ -133,6 +133,8 @@
     function qs(sel){ return document.querySelector(sel); }
 
     /* live stats */
+    let idsInitialized = false;
+
     async function updateStats(){
       try{
         const r = await fetch('/debug_data');
@@ -141,12 +143,15 @@
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
         qs('#ball_ids').textContent  = d.ball_ids.join(', ');
-        if(Array.isArray(d.markers)){
+        if(!idsInitialized && Array.isArray(d.markers)){
           const ids = d.markers
             .filter(m => m.type === 'ArucoHitter' || m.type === 'ArucoManager')
             .map(m => m.id);
-          clockIds = Array.from(new Set(ids));
-          updateCmdList();
+          if(ids.length){
+            clockIds = Array.from(new Set(ids));
+            idsInitialized = true;
+            updateCmdList();
+          }
         }
         const scSpan = qs('#scenario_status');
         if(d.scenario_loaded){
