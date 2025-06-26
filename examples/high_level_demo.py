@@ -19,7 +19,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from ball_example.game_api import GameAPI
 from ball_example.models import ArucoWall, Arena
-from high_level import discover_plotclocks, calibrate_clocks, draw_arena
+from high_level import calibrate_clocks, draw_arena
 
 def main() -> None:
     api = GameAPI()
@@ -35,7 +35,7 @@ def main() -> None:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
-        clocks = discover_plotclocks(detections)
+            clocks = list(api.plotclocks.values())
         if arena is None:
             walls = [d for d in detections if isinstance(d, ArucoWall)]
             if walls:

@@ -196,7 +196,7 @@ class BallAttacker(Scenario):
             return
 
         # send first move toward S
-        self.clock.send_command(f"P1.p.setXY({start_mm[0]}, {start_mm[1]})")
+        self.clock.send_command(f"p.setXY({start_mm[0]}, {start_mm[1]})")
 
         # lock everything
         self._locked_M = np.array([mx, my])
@@ -254,7 +254,7 @@ class BallAttacker(Scenario):
             )
 
             if score >= 1.0:  # θ  — strike threshold
-                self.clock.send_command(f"P1.p.setXY({self._meet_mm[0]}, {self._meet_mm[1]})")
+                self.clock.send_command(f"p.setXY({self._meet_mm[0]}, {self._meet_mm[1]})")
                 self._phase = self.PHASE_STRIKE
 
     # ------------------------------------------------------------------
@@ -451,7 +451,7 @@ class BallReflector(Scenario):
             goal_reached = (hx - gx) ** 2 + (hy - gy) ** 2 <= self.reach_tol_px**2
 
         if self._goal_px is None or goal_reached and time_ok:
-            self.clock.send_command(f"P1.p.setXY({meet_mm[0]}, {meet_mm[1]})")
+            self.clock.send_command(f"p.setXY({meet_mm[0]}, {meet_mm[1]})")
             self._goal_px = self._meet_px
             self._last_cmd_time = now
 
@@ -523,12 +523,12 @@ class StandingBallHitter(Scenario):
                 if not self._fired and self._start_mm:
                     ball_mm = self.clock.find_mm(bx, by)
                     self.clock.send_command(
-                        f"P1.p.setXY({self._start_mm[0]}, {self._start_mm[1]})"
-                        )
+                        f"p.setXY({self._start_mm[0]}, {self._start_mm[1]})"
+                    )
                     time.sleep(0.7)
                     self.clock.send_command(
-                        f"P1.p.setXY({ball_mm[0]}, {ball_mm[1]})"
-                        )
+                        f"p.setXY({ball_mm[0]}, {ball_mm[1]})"
+                    )
                     self._fired = True
 
     # ------------------------------------------------------------------

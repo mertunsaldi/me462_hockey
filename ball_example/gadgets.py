@@ -186,24 +186,24 @@ class PlotClock(Gadgets):
 
         # FSM --------------------------------------------------
         if self._cal_state == 0:
-            x,y = self._mm_pts[0]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            x, y = self._mm_pts[0]
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 1
             return None
 
-        if self._cal_state == 1 and now-self._last_cmd_t >= self._delay and hitter:
+        if self._cal_state == 1 and now - self._last_cmd_t >= self._delay and hitter:
             self._px_hits.append(hitter.center)
-            x,y = self._mm_pts[1]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            x, y = self._mm_pts[1]
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 2
             return None
 
-        if self._cal_state == 2 and now-self._last_cmd_t >= self._delay and hitter:
+        if self._cal_state == 2 and now - self._last_cmd_t >= self._delay and hitter:
             self._px_hits.append(hitter.center)
-            x,y = self._mm_pts[2]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            x, y = self._mm_pts[2]
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 3
             return None
