@@ -89,6 +89,20 @@
       background:#fff;
       color:#000;
     }
+    #pico-log{
+      position:absolute;
+      top:86px;
+      right:10px;
+      width:180px;
+      height:120px;
+      overflow:auto;
+      padding:6px 8px;
+      border-radius:5px;
+      background:rgba(255,255,255,0.8);
+      color:#000;
+      font-size:12px;
+      white-space:pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +114,7 @@
   <button id="connect-btn">Connect Pico</button>
   <!-- Command input -->
   <input id="cmd-box" type="text" placeholder="command + Enter">
+  <pre id="pico-log"></pre>
 
   <div id="status">
     <div>Number of Balls: <span id="num_balls">0</span></div>
@@ -151,6 +166,22 @@
     const tuneBtn  = qs('#tune-btn');
     setInterval(updateStats, 250);
     updateStats();
+
+    async function pollPicoLog(){
+      try{
+        const r = await fetch('/pico_lines');
+        if(!r.ok) return;
+        const d = await r.json();
+        for(const line of d.lines){
+          picoLog.textContent += line + '\n';
+        }
+        if(d.lines && d.lines.length){
+          picoLog.scrollTop = picoLog.scrollHeight;
+        }
+      }catch(e){ console.error(e); }
+    }
+    setInterval(pollPicoLog, 500);
+    pollPicoLog();
     /* open tuning page */
     tuneBtn.addEventListener('click', () => {
       window.open('/tune', '_blank');
@@ -182,6 +213,7 @@
     /* Pico connect button */
     const connectBtn = qs('#connect-btn');
     const cmdBox    = qs('#cmd-box');
+    const picoLog   = qs('#pico-log');
     connectBtn.addEventListener('click', async () => {
       if(connectBtn.classList.contains('connected')) return;
       connectBtn.disabled = true;

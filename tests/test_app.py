@@ -91,6 +91,14 @@ def test_debug_endpoint():
     assert "gadgets" in data
 
 
+def test_pico_lines_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.get("/pico_lines")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "lines" in data
+
+
 def test_game_api_set_cam_source():
     from ball_example.game_api import GameAPI
     api = GameAPI()

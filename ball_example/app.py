@@ -212,6 +212,12 @@ def send_cmd():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/pico_lines")
+def pico_lines():
+    lines = api.read_pico_lines()
+    return jsonify({"lines": lines})
+
+
 @app.route("/send_message", methods=["POST"])
 def send_message():
     """Dispatch a control message to the running scenario."""
