@@ -193,12 +193,12 @@
       'getMaxX()',
       'getMinY()',
       'getStartAngle()',
-      'startPoseCalibration(eftStartPose,rightStartPose)',
+      'startPoseCalibration()',
       'goHome()',
-      'checkTarget(Tx, Ty)',
-      'gotoXY(Tx, Ty)',
-      'setXY(Tx, Ty, n_steps=100, stepDelay=2)',
-      'setXYrel(Tx, Ty, n_steps=100, stepDelay=2)'
+      'checkTarget()',
+      'gotoXY()',
+      'setXY()',
+      'setXYrel()'
     ];
     setInterval(updateStats, 250);
     updateStats();
@@ -225,17 +225,17 @@
       cmdList.innerHTML = '';
       let opts = [];
       if(!val || val.indexOf('.') === -1){
-        opts = clockIds.map(id => `P${id}`);
+        opts = clockIds.map(id => `P${id}.`);
       } else if(/P\d+\.$/.test(val)){
-        opts = ['p','sr','sl'].map(s => val + s);
+        opts = ['p.','sr.','sl.'].map(s => val + s);
       } else {
         const m = val.match(/^(P\d+\.(?:p|sr|sl))\.?/);
         if(m){
           const prefix = m[1];
           if(prefix.endsWith('p')){
-            opts = pCmds.map(c => `${prefix}.${c}`);
+            opts = pCmds.map(c => `${prefix}.${c}.`);
           } else {
-            opts = servoCmds.map(c => `${prefix}.${c}`);
+            opts = servoCmds.map(c => `${prefix}.${c}.`);
           }
         }
       }
