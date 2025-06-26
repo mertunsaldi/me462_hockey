@@ -22,7 +22,7 @@ from .detectors import ArucoDetector, BallDetector
 from .pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
 from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
-from .gadgets import PlotClock
+from .gadgets import PlotClock, ArenaManager
 from .master_pico import MasterPico
 from .scenarios import *
 from .simple_api import CommandScenario, sort_plotclocks
@@ -107,8 +107,11 @@ class GameAPI:
 
         if self.pico_connected:
             for m in markers:
-                if isinstance(m, (ArucoHitter, ArucoManager)) and m.id not in self.plotclocks:
-                    self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
+                if m.id not in self.plotclocks:
+                    if isinstance(m, ArucoManager):
+                        self.plotclocks[m.id] = ArenaManager(device_id=m.id, master=self.master_pico)
+                    elif isinstance(m, ArucoHitter):
+                        self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
 
         scenario_line = None
         extra_pts = None

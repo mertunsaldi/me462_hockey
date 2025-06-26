@@ -192,7 +192,10 @@ class PlotClock(Gadgets):
         # FSM --------------------------------------------------
         if self._cal_state == 0:
             x,y = self._mm_pts[0]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            # send a move command to the associated PlotClock. Prefix
+            # ``P{device_id}.`` is added automatically by ``send_command`` so
+            # we only issue the raw command here.
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 1
             return None
@@ -200,7 +203,7 @@ class PlotClock(Gadgets):
         if self._cal_state == 1 and now-self._last_cmd_t >= self._delay and marker:
             self._px_hits.append(marker.center)
             x,y = self._mm_pts[1]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 2
             return None
@@ -208,7 +211,7 @@ class PlotClock(Gadgets):
         if self._cal_state == 2 and now-self._last_cmd_t >= self._delay and marker:
             self._px_hits.append(marker.center)
             x,y = self._mm_pts[2]
-            self.send_command(f"P1.p.setXY({x}, {y})")
+            self.send_command(f"p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 3
             return None
