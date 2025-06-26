@@ -71,8 +71,29 @@ your local network.
 
 7. **Video stream**
 
-   Navigate to `http://192.168.1.100:8000/` in a browser to view the live
+Navigate to `http://192.168.1.100:8000/` in a browser to view the live
    camera feed and overlay.
+
+8. **Retrieve debug information**
+
+   ```bash
+   curl http://192.168.1.100:8000/debug_data
+   ```
+
+   This endpoint exposes all diagnostics from `GameAPI.debug_info`,
+   including `ball_details` and image processing parameters.
 
 Only trusted clients should be allowed to issue commands, as they can control the
 connected PlotClocks.
+
+## Python helper module
+
+For quick scripting you can import helper functions directly from the project
+root:
+
+```python
+from high_level import discover_plotclocks, calibrate_clocks
+```
+
+These wrappers simplify PlotClock discovery and calibration when using the
+`GameAPI` class programmatically.

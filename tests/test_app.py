@@ -22,6 +22,12 @@ def test_load_commands_ok():
     assert resp.get_json()["status"] == "ok"
 
 
+def test_stop_scenario_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.post("/stop_scenario")
+    assert r.status_code == 200
+
+
 def test_load_scenario_and_message(tmp_path):
     scenario_code = (
         "from ball_example.scenarios import Scenario\n"
@@ -40,3 +46,54 @@ def test_load_scenario_and_message(tmp_path):
 
     msg_resp = client.post("/send_message", json={"foo": 1})
     assert msg_resp.status_code == 200
+
+
+def test_debug_data_endpoint_returns_debug_info():
+    client = hockey_app.app.test_client()
+    r = client.get("/debug_data")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "ball_details" in data
+    assert "image_params" in data
+    assert "min_radius" in data["image_params"]
+    assert "max_radius" in data["image_params"]
+
+
+def test_manual_mode_endpoints():
+    client = hockey_app.app.test_client()
+    r = client.get("/manual_params")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "manual" in data
+    assert "min_r" in data and "max_r" in data
+    r2 = client.post("/manual_mode", json={"enable": True})
+    assert r2.status_code == 200
+    r3 = client.post("/manual_params", json={"param": "edge_density", "value": 0.2})
+    assert r3.status_code == 200
+    r4 = client.post("/manual_params", json={"param": "min_r", "value": 10})
+    assert r4.status_code == 200
+    r5 = client.post("/manual_mode", json={"enable": False})
+    assert r5.status_code == 200
+
+
+def test_processed_feed_route():
+    client = hockey_app.app.test_client()
+    r = client.get("/processed_feed")
+    assert r.status_code == 200
+
+
+def test_debug_endpoint():
+    client = hockey_app.app.test_client()
+    r = client.get("/debug_data")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "image_params" in data
+    assert "gadgets" in data
+
+
+def test_game_api_set_cam_source():
+    from ball_example.game_api import GameAPI
+    api = GameAPI()
+    api.set_cam_source(0)
+    assert api.camera.src == 0
+

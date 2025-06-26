@@ -24,7 +24,7 @@
     }
     #video{ width:100%; height:auto; display:block; }
 
-    /* connect and start buttons and cmd box */
+    /* connect and start buttons and tune buttons */
     #start-btn{
       position:absolute;
       top:10px;
@@ -57,6 +57,19 @@
     #connect-btn.connected{
       background:#2e8b57;
     }
+    #tune-btn{
+      position:absolute;
+      top:10px;
+      right:320px; /* left of start button */
+      background:#9b59b6;
+      color:#fff;
+      border:none;
+      padding:10px 16px;
+      border-radius:5px;
+      font-size:14px;
+      cursor:pointer;
+      z-index:11;
+    }    
     #cmd-box{
       position:absolute;
       top:56px;
@@ -79,7 +92,8 @@
   </style>
 </head>
 <body>
-
+  <!-- Tuning + Scenario buttons -->
+  <button id="tune-btn">Tune Detector</button>
   <!-- Start Scenario button -->
   <button id="start-btn">Start Scenario</button>
   <!-- Connect Pico button -->
@@ -105,7 +119,7 @@
     /* live stats */
     async function updateStats(){
       try{
-        const r = await fetch('/stats');
+        const r = await fetch('/debug_data');
         if(!r.ok) return;
         const d = await r.json();
         qs('#num_balls').textContent = d.num_balls;
@@ -134,9 +148,14 @@
       } catch(e){ console.error(e); }
     }
     const startBtn = qs('#start-btn');
+    const tuneBtn  = qs('#tune-btn');
     setInterval(updateStats, 250);
     updateStats();
-
+    /* open tuning page */
+    tuneBtn.addEventListener('click', () => {
+      window.open('/tune', '_blank');
+    });
+    
     /* Scenario start button */
     startBtn.addEventListener('click', async () => {
       if(startBtn.classList.contains('running')) return;

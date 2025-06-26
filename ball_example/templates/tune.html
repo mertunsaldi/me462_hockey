@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Detection Tuning</title>
+<style>
+ body{background:#222;color:#eee;font-family:Arial;margin:0;padding:0;display:flex;flex-direction:column;align-items:center}
+ #video{max-width:90%;margin-top:10px}
+ .slider{margin:8px;width:80%}
+ label{display:block;margin-bottom:4px}
+ input[type=range]{width:100%}
+ #mode-btn{margin-top:10px;padding:8px 12px;border:none;border-radius:4px;background:#f39c12;color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<h3>Manual Detection Tuning</h3>
+<button id="mode-btn">Enable Manual Mode</button>
+<img id="video" src="{{ url_for('processed_feed') }}" alt="Processed">
+<div class="slider">
+<label>Edge Density: <span id="edge_density_val"></span></label>
+<input id="edge_density" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Solidity: <span id="solidity_val"></span></label>
+<input id="solidity" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+
+<label>Circularity: <span id="circ_val"></span></label>
+<input id="circ" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Area Ratio: <span id="area_ratio_val"></span></label>
+<input id="area_ratio" type="range" min="0" max="1" step="0.01">
+</div>
+<div class="slider">
+<label>Blur Kernel: <span id="blur_val"></span></label>
+<input id="blur" type="range" min="1" max="31" step="2">
+</div>
+<div class="slider">
+<label>Blur Sigma: <span id="sigma_val"></span></label>
+<input id="sigma" type="range" min="0" max="10" step="0.1">
+</div>
+<div class="slider">
+<label>Min Radius: <span id="min_r_val"></span></label>
+<input id="min_r" type="range" min="1" max="150" step="1">
+</div>
+<div class="slider">
+<label>Max Radius: <span id="max_r_val"></span></label>
+<input id="max_r" type="range" min="1" max="300" step="1">
+</div>
+<div class="slider">
+
+<label>Hue Low: <span id="h_low_val"></span></label>
+<input id="h_low" type="range" min="0" max="179" step="1">
+</div>
+<div class="slider">
+<label>Hue High: <span id="h_up_val"></span></label>
+<input id="h_up" type="range" min="0" max="179" step="1">
+</div>
+
+<div class="slider">
+<label>Saturation Low: <span id="s_low_val"></span></label>
+<input id="s_low" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Value Low: <span id="v_low_val"></span></label>
+<input id="v_low" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Saturation High: <span id="s_up_val"></span></label>
+<input id="s_up" type="range" min="0" max="255" step="1">
+</div>
+<div class="slider">
+<label>Value High: <span id="v_up_val"></span></label>
+<input id="v_up" type="range" min="0" max="255" step="1">
+</div>
+
+<script>
+let mode=false;
+const paramKeys=['edge_density','solidity','circ','area_ratio','blur','sigma','min_r','max_r','h_low','s_low','v_low','h_up','s_up','v_up'];
+async function loadParams(){
+ const r=await fetch('/manual_params');
+ if(!r.ok) return;
+ const d=await r.json();
+ mode=d.manual;
+ document.getElementById('mode-btn').textContent=mode?'Disable Manual Mode':'Enable Manual Mode';
+ paramKeys.forEach(k=>{
+   if(d[k]!==undefined){
+     const el=document.getElementById(k);
+     el.value=d[k];
+     document.getElementById(k+'_val').textContent=d[k];
+   }
+ });
+}
+async function setParam(name,val){
+ await fetch('/manual_params',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({param:name,value:val})});
+}
+paramKeys.forEach(k=>{
+ const el=document.getElementById(k);
+ el.addEventListener('input',()=>{
+   const v=el.value;
+   document.getElementById(k+'_val').textContent=v;
+   setParam(k,parseFloat(v));
+ });
+});
+const modeBtn=document.getElementById('mode-btn');
+modeBtn.addEventListener('click',async()=>{
+ const r=await fetch('/manual_mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enable:!mode})});
+ if(r.ok){const d=await r.json();mode=d.manual;modeBtn.textContent=mode?'Disable Manual Mode':'Enable Manual Mode';loadParams();}
+});
+loadParams();
+</script>
+</body>
+</html>

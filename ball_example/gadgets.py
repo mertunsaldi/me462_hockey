@@ -5,7 +5,7 @@ import serial
 import serial.tools.list_ports
 import time
 import numpy as np
-from models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter
 
 
 class Gadgets:
@@ -228,3 +228,41 @@ class PlotClock(Gadgets):
         """Return (x_mm, y_mm) for a raw pixel coordinate."""
         return self.pixel_to_mm((x_px, y_px))
 
+
+    def attack(self, frame_size: Tuple[int, int], target_mm: Tuple[float, float]):
+        """Return a FixedTargetAttacker scenario for this clock."""
+        from .scenarios import FixedTargetAttacker
+        return FixedTargetAttacker(self, frame_size, target_mm)
+
+    def defend(self, frame_size: Tuple[int, int]):
+        """Return a BallReflector scenario for this clock."""
+        from .scenarios import BallReflector
+        return BallReflector(self, frame_size)
+
+    def draw_working_area(
+        self,
+        frame: np.ndarray,
+        *,
+        color: Tuple[int, int, int] = (0, 255, 0),
+        thickness: int = 2,
+    ) -> None:
+        """Draw the calibrated working rectangle of this clock on ``frame``."""
+        from .renderers import draw_line
+
+        if not self.calibration:
+            return
+
+        x0, x1 = self.x_range
+        y0, y1 = self.y_range
+        p00 = self.mm_to_pixel((x0, y0))
+        p10 = self.mm_to_pixel((x1, y0))
+        p11 = self.mm_to_pixel((x1, y1))
+        p01 = self.mm_to_pixel((x0, y1))
+        lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
+        for p1, p2 in lines:
+            draw_line(frame, p1, p2, color=color, thickness=thickness)
+
+
+class ArenaManager(PlotClock):
+    """Placeholder class for arena manager devices."""
+    pass

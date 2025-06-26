@@ -15,6 +15,16 @@ class ArucoHitter(ArucoMarker):
     pass
 
 
+class Obstacle(ArucoMarker):
+    """Represents a detected obstacle marker."""
+    pass
+
+
+class ArucoManager(ArucoMarker):
+    """Represents an arena manager ArUco marker."""
+    pass
+
+
 class Ball:
     """
     Represents a detected ball in the frame.
@@ -46,64 +56,3 @@ class Ball:
             f"radius={self.radius} velocity={self.velocity}>"
         )
 
-
-class Game:
-    """
-    Maintains the current state of the game, specifically the lists of balls and ArUco markers.
-    """
-    def __init__(self):
-        # List of currently tracked balls
-        self.balls: List[Ball] = []
-        # List of currently detected ArUco markers
-        self.arucos: List[ArucoMarker] = []
-
-    # ─── Ball methods ───────────────────────────────────────────────
-
-    def set_balls(self, balls: List[Ball]) -> None:
-        """
-        Replace the current list of balls with a new list.
-        """
-        self.balls = balls
-
-    def clear_balls(self) -> None:
-        """
-        Remove all balls from the game.
-        """
-        self.balls.clear()
-
-    def add_ball(self, ball: Ball) -> None:
-        """
-        Add a single Ball to the game state.
-        """
-        self.balls.append(ball)
-
-    # ─── ArUco methods ──────────────────────────────────────────────
-
-    def set_arucos(self, arucos: List[ArucoMarker]) -> None:
-        """
-        Replace the current list of ArUco markers with a new list.
-        """
-        self.arucos = arucos
-
-    def clear_arucos(self) -> None:
-        """
-        Remove all ArUco markers from the game.
-        """
-        self.arucos.clear()
-
-    def add_arcuo(self, marker: ArucoMarker) -> None:
-        """
-        Add a single ArUco marker to the game state.
-        """
-        self.arucos.append(marker)
-
-    # ─── Utility & dunders ─────────────────────────────────────────
-
-    def __iter__(self):
-        return iter(self.balls)
-
-    def __len__(self) -> int:
-        return len(self.balls)
-
-    def __repr__(self) -> str:
-        return f"<Game balls={len(self.balls)} arucos={len(self.arucos)}>"

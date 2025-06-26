@@ -9,9 +9,20 @@ class Camera:
     Encapsulates webcam capture using OpenCV in a background thread.
     Now with automatic FPS measurement.
     """
-    def __init__(self, src: int = 0, width: Optional[int] = None, height: Optional[int] = None):
+    def __init__(
+        self,
+        src: int = 0,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        fourcc: Optional[str] = None,
+    ):
+        """Initialize a camera capture session."""
         self.src = src
         self.cap = cv2.VideoCapture(self.src)
+
+        # Request a specific pixel format if provided (e.g. "MJPG" for MJPEG).
+        if fourcc is not None:
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
 
         if width is not None:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  width)
