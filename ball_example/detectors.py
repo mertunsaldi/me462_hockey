@@ -139,7 +139,9 @@ class BallDetector:
         # 1) Static Hough (unchanged) …
         circles = cv2.HoughCircles(
             blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
+            blurred, cv2.HOUGH_GRADIENT, dp, min_dist_s,
             param1=param1, param2=param2,
+            minRadius=min_radius_s, maxRadius=max_radius_s
             minRadius=min_radius_s, maxRadius=max_radius_s
         )
         if circles is not None:
@@ -236,6 +238,8 @@ class BallDetector:
         if not balls:
             params = cv2.SimpleBlobDetector_Params()
             params.filterByArea       = True
+            params.minArea            = np.pi*(min_radius_s**2)
+            params.maxArea            = np.pi*(max_radius_s**2)
             params.minArea            = np.pi*(min_radius_s**2)
             params.maxArea            = np.pi*(max_radius_s**2)
             params.filterByCircularity= True
