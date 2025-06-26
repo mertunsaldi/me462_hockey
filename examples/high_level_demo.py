@@ -9,6 +9,9 @@ Rules
 4. Clock1 defends using a BallReflector.
 5. The round ends when the attacker scenario finishes.
 """
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import time
 import cv2
