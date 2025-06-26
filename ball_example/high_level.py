@@ -9,13 +9,21 @@ import time
 from typing import Iterable, List, Tuple, Callable
 
 from .gadgets import PlotClock, ArenaManager
-from .models import ArucoHitter, ArucoMarker, ArucoManager
+from .models import (
+    ArucoHitter,
+    ArucoMarker,
+    ArucoManager,
+    ArucoWall,
+    Arena,
+)
+from .renderers import draw_line, draw_points
 from .scenarios import FixedTargetAttacker, BallReflector
 
 
 __all__ = [
     "discover_plotclocks",
     "calibrate_clocks",
+    "draw_arena",
 ]
 
 
@@ -62,3 +70,22 @@ def calibrate_clocks(
         if all(c.calibration for c in clocks):
             break
         time.sleep(0.05)
+
+
+def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
+    """Draw an arena based on ArucoWall markers onto ``frame``."""
+
+    if isinstance(arena, Arena):
+        corners = arena.get_arena_corners()
+    else:
+        corners = Arena(list(arena)).get_arena_corners()
+
+    if len(corners) < 2:
+        return
+
+    for i in range(len(corners)):
+        p1 = corners[i]
+        p2 = corners[(i + 1) % len(corners)]
+        draw_line(frame, p1, p2)
+
+    draw_points(frame, corners)
