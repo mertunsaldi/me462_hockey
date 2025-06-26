@@ -113,7 +113,8 @@
   <!-- Connect Pico button -->
   <button id="connect-btn">Connect Pico</button>
   <!-- Command input -->
-  <input id="cmd-box" type="text" placeholder="command + Enter">
+  <input id="cmd-box" type="text" placeholder="command + Enter" list="cmd-list" autocomplete="off">
+  <datalist id="cmd-list"></datalist>
   <pre id="pico-log"></pre>
 
   <div id="status">
@@ -140,6 +141,13 @@
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
         qs('#ball_ids').textContent  = d.ball_ids.join(', ');
+        if(Array.isArray(d.markers)){
+          const ids = d.markers
+            .filter(m => m.type === 'ArucoHitter' || m.type === 'ArucoManager')
+            .map(m => m.id);
+          clockIds = Array.from(new Set(ids));
+          updateCmdList();
+        }
         const scSpan = qs('#scenario_status');
         if(d.scenario_loaded){
           scSpan.textContent = d.scenario_name + (d.scenario_running ? ' (running)' : ' (ready)');
@@ -164,8 +172,29 @@
     }
     const startBtn = qs('#start-btn');
     const tuneBtn  = qs('#tune-btn');
+    const cmdList  = qs('#cmd-list');
+    let clockIds   = [];
+    const servoCmds = [
+      'getAngle()',
+      'setAngle(rad)',
+      'calibrateRotation(rad)'
+    ];
+    const pCmds = [
+      'setup(L1,L2,L3,L4,hitDia,servoMarginAngle=2.5/180*math.pi)',
+      'getXY()',
+      'getMaxX()',
+      'getMinY()',
+      'getStartAngle()',
+      'startPoseCalibration(eftStartPose,rightStartPose)',
+      'goHome()',
+      'checkTarget(Tx, Ty)',
+      'gotoXY(Tx, Ty)',
+      'setXY(Tx, Ty, n_steps=100, stepDelay=2)',
+      'setXYrel(Tx, Ty, n_steps=100, stepDelay=2)'
+    ];
     setInterval(updateStats, 250);
     updateStats();
+    updateCmdList();
 
     async function pollPicoLog(){
       try{
@@ -182,10 +211,38 @@
     }
     setInterval(pollPicoLog, 500);
     pollPicoLog();
+
+    function updateCmdList(){
+      const val = cmdBox.value;
+      cmdList.innerHTML = '';
+      let opts = [];
+      if(!val || val.indexOf('.') === -1){
+        opts = clockIds.map(id => `P${id}`);
+      } else if(/P\d+\.$/.test(val)){
+        opts = ['p','sr','sl'].map(s => val + s);
+      } else {
+        const m = val.match(/^(P\d+\.(?:p|sr|sl))\.?/);
+        if(m){
+          const prefix = m[1];
+          if(prefix.endsWith('p')){
+            opts = pCmds.map(c => `${prefix}.${c}`);
+          } else {
+            opts = servoCmds.map(c => `${prefix}.${c}`);
+          }
+        }
+      }
+      for(const o of opts){
+        const option = document.createElement('option');
+        option.value = o;
+        cmdList.appendChild(option);
+      }
+    }
     /* open tuning page */
     tuneBtn.addEventListener('click', () => {
       window.open('/tune', '_blank');
     });
+    cmdBox.addEventListener('input', updateCmdList);
+    cmdBox.addEventListener('paste', () => setTimeout(updateCmdList, 0));
     
     /* Scenario start button */
     startBtn.addEventListener('click', async () => {
@@ -226,6 +283,7 @@
           connectBtn.textContent = 'Pico Connected';
           cmdBox.classList.add('enabled');
           cmdBox.focus();
+          updateCmdList();
         } else {
           alert('Connect failed: ' + d.message);
           connectBtn.textContent = 'Connect Pico';
