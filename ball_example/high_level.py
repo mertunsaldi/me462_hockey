@@ -7,11 +7,15 @@ starting common behaviors like attack or defense.
 
 import time
 from typing import Iterable, List, Tuple, Callable, Any
-
+from .models import (
     ArucoMarker,
     ArucoManager,
     ArucoWall,
-    Arena,
+    Arena, ArucoHitter,
+)
+from .gadgets import (
+    PlotClock, ArenaManager
+
 )
 from .renderers import draw_line, draw_points
 from .scenarios import FixedTargetAttacker, BallReflector

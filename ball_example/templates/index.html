@@ -233,9 +233,9 @@
         if(m){
           const prefix = m[1];
           if(prefix.endsWith('p')){
-            opts = pCmds.map(c => `${prefix}.${c}.`);
+            opts = pCmds.map(c => `${prefix}.${c}`);
           } else {
-            opts = servoCmds.map(c => `${prefix}.${c}.`);
+            opts = servoCmds.map(c => `${prefix}.${c}`);
           }
         }
       }
