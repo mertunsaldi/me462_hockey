@@ -6,11 +6,8 @@ starting common behaviors like attack or defense.
 """
 
 import time
-from typing import Iterable, List, Tuple, Callable
+from typing import Iterable, List, Tuple, Callable, Any
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from .models import (
-    ArucoHitter,
     ArucoMarker,
     ArucoManager,
     ArucoWall,
@@ -27,19 +24,22 @@ __all__ = [
 ]
 
 
-def discover_plotclocks(detections: Iterable[ArucoMarker]) -> List[PlotClock]:
+def discover_plotclocks(
+    detections: Iterable[ArucoMarker], *, master: Any | None = None
+) -> List[PlotClock]:
     """Return PlotClock objects based on ArUco detections.
 
     ``ArucoManager`` results produce :class:`ArenaManager` instances while
-    ``ArucoHitter`` results produce regular :class:`PlotClock` objects.
-    The clocks are not calibrated automatically.
+    ``ArucoHitter`` results produce regular :class:`PlotClock` objects.  Each
+    device is assigned the detected marker ID and optional ``master`` for
+    communication.  The clocks are not calibrated automatically.
     """
     clocks: List[PlotClock] = []
     for d in detections:
         if isinstance(d, ArucoManager):
-            clocks.append(ArenaManager())
+            clocks.append(ArenaManager(device_id=d.id, master=master))
         elif isinstance(d, ArucoHitter):
-            clocks.append(PlotClock())
+            clocks.append(PlotClock(device_id=d.id, master=master))
     return clocks
 
 
