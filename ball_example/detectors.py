@@ -75,7 +75,7 @@ class ArucoDetector:
 
 class BallDetector:
     # ───── Tunable thresholds ───────────────────────────
-    CIRCULARITY_THRESHOLD = 0.75
+    CIRCULARITY_THRESHOLD = 0.9
     AREA_RATIO_THRESHOLD  = 0.8
     # reject contours with large holes
     SOLIDITY_THRESHOLD    = 0.9
@@ -91,7 +91,7 @@ class BallDetector:
     HSV_UPPER = np.array([120, 120, 120], dtype=np.uint8)
 
     # Default ball size limits
-    MIN_RADIUS = 30
+    MIN_RADIUS = 17
     MAX_RADIUS = 50
 
     # ────────────────────────────────────────────────────
