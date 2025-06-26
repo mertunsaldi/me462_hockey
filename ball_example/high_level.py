@@ -8,6 +8,10 @@ starting common behaviors like attack or defense.
 import time
 from typing import Iterable, List, Tuple, Callable
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(_file_), '..')))
+
 from .gadgets import PlotClock, ArenaManager
 from .models import (
     ArucoHitter,
