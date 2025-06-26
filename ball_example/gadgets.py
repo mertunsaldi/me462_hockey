@@ -5,7 +5,7 @@ import serial
 import serial.tools.list_ports
 import time
 import numpy as np
-from .models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
 
 
 class Gadgets:
@@ -124,6 +124,8 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     # Construction / serial helpers
     # ──────────────────────────────────────────────────────────
+    calibration_marker_cls = ArucoHitter
+
     def __init__(
         self,
         *,
@@ -176,12 +178,15 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     # Calibration public helper
     # ──────────────────────────────────────────────────────────
-    def calibrate(self, detections: List[Union[Ball,ArucoMarker,ArucoHitter]]) -> Optional[Dict[str,Any]]:
+    def calibrate(self, detections: List[Union[Ball, ArucoMarker, ArucoHitter, ArucoManager]]) -> Optional[Dict[str,Any]]:
         """Feed per‑frame detections. Returns calibration dict once finished."""
         if self.calibration:  # already calibrated
             return self.calibration
 
-        hitter = next((d for d in detections if isinstance(d,ArucoHitter)), None)
+        marker = next(
+            (d for d in detections if isinstance(d, self.calibration_marker_cls)),
+            None,
+        )
         now = time.time()
 
         # FSM --------------------------------------------------
@@ -192,24 +197,24 @@ class PlotClock(Gadgets):
             self._cal_state = 1
             return None
 
-        if self._cal_state == 1 and now-self._last_cmd_t >= self._delay and hitter:
-            self._px_hits.append(hitter.center)
+        if self._cal_state == 1 and now-self._last_cmd_t >= self._delay and marker:
+            self._px_hits.append(marker.center)
             x,y = self._mm_pts[1]
             self.send_command(f"P1.p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 2
             return None
 
-        if self._cal_state == 2 and now-self._last_cmd_t >= self._delay and hitter:
-            self._px_hits.append(hitter.center)
+        if self._cal_state == 2 and now-self._last_cmd_t >= self._delay and marker:
+            self._px_hits.append(marker.center)
             x,y = self._mm_pts[2]
             self.send_command(f"P1.p.setXY({x}, {y})")
             self._last_cmd_t = now
             self._cal_state = 3
             return None
 
-        if self._cal_state == 3 and now-self._last_cmd_t >= self._delay and hitter:
-            self._px_hits.append(hitter.center)
+        if self._cal_state == 3 and now-self._last_cmd_t >= self._delay and marker:
+            self._px_hits.append(marker.center)
             # compute basis -----------------------------------
             p1,p2,p3 = map(np.array,self._px_hits)
             (m1x,m1y),(m2x,m2y),(m3x,m3y) = self._mm_pts
@@ -292,4 +297,5 @@ class PlotClock(Gadgets):
 
 class ArenaManager(PlotClock):
     """Placeholder class for arena manager devices."""
-    pass
+
+    calibration_marker_cls = ArucoManager
