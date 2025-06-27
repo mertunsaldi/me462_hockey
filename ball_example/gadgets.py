@@ -235,10 +235,20 @@ class PlotClock(Gadgets):
         start = time.time()
         while time.time() - start < timeout:
             lines = self.master.get_lines()
-            for line in lines:
+            idx = None
+            payload = None
+            for i, line in enumerate(lines):
                 if line.startswith(f"P{self.device_id}:"):
+                    idx = i
                     payload = line.split(":", 1)[1]
-                    return payload.rsplit(":", 1)[-1].strip()
+                    break
+            if idx is not None:
+                remaining = lines[:idx] + lines[idx + 1 :]
+                if remaining:
+                    self.master.unget_lines(remaining)
+                return payload.rsplit(":", 1)[-1].strip()
+            if lines:
+                self.master.unget_lines(lines)
             time.sleep(0.05)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
