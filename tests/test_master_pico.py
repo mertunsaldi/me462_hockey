@@ -52,8 +52,9 @@ def test_query_value_preserves_other_lines():
 
     master.lines.append("P1:foo:bar")
     master.lines.append("P0:resp:42")
+    master.lines.append("P1:baz:99")
 
     value = clock._query_value("p.getFoo()", timeout=0.1)
     assert value == "42"
-    assert list(master.lines) == ["P1:foo:bar"]
+    assert list(master.lines) == ["P1:foo:bar", "P1:baz:99"]
 
