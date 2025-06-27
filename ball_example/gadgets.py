@@ -233,14 +233,23 @@ class PlotClock(Gadgets):
         self.master.send_command(cmd)
 
         start = time.time()
+        other_lines: List[str] = []
         while time.time() - start < timeout:
             lines = self.master.get_lines()
             for line in lines:
                 if line.startswith(f"P{self.device_id}:"):
                     payload = line.split(":", 1)[1]
+                    # push back any unrelated lines we consumed
+                    if other_lines:
+                        self.master.unget_lines(other_lines)
                     return payload.rsplit(":", 1)[-1].strip()
+                else:
+                    other_lines.append(line)
             time.sleep(0.05)
 
+        # timeout – restore unrelated lines before failing
+        if other_lines:
+            self.master.unget_lines(other_lines)
         raise RuntimeError(f"Timed out waiting for response to {code}")
 
     # ──────────────────────────────────────────────────────────

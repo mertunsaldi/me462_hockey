@@ -77,10 +77,25 @@ class MasterPico:
         self._ser.flush()
 
     # ------------------------------------------------------------------
-    def get_lines(self) -> List[str]:
+    def get_lines(self, *, clear: bool = True) -> List[str]:
+        """Return lines received from the Pico.
+
+        Parameters
+        ----------
+        clear:
+            If ``True`` (default) the internal buffer is cleared, otherwise the
+            lines are only copied leaving the buffer intact.
+        """
         lines = list(self._lines)
-        self._lines.clear()
+        if clear:
+            self._lines.clear()
         return lines
+
+    # ------------------------------------------------------------------
+    def unget_lines(self, lines: List[str]) -> None:
+        """Push ``lines`` back so they can be read again."""
+        for line in reversed(lines):
+            self._lines.appendleft(line)
 
     # ------------------------------------------------------------------
     def close(self) -> None:
