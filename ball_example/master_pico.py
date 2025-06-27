@@ -75,6 +75,7 @@ class MasterPico:
             cmd += "\n"
         self._ser.write(cmd.encode("utf-8"))
         self._ser.flush()
+        print(f"> {cmd}")
 
     # ------------------------------------------------------------------
     def get_lines(self) -> List[str]:

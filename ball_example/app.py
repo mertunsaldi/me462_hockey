@@ -15,10 +15,10 @@ from high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-#import logging
+import logging
 
-#log = logging.getLogger("werkzeug")
-#log.setLevel(logging.ERROR)
+log = logging.getLogger("werkzeug")
+log.setLevel(logging.ERROR)
 
 # Core processing API
 api = GameAPI()
