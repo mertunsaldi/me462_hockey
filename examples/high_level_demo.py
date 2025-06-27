@@ -90,10 +90,17 @@ def main() -> None:
     attacker = None
     defender = None
 
-    if clocks:
-        def _get_dets():
-            with api.lock:
-                return api.balls + api.arucos
+    def _get_dets():
+        with api.lock:
+            return api.balls + api.arucos
+
+    def start_game() -> None:
+        nonlocal attacker, defender
+        if not clocks:
+            messagebox.showwarning(
+                "No PlotClocks", "No PlotClocks detected, cannot start game"
+            )
+            return
 
         print("Calibrating clocks…")
         calibrate_clocks(clocks, _get_dets)
@@ -144,11 +151,10 @@ def main() -> None:
         "getL4()",
     ]
 
-    clock_ids = [c.device_id for c in clocks if c.device_id is not None]
-
     def suggest(val: str) -> list[str]:
+        ids = [c.device_id for c in clocks if c.device_id is not None]
         if not val or "." not in val:
-            return [f"P{i}." for i in clock_ids]
+            return [f"P{i}." for i in ids]
         if re.fullmatch(r"P\d+\.", val):
             return [val + s for s in ("p.", "sr.", "sl.")]
         m = re.match(r"^(P\d+\.(?:p|sr|sl))\.?", val)
@@ -172,6 +178,7 @@ def main() -> None:
             api.connect_pico()
             connect_btn.config(text="Pico Connected", state=tk.DISABLED)
             pico_connected = True
+            start_game()
         except Exception as e:
             messagebox.showerror("Connect Error", str(e))
 
