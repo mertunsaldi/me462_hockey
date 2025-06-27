@@ -4,6 +4,7 @@ from typing import Optional, Any, Dict, List, Tuple, Union
 import serial
 import serial.tools.list_ports
 import time
+import math
 import numpy as np
 from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
 
@@ -139,44 +140,54 @@ class PlotClock(Gadgets):
         #istersek buraya commandlar ekleyebiliriz
         "mode": "mode {0}",    
         }
-        # Obtain working ranges directly from the attached PlotClock if
-        # possible.  Only ``getMaxX`` and ``getMinY`` are guaranteed to be
-        # available, so ``getMinX`` is synthesized as ``-getMaxX``.  ``getMaxY``
-        # may or may not exist; if absent we keep the default height.
-        max_x = min_y = max_y = None
+        # Obtain working space geometry directly from the attached PlotClock if
+        # possible.  ``getMaxX`` and ``getMinY`` give the horizontal limits and
+        # lower bound.  The mechanical link lengths are fetched via ``getL1``,
+        # ``getL2`` and ``getL(4)``.  The union of two disk segments defined by
+        # these lengths describes the reachable area.  If any query fails,
+        # sensible defaults are used.
+
+        max_x = min_y = None
+        length = dist = None
         if self.master is not None and self.device_id is not None:
             try:
                 max_x = float(self._query_value("p.getMaxX()"))
                 min_y = float(self._query_value("p.getMinY()"))
-                try:
-                    max_y = float(self._query_value("p.getMaxY()"))
-                except Exception:
-                    max_y = None
+                l1 = float(self._query_value("p.getL1()"))
+                l2 = float(self._query_value("p.getL2()"))
+                # distance between the two servo origins (L4 in the
+                # firmware) is divided by two because the origin of the
+                # coordinate system is at the midpoint.
+                l4 = float(self._query_value("p.getL(4)"))
+                length = l1 + l2
+                dist = l4 / 2.0
             except Exception:
-                max_x = min_y = max_y = None
+                max_x = min_y = length = dist = None
 
-        if max_x is not None and min_y is not None:
+        if max_x is not None and min_y is not None and length is not None and dist is not None:
+            self.max_x = max_x
+            self.min_y = min_y
+            self.workspace_radius = length
+            self.workspace_dist = dist
             min_x = -max_x
-            if max_y is None:
-                # keep the historical height (45 mm) above ``min_y`` if
-                # ``getMaxY`` is unavailable
-                max_y = min_y + 45
+            max_y = math.sqrt(max(0.0, length * length - dist * dist))
             self.x_range = (min_x, max_x)
             self.y_range = (min_y, max_y)
         else:
-            # self.x_range = (0, 70)
-            # self.y_range = (10, 55)
-            self.x_range = (0, 80)
-            self.y_range = (10, 55)
+            self.max_x = 80.0
+            self.min_y = 10.0
+            self.workspace_radius = 120.0
+            self.workspace_dist = 40.0
+            self.x_range = (-self.max_x, self.max_x)
+            self.y_range = (self.min_y, math.sqrt(max(0.0, self.workspace_radius ** 2 - self.workspace_dist ** 2)))
 
         # Calibration state --------------------------------------------------
         self._cal_state: int = 0          # 0=idle,1..n=fsm
-        span_x = self.x_range[1] - self.x_range[0]
-        span_y = self.y_range[1] - self.y_range[0]
-        # length of the calibration axes within the working rectangle
+        span_x = 2 * self.max_x
+        span_y = self.y_range[1] - self.min_y
         self._axis_len = 0.5 * min(span_x, span_y)
-        base_x = self.x_range[0] + (span_x - self._axis_len) / 2
-        base_y = self.y_range[0] + (span_y - self._axis_len) / 2
+        base_x = -self._axis_len / 2
+        base_y = self.min_y
         self._mm_pts = [
             (base_x, base_y + self._axis_len),
             (base_x, base_y),
@@ -337,21 +348,31 @@ class PlotClock(Gadgets):
         color: Tuple[int, int, int] = (0, 255, 0),
         thickness: int = 2,
     ) -> None:
-        """Draw the calibrated working rectangle of this clock on ``frame``."""
-        from .renderers import draw_line
+        """Draw the reachable working space of this clock on ``frame``."""
+        import cv2
 
         if not self.calibration:
             return
 
-        x0, x1 = self.x_range
-        y0, y1 = self.y_range
-        p00 = self.mm_to_pixel((x0, y0))
-        p10 = self.mm_to_pixel((x1, y0))
-        p11 = self.mm_to_pixel((x1, y1))
-        p01 = self.mm_to_pixel((x0, y1))
-        lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
-        for p1, p2 in lines:
-            draw_line(frame, p1, p2, color=color, thickness=thickness)
+        r = self.workspace_radius
+        d = self.workspace_dist
+        max_x = self.max_x
+        min_y = self.min_y
+
+        num = 50
+        xs_left = np.linspace(-max_x, 0, num)
+        ys_left = np.sqrt(np.clip(r * r - (xs_left + d) ** 2, 0, None))
+        xs_right = np.linspace(0, max_x, num)
+        ys_right = np.sqrt(np.clip(r * r - (xs_right - d) ** 2, 0, None))
+
+        pts_mm: List[Tuple[float, float]] = list(zip(xs_left, ys_left))
+        pts_mm += list(zip(xs_right, ys_right))
+        pts_mm.append((max_x, min_y))
+        pts_mm.append((-max_x, min_y))
+
+        pts_px = [self.mm_to_pixel(p) for p in pts_mm]
+        poly = np.array(pts_px, dtype=np.int32)
+        cv2.polylines(frame, [poly], True, color, thickness)
 
 
 class ArenaManager(PlotClock):
