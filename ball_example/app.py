@@ -10,6 +10,8 @@ if __package__ in (None, ""):
 
 from .game_api import GameAPI
 from .detectors import BallDetector
+from .models import ArucoWall, Arena
+from high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -33,6 +35,8 @@ else:
         
 # Manual tuning state
 manual_mode = False
+detected_clocks = []
+detected_arena = None
 _default_params = {
     "circ": BallDetector.CIRCULARITY_THRESHOLD,
     "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
@@ -135,6 +139,11 @@ def generate_frames():
             time.sleep(0.01)
             continue
 
+        if detected_arena:
+            draw_arena(annotated, detected_arena)
+        for c in detected_clocks:
+            c.draw_working_area(annotated)
+
         ok, buf = cv2.imencode(".jpg", annotated)
         if not ok:
             continue
@@ -188,8 +197,37 @@ def debug_data():
 
 @app.route("/connect_pico", methods=["POST"])
 def connect_pico():
+    global detected_clocks, detected_arena
     try:
         api.connect_pico()
+
+        print("Waiting for detections...")
+        detected_clocks = []
+        detected_arena = None
+        start = time.time()
+        while time.time() - start < 3 and len(detected_clocks) < 2:
+            time.sleep(0.1)
+            with api.lock:
+                detections = list(api.arucos)
+                detected_clocks = list(api.plotclocks.values())
+            if detected_arena is None:
+                walls = [d for d in detections if isinstance(d, ArucoWall)]
+                if walls:
+                    detected_arena = Arena(walls)
+
+        if len(detected_clocks) < 2:
+            print(f"Warning: expected 2 PlotClocks, found {len(detected_clocks)}")
+            if not detected_clocks:
+                print("No PlotClocks detected, continuing without scenarios")
+
+        if detected_clocks:
+            def _get_dets():
+                with api.lock:
+                    return api.balls + api.arucos
+
+            print("Calibrating clocks…")
+            calibrate_clocks(detected_clocks, _get_dets)
+
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
