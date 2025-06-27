@@ -140,19 +140,27 @@ class PlotClock(Gadgets):
         "mode": "mode {0}",    
         }
         # Obtain working ranges directly from the attached PlotClock if
-        # possible.  Fallback to sensible defaults when no response is
-        # available (for example during offline testing).
-        min_x = max_x = min_y = max_y = None
+        # possible.  Only ``getMaxX`` and ``getMinY`` are guaranteed to be
+        # available, so ``getMinX`` is synthesized as ``-getMaxX``.  ``getMaxY``
+        # may or may not exist; if absent we keep the default height.
+        max_x = min_y = max_y = None
         if self.master is not None and self.device_id is not None:
             try:
-                min_x = float(self._query_value("p.getMinX()"))
                 max_x = float(self._query_value("p.getMaxX()"))
                 min_y = float(self._query_value("p.getMinY()"))
-                max_y = float(self._query_value("p.getMaxY()"))
+                try:
+                    max_y = float(self._query_value("p.getMaxY()"))
+                except Exception:
+                    max_y = None
             except Exception:
-                min_x = max_x = min_y = max_y = None
+                max_x = min_y = max_y = None
 
-        if None not in {min_x, max_x, min_y, max_y}:
+        if max_x is not None and min_y is not None:
+            min_x = -max_x
+            if max_y is None:
+                # keep the historical height (45 mm) above ``min_y`` if
+                # ``getMaxY`` is unavailable
+                max_y = min_y + 45
             self.x_range = (min_x, max_x)
             self.y_range = (min_y, max_y)
         else:
