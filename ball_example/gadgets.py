@@ -186,12 +186,14 @@ class PlotClock(Gadgets):
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
         self._axis_len = 0.5 * min(span_x, span_y)
-        base_x = -self._axis_len / 2
-        base_y = self.min_y
+        margin = 0.1 * self._axis_len
+        inner_len = self._axis_len - 2 * margin
+        base_x = -inner_len / 2
+        base_y = self.min_y + margin
         self._mm_pts = [
-            (base_x, base_y + self._axis_len),
+            (base_x, base_y + inner_len),
             (base_x, base_y),
-            (base_x + self._axis_len, base_y),
+            (base_x + inner_len, base_y),
         ]
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
