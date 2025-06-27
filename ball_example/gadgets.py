@@ -139,18 +139,44 @@ class PlotClock(Gadgets):
         #istersek buraya commandlar ekleyebiliriz
         "mode": "mode {0}",    
         }
-        # self.x_range = (0, 70)
-        # self.y_range = (10, 55)
-        self.x_range = (0, 80)
-        self.y_range = (10, 55)
+        # Obtain working ranges directly from the attached PlotClock if
+        # possible.  Fallback to sensible defaults when no response is
+        # available (for example during offline testing).
+        min_x = max_x = min_y = max_y = None
+        if self.master is not None and self.device_id is not None:
+            try:
+                min_x = float(self._query_value("p.getMinX()"))
+                max_x = float(self._query_value("p.getMaxX()"))
+                min_y = float(self._query_value("p.getMinY()"))
+                max_y = float(self._query_value("p.getMaxY()"))
+            except Exception:
+                min_x = max_x = min_y = max_y = None
+
+        if None not in {min_x, max_x, min_y, max_y}:
+            self.x_range = (min_x, max_x)
+            self.y_range = (min_y, max_y)
+        else:
+            # self.x_range = (0, 70)
+            # self.y_range = (10, 55)
+            self.x_range = (0, 80)
+            self.y_range = (10, 55)
 
         # Calibration state --------------------------------------------------
         self._cal_state: int = 0          # 0=idle,1..n=fsm
-        self._mm_pts: List[Tuple[float,float]] = [(100,300),(100,200),(200,200)]
+        span_x = self.x_range[1] - self.x_range[0]
+        span_y = self.y_range[1] - self.y_range[0]
+        # length of the calibration axes within the working rectangle
+        self._axis_len = 0.5 * min(span_x, span_y)
+        base_x = self.x_range[0] + (span_x - self._axis_len) / 2
+        base_y = self.y_range[0] + (span_y - self._axis_len) / 2
+        self._mm_pts = [
+            (base_x, base_y + self._axis_len),
+            (base_x, base_y),
+            (base_x + self._axis_len, base_y),
+        ]
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
         self._delay: float = 2.0          # seconds between moves
-        self._axis_len: float = 100.0     # mm for drawing axes
         # Results
         self.calibration: Optional[Dict[str,Any]] = None  # u_x,u_y,origin
         self._u_x: Optional[np.ndarray] = None
@@ -174,6 +200,28 @@ class PlotClock(Gadgets):
             self.master.send_command(cmd_str)
         else:
             super().send_command(cmd_name, *params)
+
+    def _query_value(self, code: str, timeout: float = 1.0) -> str:
+        """Send ``code`` and return the first response payload for this clock."""
+        if self.master is None or self.device_id is None:
+            raise RuntimeError("query requires master and device_id")
+
+        prefix = f"P{self.device_id}."
+        if not code.startswith(prefix):
+            cmd = prefix + code
+        else:
+            cmd = code
+        self.master.send_command(cmd)
+
+        start = time.time()
+        while time.time() - start < timeout:
+            lines = self.master.get_lines()
+            for line in lines:
+                if line.startswith(f"P{self.device_id}:"):
+                    return line.split(":", 1)[1]
+            time.sleep(0.05)
+
+        raise RuntimeError(f"Timed out waiting for response to {code}")
 
     # ──────────────────────────────────────────────────────────
     # Calibration public helper
