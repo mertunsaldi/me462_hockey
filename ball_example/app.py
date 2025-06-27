@@ -37,6 +37,8 @@ else:
 manual_mode = False
 detected_clocks = []
 detected_arena = None
+attacker = None
+defender = None
 _default_params = {
     "circ": BallDetector.CIRCULARITY_THRESHOLD,
     "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
@@ -139,6 +141,14 @@ def generate_frames():
             time.sleep(0.01)
             continue
 
+        with api.lock:
+            dets = api.balls + api.arucos
+
+        if attacker:
+            attacker.update(dets)
+        if defender:
+            defender.update(dets)
+
         if detected_arena:
             draw_arena(annotated, detected_arena)
         for c in detected_clocks:
@@ -197,7 +207,7 @@ def debug_data():
 
 @app.route("/connect_pico", methods=["POST"])
 def connect_pico():
-    global detected_clocks, detected_arena
+    global detected_clocks, detected_arena, attacker, defender
     try:
         api.connect_pico()
 
@@ -227,6 +237,16 @@ def connect_pico():
 
             print("Calibrating clocks…")
             calibrate_clocks(detected_clocks, _get_dets)
+
+            attacker = detected_clocks[0].attack(api.frame_size, (100.0, 0.0))
+            defender = (
+                detected_clocks[1].defend(api.frame_size)
+                if len(detected_clocks) > 1
+                else None
+            )
+            attacker.on_start()
+            if defender:
+                defender.on_start()
 
         return jsonify({"status": "ok"})
     except Exception as e:
