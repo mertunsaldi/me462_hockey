@@ -143,7 +143,7 @@ class PlotClock(Gadgets):
         # Obtain working space geometry directly from the attached PlotClock if
         # possible.  ``getMaxX`` and ``getMinY`` give the horizontal limits and
         # lower bound.  The mechanical link lengths are fetched via ``getL1``,
-        # ``getL2`` and ``getL(3)``.  The union of two disk segments defined by
+        # ``getL2`` and ``getL3()``.  The union of two disk segments defined by
         # these lengths describes the reachable area.  If any query fails,
         # sensible defaults are used.
 
@@ -158,7 +158,7 @@ class PlotClock(Gadgets):
                 # distance between the two servo origins (L3 in the
                 # firmware) is divided by two because the origin of the
                 # coordinate system is at the midpoint.
-                l3 = float(self._query_value("p.getL(3)"))
+                l3 = float(self._query_value("p.getL3()"))
                 length = l1 + l2
                 dist = l3 / 2.0
             except Exception:
