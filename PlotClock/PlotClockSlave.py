@@ -89,6 +89,18 @@ class PlotClock:
 
     def getStartAngle(self):
         return self.startAngle
+
+    def getL1(self):
+        return self.L1
+
+    def getL2(self):
+        return self.L2
+
+    def getL3(self):
+        return self.L3
+
+    def getL4(self):
+        return self.L4
     
     def startPoseCalibration(self,leftStartPose,rightStartPose):
         self.servoLeft.startPose = leftStartPose

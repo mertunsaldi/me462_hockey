@@ -237,7 +237,8 @@ class PlotClock(Gadgets):
             lines = self.master.get_lines()
             for line in lines:
                 if line.startswith(f"P{self.device_id}:"):
-                    return line.split(":", 1)[1]
+                    payload = line.split(":", 1)[1]
+                    return payload.rsplit(":", 1)[-1].strip()
             time.sleep(0.05)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
