@@ -234,6 +234,10 @@ class PlotClock(Gadgets):
         self.master.get_lines()
 
         self.master.send_command(cmd)
+        # give master time to echo the full response before we start
+        # polling for lines. without this small delay we occasionally
+        # read an incomplete line when multiple queries happen quickly.
+        time.sleep(0.05)
 
         start = time.time()
         while time.time() - start < timeout:

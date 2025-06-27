@@ -215,7 +215,7 @@ def connect_pico():
         detected_clocks = []
         detected_arena = None
         start = time.time()
-        while time.time() - start < 3 and len(detected_clocks) < 2:
+        while time.time() - start < 5 and len(detected_clocks) < 2:
             time.sleep(0.1)
             with api.lock:
                 detections = list(api.arucos)
