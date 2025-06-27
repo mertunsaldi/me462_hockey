@@ -138,7 +138,7 @@ class PlotClock(Gadgets):
         self.master = master
         self.commands = {
         #istersek buraya commandlar ekleyebiliriz
-        "mode": "mode {0}",    
+        "mode": "mode {0}",
         }
         # Obtain working space geometry directly from the attached PlotClock if
         # possible.  ``getMaxX`` and ``getMinY`` give the horizontal limits and
@@ -149,6 +149,7 @@ class PlotClock(Gadgets):
 
         max_x = min_y = None
         length = dist = None
+        self.links_fetched = False
         if self.master is not None and self.device_id is not None:
             try:
                 max_x = float(self._query_value("p.getMaxX()"))
@@ -180,6 +181,8 @@ class PlotClock(Gadgets):
             self.workspace_dist = 40.0
             self.x_range = (-self.max_x, self.max_x)
             self.y_range = (self.min_y, math.sqrt(max(0.0, self.workspace_radius ** 2 - self.workspace_dist ** 2)))
+
+        self.links_fetched = True
 
         # Calibration state --------------------------------------------------
         self._cal_state: int = 0          # 0=idle,1..n=fsm

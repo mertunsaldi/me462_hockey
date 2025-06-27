@@ -53,7 +53,14 @@ def calibrate_clocks(
     *,
     timeout: float = 10.0,
 ) -> None:
-    """Repeatedly feed detections to ``PlotClock.calibrate`` until all clocks finish.
+    """Calibrate each PlotClock in sequence using detection feedback.
+
+    The previous implementation tried to calibrate all clocks concurrently,
+    which resulted in overlapping serial commands when multiple devices were
+    connected to the same master Pico.  This could cause responses for link
+    length queries to be mixed with ``setXY`` commands.  The calibration order
+    is now strictly sequential: each clock is fully calibrated before moving on
+    to the next one.
 
     Parameters
     ----------
@@ -62,18 +69,18 @@ def calibrate_clocks(
     get_detections:
         Callable returning the latest detection list each iteration.
     timeout:
-        Maximum time in seconds to attempt calibration.
+        Maximum time in seconds to attempt calibration **per clock**.
     """
-    start = time.time()
-    clocks = list(clocks)
-    while time.time() - start < timeout:
-        detections = list(get_detections())
-        for c in clocks:
-            if not c.calibration:
-                c.calibrate(detections)
-        if all(c.calibration for c in clocks):
-            break
-        time.sleep(0.05)
+
+    for clock in clocks:
+        start = time.time()
+        while time.time() - start < timeout:
+            detections = list(get_detections())
+            if not clock.calibration:
+                clock.calibrate(detections)
+            if clock.calibration:
+                break
+            time.sleep(0.05)
 
 
 def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:

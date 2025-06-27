@@ -231,6 +231,13 @@ def connect_pico():
                 print("No PlotClocks detected, continuing without scenarios")
 
         if detected_clocks:
+            # ensure link length queries have completed
+            link_wait = time.time()
+            while time.time() - link_wait < 3:
+                if all(getattr(c, "links_fetched", True) for c in detected_clocks):
+                    break
+                time.sleep(0.1)
+
             def _get_dets():
                 with api.lock:
                     return api.balls + api.arucos
