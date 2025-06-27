@@ -85,10 +85,7 @@ class BallAttacker(Scenario):
         self._initialized = False
 
     def on_start(self) -> None:
-        """Reset state and begin calibration."""
-        self.clock.calibration = None
-        self.clock._cal_state = 0
-        self.clock._px_hits = []
+        """Reset internal state."""
         self._work_lines = None
         self._locked_M = self._locked_norm = None
         self._phase = None
@@ -117,7 +114,6 @@ class BallAttacker(Scenario):
         # -- initialization --------------------------------------------
         if not self._initialized:
             if not self.clock.calibration:
-                self.clock.calibrate(detections)
                 return
             x0, x1 = self.clock.x_range
             y0, y1 = self.clock.y_range
@@ -342,10 +338,7 @@ class BallReflector(Scenario):
         self._initialized = False
 
     def on_start(self) -> None:
-        """Reset state and begin calibration."""
-        self.clock.calibration = None
-        self.clock._cal_state = 0
-        self.clock._px_hits = []
+        """Reset internal state."""
         self._line = None
         self._meet_px = None
         self._fired = False
@@ -365,7 +358,6 @@ class BallReflector(Scenario):
         # -- initialization --------------------------------------------
         if not self._initialized:
             if not self.clock.calibration:
-                self.clock.calibrate(detections)
                 return
             x0, x1 = self.clock.x_range
             y0, y1 = self.clock.y_range
@@ -480,17 +472,13 @@ class StandingBallHitter(Scenario):
         self._fired = False  # ensure we send move-strike sequence only once
 
     def on_start(self) -> None:
-        """Reset calibration and state when the scenario begins."""
-        self.plotclock.calibration = None
-        self.plotclock._cal_state = 0
-        self.plotclock._px_hits = []
+        """Reset internal state when the scenario begins."""
         self._fired = False
 
     # ------------------------------------------------------------------
     def update(self, detections):
-        # 1) drive calibration first
+        # 1) require calibration first
         if not self.plotclock.calibration:
-            self.plotclock.calibrate(detections)
             return  # nothing else until calibrated
 
         # 2) reset per‑frame state

@@ -31,7 +31,7 @@ def main() -> None:
     clocks = []
     arena: Arena | None = None
     start = time.time()
-    while time.time() - start < 0.5 and len(clocks) < 1:
+    while time.time() - start < 3 and len(clocks) < 2:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
@@ -41,8 +41,10 @@ def main() -> None:
             if walls:
                 arena = Arena(walls)
 
-    if not clocks:
-        print("No PlotClocks detected, continuing without scenarios")
+    if len(clocks) < 2:
+        print(f"Warning: expected 2 PlotClocks, found {len(clocks)}")
+        if not clocks:
+            print("No PlotClocks detected, continuing without scenarios")
 
     attacker = None
     defender = None
