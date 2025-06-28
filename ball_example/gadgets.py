@@ -188,11 +188,24 @@ class PlotClock(Gadgets):
             self.x_range = (min_x, max_x)
             self.y_range = (min_y, max_y)
         else:
-            self.max_x = 80.0
-            self.min_y = 10.0
-            self.workspace_radius = 120.0
-            self.workspace_dist = 40.0
-            self.l1 = 35.0
+            if self.device_id=="P1":
+                self.max_x = 110.5313
+                self.min_y = 40.0
+                self.workspace_radius = 65+95
+                self.workspace_dist = 25/2
+                self.l1 = 65.0
+            if self.device_id=="P0":
+                self.max_x = 110.5313
+                self.min_y = 40.0
+                self.workspace_radius = 65+95
+                self.workspace_dist = 25/2
+                self.l1 = 65.0
+            else:
+                self.max_x = 365.0827
+                self.min_y = 108.0
+                self.workspace_radius = 270+328
+                self.workspace_dist = 75.0
+                self.l1 = 270
             self.x_range = (-self.max_x, self.max_x)
             self.y_range = (self.min_y, math.sqrt(max(0.0, self.workspace_radius ** 2 - self.workspace_dist ** 2)))
 
