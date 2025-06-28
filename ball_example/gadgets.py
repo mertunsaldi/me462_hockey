@@ -12,7 +12,11 @@ from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 # workspace limits which may lead to missed detections if the arm hits the
 # boundary.  Use a small margin so calibration points stay inside the
 # reachable area a bit more.
-CAL_MARGIN_MM = 10.0  # millimetres
+#
+# ``CAL_MARGIN_SCALE`` expresses this margin relative to the mechanism's
+# first link length ``L1``.  The default value preserves the previous
+# behaviour of a 10 mm margin when ``L1`` is 35 mm.
+CAL_MARGIN_SCALE = 10.0 / 35.0
 
 
 class Gadgets:
@@ -138,10 +142,12 @@ class PlotClock(Gadgets):
         *,
         device_id: Optional[int] = None,
         master: Optional[MasterPico] = None,
+        cal_margin_scale: float = CAL_MARGIN_SCALE,
     ):
         super().__init__(None, baudrate=115200, timeout=20)
         self.device_id = device_id
         self.master = master
+        self.cal_margin_scale = cal_margin_scale
         self.commands = {
         #istersek buraya commandlar ekleyebiliriz
         "mode": "mode {0}",    
@@ -155,6 +161,7 @@ class PlotClock(Gadgets):
 
         max_x = min_y = None
         length = dist = None
+        l1 = None
         if self.master is not None and self.device_id is not None:
             try:
                 max_x = float(self._query_value("p.getMaxX()"))
@@ -175,6 +182,7 @@ class PlotClock(Gadgets):
             self.min_y = min_y
             self.workspace_radius = length
             self.workspace_dist = dist
+            self.l1 = l1
             min_x = -max_x
             max_y = math.sqrt(max(0.0, length * length - dist * dist))
             self.x_range = (min_x, max_x)
@@ -184,6 +192,7 @@ class PlotClock(Gadgets):
             self.min_y = 10.0
             self.workspace_radius = 120.0
             self.workspace_dist = 40.0
+            self.l1 = 35.0
             self.x_range = (-self.max_x, self.max_x)
             self.y_range = (self.min_y, math.sqrt(max(0.0, self.workspace_radius ** 2 - self.workspace_dist ** 2)))
 
@@ -195,8 +204,10 @@ class PlotClock(Gadgets):
         base_x = -self._axis_len / 2
         base_y = self.min_y
 
+        self.cal_margin_mm = self.cal_margin_scale * self.l1
+
         # Keep calibration points away from the edges -----------------
-        m = CAL_MARGIN_MM
+        m = self.cal_margin_mm
         self._mm_pts = [
             (base_x + m, base_y + self._axis_len - m),
             (base_x + m, base_y + m),
