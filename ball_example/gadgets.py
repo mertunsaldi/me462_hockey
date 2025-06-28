@@ -220,7 +220,7 @@ class PlotClock(Gadgets):
         else:
             super().send_command(cmd_name, *params)
 
-    def _query_value(self, code: str, timeout: float = 1.0) -> str:
+    def _query_value(self, code: str, timeout: float = 2.0) -> str:
         """Send ``code`` and return the first response payload for this clock."""
         if self.master is None or self.device_id is None:
             raise RuntimeError("query requires master and device_id")
@@ -239,7 +239,7 @@ class PlotClock(Gadgets):
                 if line.startswith(f"P{self.device_id}:"):
                     payload = line.split(":", 1)[1]
                     return payload.rsplit(":", 1)[-1].strip()
-            time.sleep(0.05)
+            time.sleep(0.25)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
 
@@ -362,9 +362,9 @@ class PlotClock(Gadgets):
 
         num = 50
         xs_left = np.linspace(-max_x, 0, num)
-        ys_left = np.sqrt(np.clip(r * r - (xs_left + d) ** 2, 0, None))
+        ys_left = np.sqrt(np.clip(r * r - (xs_left - d) ** 2, 0, None))
         xs_right = np.linspace(0, max_x, num)
-        ys_right = np.sqrt(np.clip(r * r - (xs_right - d) ** 2, 0, None))
+        ys_right = np.sqrt(np.clip(r * r - (xs_right + d) ** 2, 0, None))
 
         pts_mm: List[Tuple[float, float]] = list(zip(xs_left, ys_left))
         pts_mm += list(zip(xs_right, ys_right))
