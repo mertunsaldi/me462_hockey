@@ -6,7 +6,7 @@ import serial.tools.list_ports
 import time
 import math
 import numpy as np
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
+from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 
 
 class Gadgets:
@@ -220,7 +220,7 @@ class PlotClock(Gadgets):
         else:
             super().send_command(cmd_name, *params)
 
-    def _query_value(self, code: str, timeout: float = 1.5) -> str:
+    def _query_value(self, code: str, timeout: float = 2.0) -> str:
         """Send ``code`` and return the first response payload for this clock."""
         if self.master is None or self.device_id is None:
             raise RuntimeError("query requires master and device_id")
@@ -239,7 +239,7 @@ class PlotClock(Gadgets):
                 if line.startswith(f"P{self.device_id}:"):
                     payload = line.split(":", 1)[1]
                     return payload.rsplit(":", 1)[-1].strip()
-            time.sleep(0.15)
+            time.sleep(0.25)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
 
@@ -362,9 +362,9 @@ class PlotClock(Gadgets):
 
         num = 50
         xs_left = np.linspace(-max_x, 0, num)
-        ys_left = np.sqrt(np.clip(r * r - (xs_left + d) ** 2, 0, None))
+        ys_left = np.sqrt(np.clip(r * r - (xs_left - d) ** 2, 0, None))
         xs_right = np.linspace(0, max_x, num)
-        ys_right = np.sqrt(np.clip(r * r - (xs_right - d) ** 2, 0, None))
+        ys_right = np.sqrt(np.clip(r * r - (xs_right + d) ** 2, 0, None))
 
         pts_mm: List[Tuple[float, float]] = list(zip(xs_left, ys_left))
         pts_mm += list(zip(xs_right, ys_right))
@@ -377,6 +377,82 @@ class PlotClock(Gadgets):
 
 
 class ArenaManager(PlotClock):
-    """Placeholder class for arena manager devices."""
+    """PlotClock variant representing the arena manager.
+
+    If an :class:`Arena` instance is assigned via :meth:`set_arena`, the
+    working area visualisation simply draws that arena polygon instead of the
+    default semicircular reach of :class:`PlotClock`.
+    """
 
     calibration_marker_cls = ArucoManager
+
+    def __init__(self, *args, arena: Optional[Arena] = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.arena: Optional[Arena] = arena
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _pt_in_poly(pt: Tuple[int, int], poly: List[Tuple[int, int]]) -> bool:
+        """Return True if ``pt`` lies inside polygon ``poly``."""
+        x, y = pt
+        inside = False
+        j = len(poly) - 1
+        for i, (xi, yi) in enumerate(poly):
+            xj, yj = poly[j]
+            intersect = (
+                (yi > y) != (yj > y)
+                and x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi
+            )
+            if intersect:
+                inside = not inside
+            j = i
+        return inside
+
+    def set_arena(self, arena: Optional[Arena]) -> None:
+        """Assign the current arena (or ``None`` to clear)."""
+        self.arena = arena
+
+    def draw_working_area(
+        self,
+        frame: np.ndarray,
+        *,
+        color: Tuple[int, int, int] = (0, 255, 0),
+        thickness: int = 2,
+    ) -> None:
+        import cv2
+
+        if self.arena is not None:
+            corners = self.arena.get_arena_corners()
+            if len(corners) >= 3:
+                poly = np.array(corners, dtype=np.int32)
+                cv2.polylines(frame, [poly], True, color, thickness)
+                return
+
+        # Fall back to the regular PlotClock workspace
+        super().draw_working_area(frame, color=color, thickness=thickness)
+
+    # ------------------------------------------------------------------
+    def send_command(self, cmd_name: str, *params: Any) -> None:
+        """Prevent moves outside the arena polygon when set."""
+        if (
+            self.arena is not None
+            and self.calibration
+            and isinstance(cmd_name, str)
+            and cmd_name.strip().startswith("p.setXY")
+        ):
+            import re
+
+            m = re.match(r"p\.setXY\(([^,]+),([^\)]+)\)", cmd_name.replace(" ", ""))
+            if m:
+                try:
+                    x = float(m.group(1))
+                    y = float(m.group(2))
+                except ValueError:
+                    pass
+                else:
+                    px, py = self.mm_to_pixel((x, y))
+                    corners = self.arena.get_arena_corners()
+                    if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
+                        return  # outside arena, ignore command
+
+        super().send_command(cmd_name, *params)
