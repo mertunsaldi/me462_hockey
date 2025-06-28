@@ -248,13 +248,19 @@ class GameAPI:
             for m in markers
         ]
 
-        gadget_details = [
-            {
+        gadget_details = []
+        for g in self.plotclocks.values():
+            details = {
                 "class": g.__class__.__name__,
                 "calibrated": bool(getattr(g, "calibration", None)),
             }
-            for g in self.plotclocks.values()
-        ]
+            if hasattr(g, "_u_x") and g._u_x is not None:
+                details["u_x"] = g._u_x.tolist()
+            if hasattr(g, "_u_y") and g._u_y is not None:
+                details["u_y"] = g._u_y.tolist()
+            if hasattr(g, "_origin_px") and g._origin_px is not None:
+                details["origin_px"] = [int(v) for v in g._origin_px]
+            gadget_details.append(details)
 
         image_params = {
             "circularity": BallDetector.CIRCULARITY_THRESHOLD,
