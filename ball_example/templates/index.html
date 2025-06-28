@@ -250,7 +250,7 @@
       if(!Array.isArray(info.gadgets)) return;
       const active = info.active_modes || {};
       for(const g of info.gadgets){
-        if(g.class !== 'PlotClock') continue;
+        if(g.class !== 'PlotClock' && g.class !== 'ArenaManager') continue;
         const div = document.createElement('div');
         div.className = 'clock-entry';
         const span = document.createElement('span');
