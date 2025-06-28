@@ -221,7 +221,9 @@ def connect_pico():
             time.sleep(0.1)
             with api.lock:
                 detections = list(api.arucos)
-                detected_clocks = list(api.plotclocks.values())
+                detected_clocks = [
+                    c for c in api.plotclocks.values() if c.device_id in required_ids
+                ]
             if detected_arena is None:
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
                 if walls:
@@ -265,7 +267,11 @@ def connect_pico():
             while time.time() - stable_start < 1.0:
                 time.sleep(0.1)
                 with api.lock:
-                    detected_clocks = list(api.plotclocks.values())
+                    detected_clocks = [
+                        c
+                        for c in api.plotclocks.values()
+                        if c.device_id in required_ids
+                    ]
                 if len(detected_clocks) == last_count:
                     break
                 last_count = len(detected_clocks)
@@ -276,14 +282,11 @@ def connect_pico():
                     return api.balls + api.arucos
 
             print("Calibrating clocks…")
-            calibrate_clocks(detected_clocks, _get_dets)
+            plotclocks = [c for c in detected_clocks if not isinstance(c, ArenaManager)]
+            calibrate_clocks(plotclocks, _get_dets)
 
-            attacker = detected_clocks[0].attack(api.frame_size, (100.0, 0.0))
-            defender = (
-                detected_clocks[1].defend(api.frame_size)
-                if len(detected_clocks) > 1
-                else None
-            )
+            attacker = plotclocks[0].attack(api.frame_size, (100.0, 0.0))
+            defender = plotclocks[1].defend(api.frame_size) if len(plotclocks) > 1 else None
             attacker.on_start()
             if defender:
                 defender.on_start()

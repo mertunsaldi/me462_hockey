@@ -37,7 +37,7 @@ def main() -> None:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
-            clocks = list(api.plotclocks.values())
+            clocks = [c for c in api.plotclocks.values() if c.device_id in required_ids]
         if arena is None:
             walls = [d for d in detections if isinstance(d, ArucoWall)]
             if walls:
@@ -74,7 +74,7 @@ def main() -> None:
         while time.time() - stable_start < 1.0:
             time.sleep(0.1)
             with api.lock:
-                clocks = list(api.plotclocks.values())
+                clocks = [c for c in api.plotclocks.values() if c.device_id in required_ids]
             if len(clocks) == last_count:
                 break
             last_count = len(clocks)
@@ -85,10 +85,11 @@ def main() -> None:
                 return api.balls + api.arucos
 
         print("Calibrating clocks…")
-        calibrate_clocks(clocks, _get_dets)
+        plotclocks = [c for c in clocks if not isinstance(c, ArenaManager)]
+        calibrate_clocks(plotclocks, _get_dets)
 
-        attacker = clocks[0].attack(api.frame_size, (100.0, 0.0))
-        defender = clocks[1].defend(api.frame_size) if len(clocks) > 1 else None
+        attacker = plotclocks[0].attack(api.frame_size, (100.0, 0.0))
+        defender = plotclocks[1].defend(api.frame_size) if len(plotclocks) > 1 else None
 
         attacker.on_start()
         if defender:

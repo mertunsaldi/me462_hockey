@@ -23,8 +23,9 @@ your local network.
 3. **Connect the PlotClock**
 
    Use the **Connect Pico** button on the web page or POST to `/connect_pico`.
-   Make sure the Arena Manager marker (ID 0) and a PlotClock marker (ID 1) are
-   clearly visible to the camera during this step:
+   Make sure the Arena Manager marker (ID 0) and the PlotClock marker (ID 1) are
+   clearly visible to the camera.  Any additional PlotClock markers will be
+   ignored during calibration:
 
    ```bash
    curl -X POST http://192.168.1.100:8000/connect_pico
