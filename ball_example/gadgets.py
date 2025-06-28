@@ -220,7 +220,7 @@ class PlotClock(Gadgets):
         else:
             super().send_command(cmd_name, *params)
 
-    def _query_value(self, code: str, timeout: float = 1.0) -> str:
+    def _query_value(self, code: str, timeout: float = 1.5) -> str:
         """Send ``code`` and return the first response payload for this clock."""
         if self.master is None or self.device_id is None:
             raise RuntimeError("query requires master and device_id")
@@ -239,7 +239,7 @@ class PlotClock(Gadgets):
                 if line.startswith(f"P{self.device_id}:"):
                     payload = line.split(":", 1)[1]
                     return payload.rsplit(":", 1)[-1].strip()
-            time.sleep(0.05)
+            time.sleep(0.15)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
 
