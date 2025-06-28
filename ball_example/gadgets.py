@@ -12,7 +12,7 @@ from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 # workspace limits which may lead to missed detections if the arm hits the
 # boundary.  Use a small margin so calibration points stay inside the
 # reachable area a bit more.
-CAL_MARGIN_MM = 5.0  # millimetres
+CAL_MARGIN_MM = 10.0  # millimetres
 
 
 class Gadgets:
@@ -229,7 +229,7 @@ class PlotClock(Gadgets):
         else:
             super().send_command(cmd_name, *params)
 
-    def _query_value(self, code: str, timeout: float = 2.0) -> str:
+    def _query_value(self, code: str, timeout: float = 0.5) -> str:
         """Send ``code`` and return the first response payload for this clock."""
         if self.master is None or self.device_id is None:
             raise RuntimeError("query requires master and device_id")
@@ -248,7 +248,7 @@ class PlotClock(Gadgets):
                 if line.startswith(f"P{self.device_id}:"):
                     payload = line.split(":", 1)[1]
                     return payload.rsplit(":", 1)[-1].strip()
-            time.sleep(0.25)
+            time.sleep(0.05)
 
         raise RuntimeError(f"Timed out waiting for response to {code}")
 
