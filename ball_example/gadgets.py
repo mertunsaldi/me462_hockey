@@ -390,6 +390,24 @@ class ArenaManager(PlotClock):
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
 
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _pt_in_poly(pt: Tuple[int, int], poly: List[Tuple[int, int]]) -> bool:
+        """Return True if ``pt`` lies inside polygon ``poly``."""
+        x, y = pt
+        inside = False
+        j = len(poly) - 1
+        for i, (xi, yi) in enumerate(poly):
+            xj, yj = poly[j]
+            intersect = (
+                (yi > y) != (yj > y)
+                and x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi
+            )
+            if intersect:
+                inside = not inside
+            j = i
+        return inside
+
     def set_arena(self, arena: Optional[Arena]) -> None:
         """Assign the current arena (or ``None`` to clear)."""
         self.arena = arena
@@ -412,3 +430,29 @@ class ArenaManager(PlotClock):
 
         # Fall back to the regular PlotClock workspace
         super().draw_working_area(frame, color=color, thickness=thickness)
+
+    # ------------------------------------------------------------------
+    def send_command(self, cmd_name: str, *params: Any) -> None:
+        """Prevent moves outside the arena polygon when set."""
+        if (
+            self.arena is not None
+            and self.calibration
+            and isinstance(cmd_name, str)
+            and cmd_name.strip().startswith("p.setXY")
+        ):
+            import re
+
+            m = re.match(r"p\.setXY\(([^,]+),([^\)]+)\)", cmd_name.replace(" ", ""))
+            if m:
+                try:
+                    x = float(m.group(1))
+                    y = float(m.group(2))
+                except ValueError:
+                    pass
+                else:
+                    px, py = self.mm_to_pixel((x, y))
+                    corners = self.arena.get_arena_corners()
+                    if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
+                        return  # outside arena, ignore command
+
+        super().send_command(cmd_name, *params)
