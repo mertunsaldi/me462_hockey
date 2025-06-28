@@ -141,6 +141,9 @@ class GameAPI:
                     color = (255, 255, 255)
                 draw_line(annotated, p1, p2, color=color, thickness=2)
 
+        for c in self.plotclocks.values():
+            c.draw_calibration_progress(annotated)
+
         return annotated
 
     # ------------------------------------------------------------------
