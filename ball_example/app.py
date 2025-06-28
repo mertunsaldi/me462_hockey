@@ -11,6 +11,7 @@ if __package__ in (None, ""):
 from .game_api import GameAPI
 from .detectors import BallDetector
 from .models import ArucoWall, Arena
+from .gadgets import ArenaManager
 from high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -224,6 +225,11 @@ def connect_pico():
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
                 if walls:
                     detected_arena = Arena(walls)
+
+        if detected_arena:
+            for c in detected_clocks:
+                if isinstance(c, ArenaManager):
+                    c.set_arena(detected_arena)
 
         if len(detected_clocks) < 2:
             print(f"Warning: expected 2 PlotClocks, found {len(detected_clocks)}")

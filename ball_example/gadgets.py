@@ -6,7 +6,7 @@ import serial.tools.list_ports
 import time
 import math
 import numpy as np
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
+from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 
 
 class Gadgets:
@@ -377,6 +377,38 @@ class PlotClock(Gadgets):
 
 
 class ArenaManager(PlotClock):
-    """Placeholder class for arena manager devices."""
+    """PlotClock variant representing the arena manager.
+
+    If an :class:`Arena` instance is assigned via :meth:`set_arena`, the
+    working area visualisation simply draws that arena polygon instead of the
+    default semicircular reach of :class:`PlotClock`.
+    """
 
     calibration_marker_cls = ArucoManager
+
+    def __init__(self, *args, arena: Optional[Arena] = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.arena: Optional[Arena] = arena
+
+    def set_arena(self, arena: Optional[Arena]) -> None:
+        """Assign the current arena (or ``None`` to clear)."""
+        self.arena = arena
+
+    def draw_working_area(
+        self,
+        frame: np.ndarray,
+        *,
+        color: Tuple[int, int, int] = (0, 255, 0),
+        thickness: int = 2,
+    ) -> None:
+        import cv2
+
+        if self.arena is not None:
+            corners = self.arena.get_arena_corners()
+            if len(corners) >= 3:
+                poly = np.array(corners, dtype=np.int32)
+                cv2.polylines(frame, [poly], True, color, thickness)
+                return
+
+        # Fall back to the regular PlotClock workspace
+        super().draw_working_area(frame, color=color, thickness=thickness)
