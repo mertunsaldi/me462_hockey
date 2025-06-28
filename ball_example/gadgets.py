@@ -208,7 +208,7 @@ class PlotClock(Gadgets):
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
         self._axis_len = 0.5 * min(span_x, span_y)
-        base_x = -self._axis_len / 2.0
+        base_x = 0
         base_y = self.min_y
 
         self.cal_margin_mm = self.cal_margin_scale * self.l1
@@ -219,7 +219,7 @@ class PlotClock(Gadgets):
         self._mm_pts = [
             (base_x + m, base_y + self._axis_len - m),
             (base_x + m, base_y + m),
-            (base_x + self._axis_len - m, base_y + m),]
+            (-base_x, base_y + m),]
 
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
@@ -322,6 +322,8 @@ class PlotClock(Gadgets):
             self._px_hits.append(marker.center)
             # compute basis -----------------------------------
             p1,p2,p3 = map(np.array,self._px_hits)
+            print("Hits:", self._px_hits)
+            print("dy  p3-p2 =", p3[1] - p2[1], "px   (should be ~ 0 for true servo-bar)")
             (m1x,m1y),(m2x,m2y),(m3x,m3y) = self._mm_pts
             self._u_x = (p3-p2)/(m3x-m2x)
             self._u_y = (p1-p2)/(m1y-m2y)
@@ -474,12 +476,12 @@ class ArenaManager(PlotClock):
     ) -> None:
         import cv2
 
-        if self.arena is not None:
-            corners = self.arena.get_arena_corners()
-            if len(corners) >= 3:
-                poly = np.array(corners, dtype=np.int32)
-                cv2.polylines(frame, [poly], True, color, thickness)
-                return
+        # if self.arena is not None:
+        #     corners = self.arena.get_arena_corners()
+        #     if len(corners) >= 3:
+        #         poly = np.array(corners, dtype=np.int32)
+        #         cv2.polylines(frame, [poly], True, color, thickness)
+        #         return
 
         # Fall back to the regular PlotClock workspace
         super().draw_working_area(frame, color=color, thickness=thickness)

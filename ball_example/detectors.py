@@ -107,7 +107,7 @@ class BallDetector:
         param2: float   = 70,
         min_radius: int | None = None,
         max_radius: int | None = None,
-        scale: float    = 1.0,
+        scale: float    = 0.5,
     ) -> List[Ball]:
         """Detect balls in ``frame``.
 
@@ -288,7 +288,7 @@ class BallDetector:
         return balls
 
 
-def compute_color_mask(frame: np.ndarray, scale: float = 1.0) -> np.ndarray:
+def compute_color_mask(frame: np.ndarray, scale: float = 0.5) -> np.ndarray:
     """Return the cleaned color mask used for detection."""
     if scale != 1.0:
         frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
