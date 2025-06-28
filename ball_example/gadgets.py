@@ -395,6 +395,24 @@ class PlotClock(Gadgets):
         poly = np.array(pts_px, dtype=np.int32)
         cv2.polylines(frame, [poly], True, color, thickness)
 
+        if (
+            self._origin_px is not None
+            and self._u_x is not None
+            and self._u_y is not None
+        ):
+            origin = tuple(int(v) for v in self._origin_px)
+            axis_len = max(30, int(0.1 * min(frame.shape[:2])))
+            end_x = (
+                int(origin[0] + self._u_x[0] * axis_len),
+                int(origin[1] + self._u_x[1] * axis_len),
+            )
+            end_y = (
+                int(origin[0] + self._u_y[0] * axis_len),
+                int(origin[1] + self._u_y[1] * axis_len),
+            )
+            cv2.arrowedLine(frame, origin, end_x, (255, 0, 0), 2, tipLength=0.2)
+            cv2.arrowedLine(frame, origin, end_y, (0, 0, 255), 2, tipLength=0.2)
+
 
 class ArenaManager(PlotClock):
     """PlotClock variant representing the arena manager.

@@ -28,6 +28,20 @@ def test_draw_working_area_uses_arena_polygon():
     assert frame.sum() > 0
 
 
+def test_plotclock_draw_working_area_shows_axes():
+    mgr = ArenaManager()
+    mgr.calibration = {
+        "u_x": np.array([1.0, 0.0]),
+        "u_y": np.array([0.0, 1.0]),
+        "origin_px": (50, 50),
+    }
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    mgr.draw_working_area(frame)
+    # expect arrows roughly along positive x and y directions
+    assert frame[50, 60:80].sum() > 0
+    assert frame[50:80, 50].sum() > 0
+
+
 def test_arena_manager_blocks_out_of_bounds_move():
     arena = Arena([
         _wall(0, 0),
