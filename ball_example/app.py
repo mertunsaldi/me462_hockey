@@ -215,8 +215,9 @@ def connect_pico():
         print("Waiting for detections...")
         detected_clocks = []
         detected_arena = None
+        required_ids = {0, 1}
         start = time.time()
-        while time.time() - start < 3 and len(detected_clocks) < 2:
+        while time.time() - start < 5:
             time.sleep(0.1)
             with api.lock:
                 detections = list(api.arucos)
@@ -225,16 +226,34 @@ def connect_pico():
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
                 if walls:
                     detected_arena = Arena(walls)
+            ids = {c.device_id for c in detected_clocks}
+            have_required = required_ids.issubset(ids)
+            if have_required:
+                mgr = next(
+                    (c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0),
+                    None,
+                )
+                clk1 = next(
+                    (c for c in detected_clocks if not isinstance(c, ArenaManager) and c.device_id == 1),
+                    None,
+                )
+                if mgr and clk1:
+                    break
 
         if detected_arena:
             for c in detected_clocks:
                 if isinstance(c, ArenaManager):
                     c.set_arena(detected_arena)
 
-        if len(detected_clocks) < 2:
-            print(f"Warning: expected 2 PlotClocks, found {len(detected_clocks)}")
-            if not detected_clocks:
-                print("No PlotClocks detected, continuing without scenarios")
+        ids = {c.device_id for c in detected_clocks}
+        mgr = next((c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0), None)
+        clk1 = next((c for c in detected_clocks if not isinstance(c, ArenaManager) and c.device_id == 1), None)
+        if not (mgr and clk1):
+            msg = (
+                "Missing required markers: ArenaManager id=0 and PlotClock id=1 must be visible"
+            )
+            print(msg)
+            return jsonify({"status": "error", "message": msg}), 400
 
         if detected_clocks:
             # Wait a moment for any remaining PlotClock objects to finish

@@ -19,6 +19,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from ball_example.game_api import GameAPI
 from ball_example.models import ArucoWall, Arena
+from ball_example.gadgets import ArenaManager
 from high_level import calibrate_clocks, draw_arena
 
 def main() -> None:
@@ -30,8 +31,9 @@ def main() -> None:
     print("Waiting for detections...")
     clocks = []
     arena: Arena | None = None
+    required_ids = {0, 1}
     start = time.time()
-    while time.time() - start < 3 and len(clocks) < 2:
+    while time.time() - start < 5:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
@@ -40,11 +42,25 @@ def main() -> None:
             walls = [d for d in detections if isinstance(d, ArucoWall)]
             if walls:
                 arena = Arena(walls)
+        ids = {c.device_id for c in clocks}
+        if required_ids.issubset(ids):
+            mgr = next(
+                (c for c in clocks if isinstance(c, ArenaManager) and c.device_id == 0),
+                None,
+            )
+            clk1 = next(
+                (c for c in clocks if not isinstance(c, ArenaManager) and c.device_id == 1),
+                None,
+            )
+            if mgr and clk1:
+                break
 
-    if len(clocks) < 2:
-        print(f"Warning: expected 2 PlotClocks, found {len(clocks)}")
-        if not clocks:
-            print("No PlotClocks detected, continuing without scenarios")
+    ids = {c.device_id for c in clocks}
+    mgr = next((c for c in clocks if isinstance(c, ArenaManager) and c.device_id == 0), None)
+    clk1 = next((c for c in clocks if not isinstance(c, ArenaManager) and c.device_id == 1), None)
+    if not (mgr and clk1):
+        print("Missing required markers: ArenaManager id=0 and PlotClock id=1 must be visible")
+        return
 
     attacker = None
     defender = None

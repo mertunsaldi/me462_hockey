@@ -48,7 +48,9 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    curl -X POST -F 'file=@examples/ball_reflector_client.py' http://localhost:8000/load_scenario
    ```
 3. Connect the PlotClock using the **Connect Pico** button (or POST to
-   `/connect_pico`).  The button will turn green once the connection succeeds.
+   `/connect_pico`).  Ensure the Arena Manager marker (ID 0) and at least one
+   PlotClock marker (ID 1) are visible to the camera while connecting.  The
+   button will turn green once the connection succeeds.
 4. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario,
    press **Start Scenario** (or POST to `/start_scenario`) to begin execution.
    When a scenario starts, its `on_start()` method runs. The built-in
