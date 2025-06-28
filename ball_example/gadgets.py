@@ -188,13 +188,7 @@ class PlotClock(Gadgets):
             self.x_range = (min_x, max_x)
             self.y_range = (min_y, max_y)
         else:
-            if self.device_id=="P1":
-                self.max_x = 110.5313
-                self.min_y = 40.0
-                self.workspace_radius = 65+95
-                self.workspace_dist = 25/2
-                self.l1 = 65.0
-            if self.device_id=="P0":
+            if self.device_id == 1:
                 self.max_x = 110.5313
                 self.min_y = 40.0
                 self.workspace_radius = 65+95
@@ -214,18 +208,19 @@ class PlotClock(Gadgets):
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
         self._axis_len = 0.5 * min(span_x, span_y)
-        base_x = -self._axis_len / 2
+        base_x = -self._axis_len / 2.0
         base_y = self.min_y
 
         self.cal_margin_mm = self.cal_margin_scale * self.l1
 
         # Keep calibration points away from the edges -----------------
         m = self.cal_margin_mm
+
         self._mm_pts = [
             (base_x + m, base_y + self._axis_len - m),
             (base_x + m, base_y + m),
-            (base_x + self._axis_len - m, base_y + m),
-        ]
+            (base_x + self._axis_len - m, base_y + m),]
+
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
         self._delay: float = 2.0          # seconds between moves
@@ -285,9 +280,15 @@ class PlotClock(Gadgets):
             return self.calibration
 
         marker = next(
-            (d for d in detections if isinstance(d, self.calibration_marker_cls)),
+            (
+                d
+                for d in detections
+                if isinstance(d, self.calibration_marker_cls)
+                   and getattr(d, "id", None) == self.device_id  # ← NEW guard
+            ),
             None,
         )
+
         now = time.time()
 
         # FSM --------------------------------------------------
@@ -325,6 +326,7 @@ class PlotClock(Gadgets):
             self._u_x = (p3-p2)/(m3x-m2x)
             self._u_y = (p1-p2)/(m1y-m2y)
             self._origin_px = p2 - self._u_x*m2x - self._u_y*m2y
+
             self.calibration = {
                 'u_x': self._u_x,
                 'u_y': self._u_y,
