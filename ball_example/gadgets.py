@@ -127,6 +127,8 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     calibration_marker_cls = ArucoHitter
 
+    CAL_MARGIN_SCALE = 0.1  # fraction of L1 used as calibration margin
+
     def __init__(
         self,
         *,
@@ -155,11 +157,14 @@ class PlotClock(Gadgets):
 
         max_x = min_y = None
         length = dist = None
+        link1 = None
         if self.master is not None and self.device_id is not None:
             max_x = _safe_query("p.getMaxX()")
             min_y = _safe_query("p.getMinY()")
             l1 = _safe_query("p.getL1()")
             l2 = _safe_query("p.getL2()")
+            if l1 is not None:
+                link1 = l1
             if l1 is not None and l2 is not None:
                 length = l1 + l2
             l3 = _safe_query("p.getL3()")
@@ -170,6 +175,8 @@ class PlotClock(Gadgets):
         self.min_y = min_y if min_y is not None else 10.0
         self.workspace_radius = length if length is not None else 120.0
         self.workspace_dist = dist if dist is not None else 40.0
+        self.l1 = link1 if link1 is not None else self.workspace_radius / 2.0
+        self.cal_margin_mm = self.CAL_MARGIN_SCALE * self.l1
 
         self.x_range = (-self.max_x, self.max_x)
         self.y_range = (
@@ -183,9 +190,9 @@ class PlotClock(Gadgets):
         self._cal_state: int = 0          # 0=idle,1..n=fsm
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
-        self._axis_len = 0.5 * min(span_x, span_y)
+        self._axis_len = max(0.0, 0.5 * min(span_x, span_y) - self.cal_margin_mm)
         base_x = -self._axis_len / 2
-        base_y = self.min_y
+        base_y = self.min_y + self.cal_margin_mm
         self._mm_pts = [
             (base_x, base_y + self._axis_len),
             (base_x, base_y),
