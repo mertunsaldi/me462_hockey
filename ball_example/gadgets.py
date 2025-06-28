@@ -16,7 +16,7 @@ from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 # ``CAL_MARGIN_SCALE`` expresses this margin relative to the mechanism's
 # first link length ``L1``.  The default value preserves the previous
 # behaviour of a 10 mm margin when ``L1`` is 35 mm.
-CAL_MARGIN_SCALE = 10.0 / 35.0
+CAL_MARGIN_SCALE = 7.0 / 35.0
 
 
 class Gadgets:
@@ -240,7 +240,7 @@ class PlotClock(Gadgets):
         else:
             super().send_command(cmd_name, *params)
 
-    def _query_value(self, code: str, timeout: float = 0.5) -> str:
+    def _query_value(self, code: str, timeout: float = 1.5) -> str:
         """Send ``code`` and return the first response payload for this clock."""
         if self.master is None or self.device_id is None:
             raise RuntimeError("query requires master and device_id")
