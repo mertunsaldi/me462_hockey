@@ -8,6 +8,12 @@ import math
 import numpy as np
 from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
 
+# Calibration move commands currently drive the clock very close to the
+# workspace limits which may lead to missed detections if the arm hits the
+# boundary.  Use a small margin so calibration points stay inside the
+# reachable area a bit more.
+CAL_MARGIN_MM = 5.0  # millimetres
+
 
 class Gadgets:
     """
@@ -188,10 +194,13 @@ class PlotClock(Gadgets):
         self._axis_len = 0.5 * min(span_x, span_y)
         base_x = -self._axis_len / 2
         base_y = self.min_y
+
+        # Keep calibration points away from the edges -----------------
+        m = CAL_MARGIN_MM
         self._mm_pts = [
-            (base_x, base_y + self._axis_len),
-            (base_x, base_y),
-            (base_x + self._axis_len, base_y),
+            (base_x + m, base_y + self._axis_len - m),
+            (base_x + m, base_y + m),
+            (base_x + self._axis_len - m, base_y + m),
         ]
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0

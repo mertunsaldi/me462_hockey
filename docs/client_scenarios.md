@@ -53,7 +53,9 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    press **Start Scenario** (or POST to `/start_scenario`) to begin execution.
    When a scenario starts, its `on_start()` method runs. The built-in
    `StandingBallHitter` clears any previous calibration so you should see the
-   calibration routine whenever you start it.
+   calibration routine whenever you start it.  Calibration points are now
+   chosen slightly inside the working area so the arm doesn't hit its
+   mechanical limits.
 5. Optionally send messages while it is running:
    ```bash
    curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
