@@ -208,7 +208,6 @@ def connect_pico():
         print("Waiting for detections...")
         detected_clocks = []
         detected_arena = None
-        required_ids = set()
         start = time.time()
         while time.time() - start < 5:
             time.sleep(0.1)
@@ -219,8 +218,6 @@ def connect_pico():
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
                 if walls:
                     detected_arena = Arena(walls)
-            if detected_clocks:
-                break
 
         if detected_arena:
             for c in detected_clocks:
@@ -248,14 +245,18 @@ def connect_pico():
 def calibrate_all():
     """Calibrate all detected PlotClocks."""
     global detected_clocks
-    if not detected_clocks:
+    with api.lock:
+        clocks = list(api.plotclocks.values())
+    if not clocks:
         return jsonify({"status": "error", "message": "no plotclocks"}), 400
+
+    detected_clocks = clocks
 
     def _get_dets():
         with api.lock:
             return api.balls + api.arucos
 
-    calibrate_clocks(detected_clocks, _get_dets)
+    calibrate_clocks(clocks, _get_dets)
     return jsonify({"status": "ok"})
 
 
