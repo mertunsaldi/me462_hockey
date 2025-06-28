@@ -44,7 +44,7 @@ class GameAPI:
         self.arucos: List[ArucoMarker] = []
         self.lock = threading.Lock()
 
-        self.master_pico = MasterPico(port=None, baudrate=115200, timeout=0.2)
+        self.master_pico = MasterPico(port=None, baudrate=115200, timeout=1.0)
         self.plotclocks: Dict[int, PlotClock] = {}
         self.pico_lock = threading.Lock()
         self.pico_connected = False
