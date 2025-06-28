@@ -237,6 +237,21 @@ def connect_pico():
                 print("No PlotClocks detected, continuing without scenarios")
 
         if detected_clocks:
+            # Wait a moment for any remaining PlotClock objects to finish
+            # instantiating.  The detection thread may still be creating
+            # gadgets while we exit the loop above which can lead to
+            # calibration commands racing with ``__init__`` queries.
+            stable_start = time.time()
+            last_count = len(detected_clocks)
+            while time.time() - stable_start < 1.0:
+                time.sleep(0.1)
+                with api.lock:
+                    detected_clocks = list(api.plotclocks.values())
+                if len(detected_clocks) == last_count:
+                    break
+                last_count = len(detected_clocks)
+                stable_start = time.time()
+
             def _get_dets():
                 with api.lock:
                     return api.balls + api.arucos

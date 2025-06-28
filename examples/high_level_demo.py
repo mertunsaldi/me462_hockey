@@ -50,6 +50,20 @@ def main() -> None:
     defender = None
 
     if clocks:
+        # Ensure no new PlotClock instances are being created before
+        # starting calibration.  The detection thread may add clocks a
+        # little later which can clash with calibration commands.
+        stable_start = time.time()
+        last_count = len(clocks)
+        while time.time() - stable_start < 1.0:
+            time.sleep(0.1)
+            with api.lock:
+                clocks = list(api.plotclocks.values())
+            if len(clocks) == last_count:
+                break
+            last_count = len(clocks)
+            stable_start = time.time()
+
         def _get_dets():
             with api.lock:
                 return api.balls + api.arucos
