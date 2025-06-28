@@ -481,12 +481,12 @@ class ArenaManager(PlotClock):
     ) -> None:
         import cv2
 
-        # if self.arena is not None:
-        #     corners = self.arena.get_arena_corners()
-        #     if len(corners) >= 3:
-        #         poly = np.array(corners, dtype=np.int32)
-        #         cv2.polylines(frame, [poly], True, color, thickness)
-        #         return
+        if self.arena is not None:
+            corners = self.arena.get_arena_corners()
+            if len(corners) >= 3:
+                poly = np.array(corners, dtype=np.int32)
+                cv2.polylines(frame, [poly], True, color, thickness)
+                return
 
         # Fall back to the regular PlotClock workspace
         super().draw_working_area(frame, color=color, thickness=thickness)
