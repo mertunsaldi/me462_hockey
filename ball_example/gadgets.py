@@ -379,6 +379,35 @@ class PlotClock(Gadgets):
         from .scenarios import BallReflector
         return BallReflector(self, frame_size)
 
+    def draw_calibration_progress(
+        self,
+        frame: np.ndarray,
+        *,
+        color: Tuple[int, int, int] = (0, 255, 255),
+        thickness: int = 2,
+    ) -> None:
+        """Draw the calibration triangle between P1, P2 and P3."""
+        import cv2
+
+        pts = [tuple(int(v) for v in p) for p in self._px_hits]
+        for idx, pt in enumerate(pts):
+            cv2.circle(frame, pt, 5, color, -1)
+            cv2.putText(
+                frame,
+                f"P{idx+1}",
+                (pt[0] + 5, pt[1] - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+            )
+
+        if len(pts) >= 2:
+            cv2.line(frame, pts[0], pts[1], color, thickness)
+        if len(pts) >= 3:
+            cv2.line(frame, pts[1], pts[2], color, thickness)
+            cv2.line(frame, pts[2], pts[0], color, thickness)
+
     def draw_working_area(
         self,
         frame: np.ndarray,
