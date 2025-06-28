@@ -282,11 +282,10 @@ def connect_pico():
                     return api.balls + api.arucos
 
             print("Calibrating clocks…")
-            plotclocks = [c for c in detected_clocks if not isinstance(c, ArenaManager)]
-            calibrate_clocks(plotclocks, _get_dets)
+            calibrate_clocks(detected_clocks, _get_dets)
 
-            attacker = plotclocks[0].attack(api.frame_size, (100.0, 0.0))
-            defender = plotclocks[1].defend(api.frame_size) if len(plotclocks) > 1 else None
+            attacker = clk1.attack(api.frame_size, (100.0, 0.0))
+            defender = None
             attacker.on_start()
             if defender:
                 defender.on_start()
