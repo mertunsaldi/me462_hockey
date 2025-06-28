@@ -51,6 +51,8 @@ class GameAPI:
 
         self._current_scenario: Scenario | None = None
         self.scenario_enabled = False
+        self.clock_scenarios: Dict[int, Scenario] = {}
+        self.clock_modes: Dict[int, str] = {}
         self._cam_started = False
 
     # ------------------------------------------------------------------
@@ -113,33 +115,45 @@ class GameAPI:
                     elif isinstance(m, ArucoHitter):
                         self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
 
-        scenario_line = None
-        extra_pts = None
-        extra_labels = None
+        scenario_lines = []
+        extra_pts: List[tuple] = []
+        extra_labels: List[str] = []
+        detections = balls + markers
         if self._current_scenario and self.scenario_enabled:
-            detections = balls + markers
             self._current_scenario.update(detections)
-            scenario_line = self._current_scenario.get_line_points()
-            extra_pts = self._current_scenario.get_extra_points()
-            extra_labels = self._current_scenario.get_extra_labels()
+            line = self._current_scenario.get_line_points()
+            if line:
+                scenario_lines.extend(line if isinstance(line, list) else [line])
+            pts = self._current_scenario.get_extra_points()
+            if pts:
+                extra_pts.extend(pts if isinstance(pts, list) else [pts])
+            labels = self._current_scenario.get_extra_labels()
+            if labels:
+                extra_labels.extend(labels if isinstance(labels, list) else [labels])
+
+        for sc in list(self.clock_scenarios.values()):
+            sc.update(detections)
+            line = sc.get_line_points()
+            if line:
+                scenario_lines.extend(line if isinstance(line, list) else [line])
+            pts = sc.get_extra_points()
+            if pts:
+                extra_pts.extend(pts if isinstance(pts, list) else [pts])
+            labels = sc.get_extra_labels()
+            if labels:
+                extra_labels.extend(labels if isinstance(labels, list) else [labels])
 
         annotated = render_overlay(
             frame,
             balls,
             markers,
             line_points=None,
-            extra_points=extra_pts,
-            extra_labels=extra_labels,
+            extra_points=extra_pts if extra_pts else None,
+            extra_labels=extra_labels if extra_labels else None,
         )
 
-        if self._current_scenario and self.scenario_enabled and scenario_line:
-            lines = scenario_line if isinstance(scenario_line, list) else [scenario_line]
-            for idx, (p1, p2) in enumerate(lines):
-                if len(lines) == 2:
-                    color = (255, 0, 0) if idx == 0 else (0, 0, 255)
-                else:
-                    color = (255, 255, 255)
-                draw_line(annotated, p1, p2, color=color, thickness=2)
+        for p1, p2 in scenario_lines:
+            draw_line(annotated, p1, p2, color=(255, 255, 255), thickness=2)
 
         return annotated
 
@@ -194,6 +208,26 @@ class GameAPI:
         if self._current_scenario and self.scenario_enabled:
             self._current_scenario.on_stop()
             self.scenario_enabled = False
+
+    # --- per PlotClock scenarios -------------------------------------
+    def start_clock_mode(self, clock: PlotClock, mode: str) -> None:
+        if mode == "attack":
+            sc = clock.attack(self.frame_size, (100.0, 0.0))
+        elif mode == "defend":
+            sc = clock.defend(self.frame_size)
+        elif mode == "hit_standing":
+            sc = clock.hit_standing_ball()
+        else:
+            raise ValueError("bad mode")
+        sc.on_start()
+        self.clock_scenarios[clock.device_id] = sc
+        self.clock_modes[clock.device_id] = mode
+
+    def stop_clock_mode(self, device_id: int) -> None:
+        sc = self.clock_scenarios.pop(device_id, None)
+        if sc:
+            sc.on_stop()
+        self.clock_modes.pop(device_id, None)
 
     def process_message(self, message: Dict[str, Any]) -> None:
         if self._current_scenario:
@@ -253,6 +287,7 @@ class GameAPI:
             details = {
                 "class": g.__class__.__name__,
                 "calibrated": bool(getattr(g, "calibration", None)),
+                "id": getattr(g, "device_id", None),
             }
             if hasattr(g, "_u_x") and g._u_x is not None:
                 details["u_x"] = g._u_x.tolist()
@@ -283,6 +318,7 @@ class GameAPI:
                 "image_params": image_params,
                 "camera_source": self.camera.src,
                 "frame_size": self.frame_size,
+                "active_modes": self.clock_modes,
             }
         )
         return info

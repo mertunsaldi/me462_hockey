@@ -38,8 +38,6 @@ else:
 manual_mode = False
 detected_clocks = []
 detected_arena = None
-attacker = None
-defender = None
 _default_params = {
     "circ": BallDetector.CIRCULARITY_THRESHOLD,
     "area_ratio": BallDetector.AREA_RATIO_THRESHOLD,
@@ -145,11 +143,6 @@ def generate_frames():
         with api.lock:
             dets = api.balls + api.arucos
 
-        if attacker:
-            attacker.update(dets)
-        if defender:
-            defender.update(dets)
-
         if detected_arena:
             draw_arena(annotated, detected_arena)
         for c in detected_clocks:
@@ -208,91 +201,84 @@ def debug_data():
 
 @app.route("/connect_pico", methods=["POST"])
 def connect_pico():
-    global detected_clocks, detected_arena, attacker, defender
+    global detected_clocks, detected_arena
     try:
         api.connect_pico()
 
         print("Waiting for detections...")
         detected_clocks = []
         detected_arena = None
-        required_ids = {0, 1}
+        required_ids = set()
         start = time.time()
         while time.time() - start < 5:
             time.sleep(0.1)
             with api.lock:
                 detections = list(api.arucos)
-                detected_clocks = [
-                    c for c in api.plotclocks.values() if c.device_id in required_ids
-                ]
+                detected_clocks = list(api.plotclocks.values())
             if detected_arena is None:
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
                 if walls:
                     detected_arena = Arena(walls)
-            ids = {c.device_id for c in detected_clocks}
-            have_required = required_ids.issubset(ids)
-            if have_required:
-                mgr = next(
-                    (c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0),
-                    None,
-                )
-                clk1 = next(
-                    (c for c in detected_clocks if not isinstance(c, ArenaManager) and c.device_id == 1),
-                    None,
-                )
-                if mgr and clk1:
-                    break
+            if detected_clocks:
+                break
 
         if detected_arena:
             for c in detected_clocks:
                 if isinstance(c, ArenaManager):
                     c.set_arena(detected_arena)
 
-        ids = {c.device_id for c in detected_clocks}
-        mgr = next((c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0), None)
-        clk1 = next((c for c in detected_clocks if not isinstance(c, ArenaManager) and c.device_id == 1), None)
-        if not (mgr and clk1):
-            msg = (
-                "Missing required markers: ArenaManager id=0 and PlotClock id=1 must be visible"
-            )
-            print(msg)
-            return jsonify({"status": "error", "message": msg}), 400
-
         if detected_clocks:
-            # Wait a moment for any remaining PlotClock objects to finish
-            # instantiating.  The detection thread may still be creating
-            # gadgets while we exit the loop above which can lead to
-            # calibration commands racing with ``__init__`` queries.
             stable_start = time.time()
             last_count = len(detected_clocks)
             while time.time() - stable_start < 1.0:
                 time.sleep(0.1)
                 with api.lock:
-                    detected_clocks = [
-                        c
-                        for c in api.plotclocks.values()
-                        if c.device_id in required_ids
-                    ]
+                    detected_clocks = list(api.plotclocks.values())
                 if len(detected_clocks) == last_count:
                     break
                 last_count = len(detected_clocks)
                 stable_start = time.time()
 
-            def _get_dets():
-                with api.lock:
-                    return api.balls + api.arucos
-
-            print("Calibrating clocks…")
-            calibrate_clocks(detected_clocks, _get_dets)
-
-            attacker = clk1.attack(api.frame_size, (100.0, 0.0))
-            defender = None
-            attacker.on_start()
-            if defender:
-                defender.on_start()
-
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/calibrate_all", methods=["POST"])
+def calibrate_all():
+    """Calibrate all detected PlotClocks."""
+    global detected_clocks
+    if not detected_clocks:
+        return jsonify({"status": "error", "message": "no plotclocks"}), 400
+
+    def _get_dets():
+        with api.lock:
+            return api.balls + api.arucos
+
+    calibrate_clocks(detected_clocks, _get_dets)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/toggle_mode", methods=["POST"])
+def toggle_mode():
+    """Start or stop a scenario for a specific PlotClock."""
+    data = request.get_json(silent=True) or {}
+    device_id = int(data.get("device_id", -1))
+    mode = data.get("mode")
+    clock = api.plotclocks.get(device_id)
+    if clock is None or mode not in {"attack", "defend", "hit_standing"}:
+        return jsonify({"status": "error", "message": "invalid"}), 400
+
+    if api.clock_modes.get(device_id) == mode:
+        api.stop_clock_mode(device_id)
+        return jsonify({"status": "stopped"})
+
+    # replace any running scenario on this clock
+    if device_id in api.clock_scenarios:
+        api.stop_clock_mode(device_id)
+
+    api.start_clock_mode(clock, mode)
+    return jsonify({"status": "started"})
 
 
 @app.route("/send_cmd", methods=["POST"])

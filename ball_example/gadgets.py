@@ -379,6 +379,11 @@ class PlotClock(Gadgets):
         from .scenarios import BallReflector
         return BallReflector(self, frame_size)
 
+    def hit_standing_ball(self):
+        """Return a StandingBallHitter scenario for this clock."""
+        from .scenarios import StandingBallHitter
+        return StandingBallHitter(self)
+
     def draw_working_area(
         self,
         frame: np.ndarray,

@@ -103,6 +103,19 @@
       font-size:12px;
       white-space:pre-wrap;
     }
+    #sidebar{
+      position:absolute;
+      top:220px;
+      left:10px;
+      width:200px;
+      background:rgba(0,0,0,.6);
+      padding:10px;
+      border-radius:5px;
+      z-index:11;
+    }
+    #clock-list .clock-entry{ margin-top:6px; }
+    #clock-list button{ margin-left:4px; font-size:12px; }
+    #clock-list button.active{ background:#27ae60; color:#fff; }
   </style>
 </head>
 <body>
@@ -116,6 +129,11 @@
   <input id="cmd-box" type="text" placeholder="command + Enter" list="cmd-list" autocomplete="off">
   <datalist id="cmd-list"></datalist>
   <pre id="pico-log"></pre>
+
+  <div id="sidebar">
+    <button id="calibrate-all">Calibrate All</button>
+    <div id="clock-list"></div>
+  </div>
 
   <div id="status">
     <div>Number of Balls: <span id="num_balls">0</span></div>
@@ -159,6 +177,7 @@
         } else {
           scSpan.textContent = 'None';
         }
+        renderClocks(d);
 
         if(!d.scenario_loaded){
           startBtn.disabled = true;
@@ -181,6 +200,8 @@
     const cmdBox     = qs('#cmd-box');
     const cmdList    = qs('#cmd-list');
     const picoLog    = qs('#pico-log');
+    const calibBtn   = qs('#calibrate-all');
+    const clockList  = qs('#clock-list');
     let clockIds     = [];
     const servoCmds = [
       'getAngle()',
@@ -223,6 +244,41 @@
     setInterval(pollPicoLog, 500);
     pollPicoLog();
     updateCmdList();
+
+    function renderClocks(info){
+      clockList.innerHTML = '';
+      if(!Array.isArray(info.gadgets)) return;
+      const active = info.active_modes || {};
+      for(const g of info.gadgets){
+        if(g.class !== 'PlotClock') continue;
+        const div = document.createElement('div');
+        div.className = 'clock-entry';
+        const span = document.createElement('span');
+        span.textContent = 'P' + g.id;
+        div.appendChild(span);
+        const modes = [
+          ['attack','Attack'],
+          ['defend','Defend'],
+          ['hit_standing','Hit']
+        ];
+        for(const [mode,label] of modes){
+          const b = document.createElement('button');
+          b.textContent = label;
+          if(!g.calibrated) b.disabled = true;
+          const am = active[g.id];
+          if(am){
+            if(am === mode){
+              b.classList.add('active');
+            } else {
+              b.disabled = true;
+            }
+          }
+          b.addEventListener('click', ()=>toggleMode(g.id, mode));
+          div.appendChild(b);
+        }
+        clockList.appendChild(div);
+      }
+    }
 
     function updateCmdList(){
       const val = cmdBox.value;
@@ -304,6 +360,30 @@
         connectBtn.disabled = false;
       }
     });
+
+    calibBtn.addEventListener('click', async () => {
+      calibBtn.disabled = true;
+      try{
+        const r = await fetch('/calibrate_all', {method:'POST'});
+        const d = await r.json();
+        if(d.status !== 'ok') alert('Calibrate failed: ' + (d.message||''));
+      }catch(e){ alert('Error: ' + e); }
+      finally{ calibBtn.disabled = false; }
+    });
+
+    async function toggleMode(id, mode){
+      try{
+        const r = await fetch('/toggle_mode', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({device_id:id, mode})
+        });
+        const d = await r.json();
+        if(d.status !== 'started' && d.status !== 'stopped'){
+          alert('Mode error: ' + (d.message||''));
+        }
+      }catch(e){ alert('Error: ' + e); }
+    }
 
     /* Command box enter */
     cmdBox.addEventListener('keydown', async e => {
