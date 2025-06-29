@@ -94,8 +94,8 @@ class BallAttacker(Scenario):
         self._initialized = False
 
     # ===============================================================
-    def _ray_hits_rectangle(self, bx, by, dx, dy):
-        """Return first hit point (mx,my) of ray with rectangle."""
+    def _ray_hits_polygon(self, bx, by, dx, dy):
+        """Return first hit point (mx,my) of ray with the working area polygon."""
         t_hit, pt_hit = None, None
         for (x1, y1), (x2, y2) in self._work_lines:
             ex, ey = x2 - x1, y2 - y1
@@ -115,13 +115,21 @@ class BallAttacker(Scenario):
         if not self._initialized:
             if not self.clock.calibration:
                 return
-            x0, x1 = self.clock.x_range
-            y0, y1 = self.clock.y_range
-            p00 = self.clock.mm_to_pixel((x0, y0))
-            p10 = self.clock.mm_to_pixel((x1, y0))
-            p11 = self.clock.mm_to_pixel((x1, y1))
-            p01 = self.clock.mm_to_pixel((x0, y1))
-            self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
+            poly = []
+            if hasattr(self.clock, "get_working_area_polygon"):
+                poly = self.clock.get_working_area_polygon()
+            if len(poly) >= 2:
+                self._work_lines = [
+                    (poly[i], poly[(i + 1) % len(poly)]) for i in range(len(poly))
+                ]
+            else:
+                x0, x1 = self.clock.x_range
+                y0, y1 = self.clock.y_range
+                p00 = self.clock.mm_to_pixel((x0, y0))
+                p10 = self.clock.mm_to_pixel((x1, y0))
+                p11 = self.clock.mm_to_pixel((x1, y1))
+                p01 = self.clock.mm_to_pixel((x0, y1))
+                self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
             self._initialized = True
 
         # 2) detections -------------------------------------------------
@@ -165,7 +173,7 @@ class BallAttacker(Scenario):
         # ----------------------------------------------------------------
         # (B) No plan → make a new one
         # ----------------------------------------------------------------
-        hit_pt = self._ray_hits_rectangle(bx, by, dx, dy)
+        hit_pt = self._ray_hits_polygon(bx, by, dx, dy)
         if hit_pt is None:
             return
         mx, my = hit_pt
@@ -359,16 +367,24 @@ class BallReflector(Scenario):
         if not self._initialized:
             if not self.clock.calibration:
                 return
-            x0, x1 = self.clock.x_range
-            y0, y1 = self.clock.y_range
-            try:
-                p00 = self.clock.mm_to_pixel((x0, y0))
-                p10 = self.clock.mm_to_pixel((x1, y0))
-                p11 = self.clock.mm_to_pixel((x1, y1))
-                p01 = self.clock.mm_to_pixel((x0, y1))
-                self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
-            except RuntimeError:
-                self._work_lines = []
+            poly = []
+            if hasattr(self.clock, "get_working_area_polygon"):
+                poly = self.clock.get_working_area_polygon()
+            if len(poly) >= 2:
+                self._work_lines = [
+                    (poly[i], poly[(i + 1) % len(poly)]) for i in range(len(poly))
+                ]
+            else:
+                x0, x1 = self.clock.x_range
+                y0, y1 = self.clock.y_range
+                try:
+                    p00 = self.clock.mm_to_pixel((x0, y0))
+                    p10 = self.clock.mm_to_pixel((x1, y0))
+                    p11 = self.clock.mm_to_pixel((x1, y1))
+                    p01 = self.clock.mm_to_pixel((x0, y1))
+                    self._work_lines = [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
+                except RuntimeError:
+                    self._work_lines = []
             self._initialized = True
 
         # ── 2. Reset overlay state every frame ──────────────────────
