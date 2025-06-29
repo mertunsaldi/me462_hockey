@@ -2,7 +2,7 @@ import math
 import numpy as np
 import time
 from typing import List, Optional, Tuple, Union, Dict, Any
-from .models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, ArucoMarker, ArucoHitter, Obstacle
 from .gadgets import PlotClock
 
 
@@ -532,3 +532,53 @@ class StandingBallHitter(Scenario):
         if self._start_mm:
             return [f"Start ({self._start_mm[0]:.1f},{self._start_mm[1]:.1f} mm)"]
         return ["Start"]
+
+
+class ObstacleFollower(Scenario):
+    """Simple scenario that drives an :class:`ArenaManager` to obstacle markers.
+
+    The first detected :class:`~ball_example.models.Obstacle` is used as the
+    target each frame.  The ArenaManager moves directly to the obstacle's
+    position in millimetres if it is calibrated.
+    """
+
+    def __init__(self, manager: PlotClock) -> None:
+        self.clock = manager
+        self._last_goal: Optional[Tuple[int, int]] = None
+
+    def on_start(self) -> None:
+        self._last_goal = None
+
+    def update(self, detections):
+        if not self.clock.calibration:
+            return
+
+        obstacle = next(
+            (d for d in detections if isinstance(d, Obstacle)),
+            None,
+        )
+        if obstacle is None:
+            return
+
+        x_px, y_px = obstacle.center
+        goal_mm = self.clock.find_mm(x_px, y_px)
+        if goal_mm and (
+            self._last_goal is None
+            or (abs(goal_mm[0] - self._last_goal[0]) > 1
+                or abs(goal_mm[1] - self._last_goal[1]) > 1)
+        ):
+            self.clock.send_command(f"p.setXY({goal_mm[0]}, {goal_mm[1]})")
+            self._last_goal = (goal_mm[0], goal_mm[1])
+
+    def get_extra_points(self):
+        if self._last_goal is None:
+            return None
+        try:
+            return [self.clock.mm_to_pixel(self._last_goal)]
+        except RuntimeError:
+            return None
+
+    def get_extra_labels(self):
+        if self._last_goal is None:
+            return None
+        return ["Obstacle"]
