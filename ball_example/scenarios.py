@@ -363,6 +363,7 @@ class BallReflector(Scenario):
         self._meet_px = None  # (mx, my) in pixels
         self._goal_px = None  # last commanded point in pixels
         self.reach_tol_px = 30  # tolerance (≈ 6–8 mm on a 640×480 frame)
+        self.meet_strip_px = 15  # half-width of velocity-aligned strip
         self.cmd_interval_s = 0.1  # min time between commands
         self._last_cmd_time = 0.0  # unix-time of last setxy
         self._work_lines = None  # list[(p1,p2)…] rectangle edges (px)
@@ -477,9 +478,18 @@ class BallReflector(Scenario):
         time_ok = (now - self._last_cmd_time) >= self.cmd_interval_s
 
         if time_ok:
-            self.clock.send_command(f"p.setXY({meet_mm[0]}, {meet_mm[1]})")
-            self._goal_px = self._meet_px
-            self._last_cmd_time = now
+            update_needed = self._goal_px is None
+            if not update_needed:
+                px_old = self._goal_px
+                d_perp = abs((px_old[0] - bx) * (-dy) + (px_old[1] - by) * dx)
+                update_needed = d_perp > self.meet_strip_px
+
+            if update_needed:
+                self.clock.send_command(
+                    f"p.setXY({meet_mm[0]}, {meet_mm[1]})"
+                )
+                self._goal_px = self._meet_px
+                self._last_cmd_time = now
 
     # ------------------------------------------------------------------
     def get_line_points(self):
