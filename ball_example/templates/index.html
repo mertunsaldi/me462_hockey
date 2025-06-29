@@ -204,6 +204,7 @@
     const calibBtn   = qs('#calibrate-all');
     const clockList  = qs('#clock-list');
     let clockIds     = [];
+    const moveInputs = {}; // persist move-object selections and coordinates
     const servoCmds = [
       'getAngle()',
       'setAngle(rad)',
@@ -262,7 +263,8 @@
       clockList.innerHTML = '';
       if(!Array.isArray(info.gadgets)) return;
       const active = info.active_modes || {};
-      for(const g of info.gadgets){
+        for(const g of info.gadgets){
+        const rec = moveInputs[g.id] || {};
         if(g.class !== 'PlotClock' && g.class !== 'ArenaManager') continue;
         const div = document.createElement('div');
         div.className = 'clock-entry';
@@ -312,8 +314,12 @@
                 objSel.appendChild(o);
               }
             }
-            xInput.addEventListener('input', ()=>previewTarget(g.id, xInput.value, yInput.value));
-            yInput.addEventListener('input', ()=>previewTarget(g.id, xInput.value, yInput.value));
+            objSel.value = rec.obj || objSel.value;
+            xInput.value = rec.x || '';
+            yInput.value = rec.y || '';
+            objSel.addEventListener('change', ()=>{ rec.obj = objSel.value; moveInputs[g.id] = rec; });
+            xInput.addEventListener('input', ()=>{ rec.x = xInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
+            yInput.addEventListener('input', ()=>{ rec.y = yInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
             b.addEventListener('click', ()=>moveObject(g.id, objSel.value, xInput.value, yInput.value));
             div.appendChild(b);
             div.appendChild(objSel);
