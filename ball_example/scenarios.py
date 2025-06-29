@@ -462,6 +462,10 @@ class StandingBallHitter(Scenario):
     """Calibrates PlotClock, then strikes the ball toward the target."""
 
     def __init__(self, plotclock: PlotClock):
+        # Old versions stored the PlotClock instance as ``plotclock`` and
+        # referenced ``self.clock`` implicitly.  Newer scenarios expect a
+        # ``clock`` attribute, so set both for compatibility.
+        self.clock = plotclock
         self.plotclock = plotclock
         self.hitter: Optional[ArucoHitter] = None
         self.target: Optional[ArucoMarker] = None
@@ -478,7 +482,7 @@ class StandingBallHitter(Scenario):
     # ------------------------------------------------------------------
     def update(self, detections):
         # 1) require calibration first
-        if not self.plotclock.calibration:
+        if not self.clock.calibration:
             return  # nothing else until calibrated
 
         # 2) reset per‑frame state
@@ -505,7 +509,7 @@ class StandingBallHitter(Scenario):
                 sx = int(bx - dx / dist * 70)
                 sy = int(by - dy / dist * 70)
                 self._start_px = (sx, sy)
-                self._start_mm = self.plotclock.find_mm(sx, sy)
+                self._start_mm = self.clock.find_mm(sx, sy)
 
                 # once per run: move hitter then strike
                 if not self._fired and self._start_mm:
