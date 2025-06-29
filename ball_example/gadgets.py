@@ -384,6 +384,11 @@ class PlotClock(Gadgets):
         from .scenarios import StandingBallHitter
         return StandingBallHitter(self)
 
+    def follow_obstacle(self):
+        """Return an ObstacleFollower scenario for this clock."""
+        from .scenarios import ObstacleFollower
+        return ObstacleFollower(self)
+
     def draw_working_area(
         self,
         frame: np.ndarray,

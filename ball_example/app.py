@@ -267,7 +267,7 @@ def toggle_mode():
     device_id = int(data.get("device_id", -1))
     mode = data.get("mode")
     clock = api.plotclocks.get(device_id)
-    if clock is None or mode not in {"attack", "defend", "hit_standing"}:
+    if clock is None or mode not in {"attack", "defend", "hit_standing", "follow_obstacle"}:
         return jsonify({"status": "error", "message": "invalid"}), 400
 
     if api.clock_modes.get(device_id) == mode:
