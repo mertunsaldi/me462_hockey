@@ -539,7 +539,7 @@ class MoveObject(Scenario):
 
     #: seconds to wait between actions. This gives the PlotClock enough time to
     #: physically move and actuate its gripper.
-    WAIT_TIME = 0.5
+    WAIT_TIME = 3
 
     def __init__(self, manager: "ArenaManager", obj: Union[Ball, Obstacle], target_mm: Tuple[float, float]):
         self.manager = manager
