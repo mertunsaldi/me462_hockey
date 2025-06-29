@@ -114,7 +114,16 @@
       z-index:11;
     }
     #clock-list .clock-entry{ margin-top:6px; }
-    #clock-list button{ margin-left:4px; font-size:12px; }
+    #clock-list button{
+      margin-left:4px;
+      font-size:12px;
+      background:#008cba;
+      color:#fff;
+      border:none;
+      padding:4px 8px;
+      border-radius:4px;
+      cursor:pointer;
+    }
     #clock-list button.active{ background:#27ae60; color:#fff; }
   </style>
 </head>
@@ -278,6 +287,19 @@
               ['defend','Defend'],
               ['hit_standing','Hit']
             ];
+        const xInput = document.createElement('input');
+        xInput.type = 'number';
+        xInput.placeholder = 'x';
+        xInput.style.width = '50px';
+        const yInput = document.createElement('input');
+        yInput.type = 'number';
+        yInput.placeholder = 'y';
+        yInput.style.width = '50px';
+        xInput.value = rec.x || '';
+        yInput.value = rec.y || '';
+        xInput.addEventListener('input', ()=>{ rec.x = xInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
+        yInput.addEventListener('input', ()=>{ rec.y = yInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
+
         for(const [mode,label] of modes){
           const b = document.createElement('button');
           b.textContent = label;
@@ -327,31 +349,24 @@
             div.appendChild(yInput);
           } else {
             if(mode === 'attack' || mode === 'hit_standing'){
-              const xInput = document.createElement('input');
-              xInput.type = 'number';
-              xInput.placeholder = 'x';
-              xInput.style.width = '50px';
-              const yInput = document.createElement('input');
-              yInput.type = 'number';
-              yInput.placeholder = 'y';
-              yInput.style.width = '50px';
-              xInput.value = rec[mode+'x'] || '';
-              yInput.value = rec[mode+'y'] || '';
-              xInput.addEventListener('input', ()=>{ rec[mode+'x']=xInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
-              yInput.addEventListener('input', ()=>{ rec[mode+'y']=yInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
               b.addEventListener('click', ()=>toggleMode(g.id, mode, xInput.value, yInput.value));
-              div.appendChild(b);
-              div.appendChild(xInput);
-              div.appendChild(yInput);
-              if(mode === 'hit_standing'){
-                const sBtn = document.createElement('button');
-                sBtn.textContent = 'Start';
-                sBtn.addEventListener('click', ()=>sendMessage({device_id:g.id, action:'start_hit'}));
-                div.appendChild(sBtn);
-              }
             } else {
               b.addEventListener('click', ()=>toggleMode(g.id, mode));
-              div.appendChild(b);
+            }
+            div.appendChild(b);
+            if(mode === 'attack'){
+              div.appendChild(xInput);
+              div.appendChild(yInput);
+            }
+            if(mode === 'hit_standing'){
+              const sep = document.createElement('div');
+              sep.style.margin = '4px 0';
+              sep.style.borderTop = '1px solid #888';
+              div.appendChild(sep);
+              const sBtn = document.createElement('button');
+              sBtn.textContent = 'Start';
+              sBtn.addEventListener('click', ()=>sendMessage({device_id:g.id, action:'start_hit'}));
+              div.appendChild(sBtn);
             }
           }
         }
