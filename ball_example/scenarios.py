@@ -727,6 +727,10 @@ class MoveBallHitRandom(Scenario):
         self._step = 0
         self._target_mm = None
         self._preview_until = 0.0
+        print("[MoveBallHitRandom] started")
+
+    def on_stop(self) -> None:
+        print("[MoveBallHitRandom] stopped")
 
     # ------------------------------------------------------------------
     def _random_target_mm(self) -> Tuple[float, float]:
@@ -760,6 +764,7 @@ class MoveBallHitRandom(Scenario):
         self.hit_sc = SingleHitStandingBallHitter(self.hitter, self._target_mm)
         self.hit_sc.on_start()
         self._preview_until = time.time() + self.PREVIEW_TIME
+        print(f"[MoveBallHitRandom] hitting toward {self._target_mm}")
 
     # ------------------------------------------------------------------
     def update(self, detections) -> None:
@@ -777,6 +782,7 @@ class MoveBallHitRandom(Scenario):
             cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) / 2
             self.move_sc = MoveObject(self.manager, ball, (cx, cy))
             self.move_sc.on_start()
+            print("[MoveBallHitRandom] moving ball to hitter")
             self._step = 1
             return
 
@@ -784,6 +790,7 @@ class MoveBallHitRandom(Scenario):
             self.move_sc.update(detections)
             if self.move_sc.finished:
                 self._start_hit()
+                print("[MoveBallHitRandom] ball centered; preparing hit")
                 self._step = 2
             return
 
@@ -792,6 +799,7 @@ class MoveBallHitRandom(Scenario):
             if time.time() >= self._preview_until and not self.hit_sc._armed:
                 self.hit_sc.process_message({"action": "start_hit"})
             if self.hit_sc.finished:
+                print("[MoveBallHitRandom] hit complete")
                 self.finished = True
 
     # ------------------------------------------------------------------
