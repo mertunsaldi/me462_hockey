@@ -322,8 +322,6 @@ class PlotClock(Gadgets):
             self._px_hits.append(marker.center)
             # compute basis -----------------------------------
             p1,p2,p3 = map(np.array,self._px_hits)
-            print("Hits:", self._px_hits)
-            print("dy  p3-p2 =", p3[1] - p2[1], "px   (should be ~ 0 for true servo-bar)")
             (m1x,m1y),(m2x,m2y),(m3x,m3y) = self._mm_pts
             self._u_x = (p3-p2)/(m3x-m2x)
             self._u_y = (p1-p2)/(m1y-m2y)

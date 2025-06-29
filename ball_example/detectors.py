@@ -53,7 +53,7 @@ class ArucoDetector:
 
         if ids4 is not None:
             for marker_corners, marker_id in zip(corners4, ids4.flatten()):
-                if int(marker_id) in (17, 37):
+                if int(marker_id) not in range(0, 12):
                     continue  # ignore misdetected IDs
                 pts = marker_corners.reshape(-1, 2)
                 pts_int = [(int(x), int(y)) for x, y in pts]
