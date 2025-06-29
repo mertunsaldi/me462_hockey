@@ -672,6 +672,8 @@ class MoveObject(Scenario):
         # finally release the object once at the target
         if self._step == 3 and now - self._last_time >= self.WAIT_TIME:
             print("RELEASE")
+            wx, wy = self.manager.wait_position_mm()
+            self.manager.send_command(f"p.setXY({wx}, {wy})")
             self.finished = True
 
     def get_extra_points(self):
@@ -711,6 +713,9 @@ class MoveBallHitRandom(Scenario):
 
     PREVIEW_TIME = 1.0  # seconds
 
+    STABLE_TIME = 0.5  # seconds ball must stay still
+    STABLE_VEL_PF = 0.5  # px/frame considered "still"
+
     def __init__(self, manager: ArenaManager, hitter: PlotClock):
         self.manager = manager
         self.hitter = hitter
@@ -719,6 +724,7 @@ class MoveBallHitRandom(Scenario):
         self._step = 0
         self._target_mm: Tuple[float, float] | None = None
         self._preview_until = 0.0
+        self._stable_start: float | None = None
 
     def on_start(self) -> None:
         self.finished = False
@@ -727,6 +733,7 @@ class MoveBallHitRandom(Scenario):
         self._step = 0
         self._target_mm = None
         self._preview_until = 0.0
+        self._stable_start = None
         print("[MoveBallHitRandom] started")
 
     def on_stop(self) -> None:
@@ -736,28 +743,43 @@ class MoveBallHitRandom(Scenario):
     def _random_target_mm(self) -> Tuple[float, float]:
         if (
             isinstance(self.manager, ArenaManager)
-            and self.manager.arena is not None
             and self.hitter.calibration
         ):
-            poly = self.manager.arena.get_arena_corners()
+            poly = self.manager.get_working_area_polygon()
+            hitter_poly = self.hitter.get_working_area_polygon()
             if len(poly) >= 3:
                 xs = [p[0] for p in poly]
                 ys = [p[1] for p in poly]
                 min_x, max_x = min(xs), max(xs)
                 min_y, max_y = min(ys), max(ys)
-                for _ in range(50):
+                for _ in range(100):
                     x = random.uniform(min_x, max_x)
                     y = random.uniform(min_y, max_y)
-                    if ArenaManager._pt_in_poly((int(x), int(y)), poly):
+                    pt = (int(x), int(y))
+                    if ArenaManager._pt_in_poly(pt, poly) and not (
+                        hitter_poly and ArenaManager._pt_in_poly(pt, hitter_poly)
+                    ):
                         break
                 else:
+                    # fallback to centre of arena
                     x, y = (min_x + max_x) / 2, (min_y + max_y) / 2
                 return self.hitter.find_mm(int(x), int(y))
 
-        # fallback: anywhere inside hitter workspace
-        x = random.uniform(*self.hitter.x_range)
-        y = random.uniform(*self.hitter.y_range)
-        return (x, y)
+        # fallback: choose a point outside the workspace bounds
+        for _ in range(100):
+            x = random.uniform(*self.hitter.x_range)
+            y = random.uniform(*self.hitter.y_range)
+            if (
+                abs(x) > self.hitter.max_x * 0.9
+                or y < self.hitter.min_y + (self.hitter.y_range[1] - self.hitter.min_y) * 0.1
+            ):
+                return (x, y)
+
+        # as last resort just return edge of workspace
+        return (
+            self.hitter.x_range[1],
+            self.hitter.y_range[0],
+        )
 
     def _start_hit(self) -> None:
         self._target_mm = self._random_target_mm()
@@ -780,7 +802,9 @@ class MoveBallHitRandom(Scenario):
             ball = balls[0]
             cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) / 2
             cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) / 2
-            self.move_sc = MoveObject(self.manager, ball, (cx, cy))
+            cx_px, cy_px = self.hitter.mm_to_pixel((cx, cy))
+            cx_mm, cy_mm = self.manager.find_mm(int(cx_px), int(cy_px))
+            self.move_sc = MoveObject(self.manager, ball, (cx_mm, cy_mm))
             self.move_sc.on_start()
             print("[MoveBallHitRandom] moving ball to hitter")
             self._step = 1
@@ -789,12 +813,27 @@ class MoveBallHitRandom(Scenario):
         if self._step == 1 and self.move_sc is not None:
             self.move_sc.update(detections)
             if self.move_sc.finished:
-                self._start_hit()
-                print("[MoveBallHitRandom] ball centered; preparing hit")
+                print("[MoveBallHitRandom] ball centered; waiting stability")
                 self._step = 2
             return
 
-        if self._step == 2 and self.hit_sc is not None:
+        if self._step == 2:
+            balls = [d for d in detections if isinstance(d, Ball)]
+            if len(balls) != 1 or not self.hitter.calibration:
+                return
+            poly = self.hitter.get_working_area_polygon()
+            if len(poly) >= 3 and ArenaManager._pt_in_poly(balls[0].center, poly) and math.hypot(*balls[0].velocity) < self.STABLE_VEL_PF:
+                if self._stable_start is None:
+                    self._stable_start = time.time()
+                elif time.time() - self._stable_start >= self.STABLE_TIME:
+                    self._start_hit()
+                    print("[MoveBallHitRandom] preparing hit")
+                    self._step = 3
+            else:
+                self._stable_start = None
+            return
+
+        if self._step == 3 and self.hit_sc is not None:
             self.hit_sc.update(detections)
             if time.time() >= self._preview_until and not self.hit_sc._armed:
                 self.hit_sc.process_message({"action": "start_hit"})
