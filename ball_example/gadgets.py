@@ -379,10 +379,10 @@ class PlotClock(Gadgets):
         from .scenarios import BallReflector
         return BallReflector(self, frame_size)
 
-    def hit_standing_ball(self):
+    def hit_standing_ball(self, target_mm: Tuple[float, float] | None = None):
         """Return a StandingBallHitter scenario for this clock."""
         from .scenarios import StandingBallHitter
-        return StandingBallHitter(self)
+        return StandingBallHitter(self, target_mm)
 
     def draw_working_area(
         self,

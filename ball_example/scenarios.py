@@ -311,6 +311,20 @@ class FixedTargetAttacker(BallAttacker):
         fake_target = ArucoMarker(-1, [], target_px)
         super().update(detections + [fake_target])
 
+    def get_extra_points(self):
+        pts = super().get_extra_points() or []
+        if self.clock.calibration:
+            try:
+                pts.append(self.clock.mm_to_pixel(self._target_mm))
+            except RuntimeError:
+                pass
+        return pts or None
+
+    def get_extra_labels(self):
+        labels = super().get_extra_labels() or []
+        labels.append("Target")
+        return labels
+
 
 # ----------------------------------------------------------------------
 #  BallReflector  v3  — trajectory, meeting point, and Pico “go to” cmd
@@ -461,12 +475,14 @@ class BallReflector(Scenario):
 class StandingBallHitter(Scenario):
     """Calibrates PlotClock, then strikes the ball toward the target."""
 
-    def __init__(self, plotclock: PlotClock):
+    def __init__(self, plotclock: PlotClock, target_mm: Tuple[float, float] | None = None):
         # Old versions stored the PlotClock instance as ``plotclock`` and
         # referenced ``self.clock`` implicitly.  Newer scenarios expect a
         # ``clock`` attribute, so set both for compatibility.
         self.clock = plotclock
         self.plotclock = plotclock
+        self._target_mm = target_mm
+        self._target_px: Optional[Tuple[int, int]] = None
         self.hitter: Optional[ArucoHitter] = None
         self.target: Optional[ArucoMarker] = None
         self.ball: Optional[Ball] = None
@@ -474,10 +490,16 @@ class StandingBallHitter(Scenario):
         self._start_px: Optional[Tuple[int, int]] = None
         self._start_mm: Optional[Tuple[float, float]] = None
         self._fired = False  # ensure we send move-strike sequence only once
+        self._armed = False
 
     def on_start(self) -> None:
         """Reset internal state when the scenario begins."""
         self._fired = False
+        self._armed = False
+
+    def process_message(self, message: Dict[str, Any]) -> None:
+        if message.get("action") == "start_hit":
+            self._armed = True
 
     # ------------------------------------------------------------------
     def update(self, detections):
@@ -492,10 +514,18 @@ class StandingBallHitter(Scenario):
         for d in detections:
             if isinstance(d, ArucoHitter):
                 self.hitter = d
-            elif isinstance(d, ArucoMarker):
+            elif isinstance(d, ArucoMarker) and self._target_mm is None:
                 self.target = d
             elif isinstance(d, Ball):
                 self.ball = d
+
+        if self._target_mm is not None and self.clock.calibration:
+            try:
+                self._target_px = self.clock.mm_to_pixel(self._target_mm)
+            except RuntimeError:
+                self._target_px = None
+            if self._target_px:
+                self.target = ArucoMarker(-1, [], self._target_px)
 
         if self.ball and self.target:
             bx, by = self.ball.center
@@ -512,7 +542,7 @@ class StandingBallHitter(Scenario):
                 self._start_mm = self.clock.find_mm(sx, sy)
 
                 # once per run: move hitter then strike
-                if not self._fired and self._start_mm:
+                if not self._fired and self._armed and self._start_mm:
                     ball_mm = self.clock.find_mm(bx, by)
                     self.clock.send_command(
                         f"p.setXY({self._start_mm[0]}, {self._start_mm[1]})"
@@ -528,14 +558,25 @@ class StandingBallHitter(Scenario):
         return self._line
 
     def get_extra_points(self):
-        return [self._start_px] if self._start_px else None
+        pts = []
+        if self._start_px:
+            pts.append(self._start_px)
+        if self._target_px:
+            pts.append(self._target_px)
+        return pts or None
 
     def get_extra_labels(self):
-        if not self._start_px:
-            return None
-        if self._start_mm:
-            return [f"Start ({self._start_mm[0]:.1f},{self._start_mm[1]:.1f} mm)"]
-        return ["Start"]
+        labels = []
+        if self._start_px:
+            if self._start_mm:
+                labels.append(
+                    f"Start ({self._start_mm[0]:.1f},{self._start_mm[1]:.1f} mm)"
+                )
+            else:
+                labels.append("Start")
+        if self._target_px:
+            labels.append("Target")
+        return labels or None
 
 
 class MoveObject(Scenario):

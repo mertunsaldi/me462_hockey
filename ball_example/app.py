@@ -270,6 +270,14 @@ def toggle_mode():
     if clock is None or mode not in {"attack", "defend", "hit_standing"}:
         return jsonify({"status": "error", "message": "invalid"}), 400
 
+    x_mm = y_mm = None
+    if mode in {"attack", "hit_standing"}:
+        try:
+            x_mm = float(data.get("x"))
+            y_mm = float(data.get("y"))
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "invalid"}), 400
+
     if api.clock_modes.get(device_id) == mode:
         api.stop_clock_mode(device_id)
         return jsonify({"status": "stopped"})
@@ -278,7 +286,8 @@ def toggle_mode():
     if device_id in api.clock_scenarios:
         api.stop_clock_mode(device_id)
 
-    api.start_clock_mode(clock, mode)
+    api.start_clock_mode(clock, mode, target_mm=(x_mm, y_mm))
+    api.set_preview_target(device_id, (x_mm, y_mm)) if x_mm is not None else None
     return jsonify({"status": "started"})
 
 
@@ -324,8 +333,8 @@ def preview_target_route():
     data = request.get_json(silent=True) or {}
     device_id = int(data.get("device_id", -1))
     with api.lock:
-        manager = api.plotclocks.get(device_id)
-        if not isinstance(manager, ArenaManager):
+        clock = api.plotclocks.get(device_id)
+        if clock is None:
             return jsonify({"status": "error", "message": "invalid"}), 400
 
     try:

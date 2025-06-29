@@ -326,8 +326,33 @@
             div.appendChild(xInput);
             div.appendChild(yInput);
           } else {
-            b.addEventListener('click', ()=>toggleMode(g.id, mode));
-            div.appendChild(b);
+            if(mode === 'attack' || mode === 'hit_standing'){
+              const xInput = document.createElement('input');
+              xInput.type = 'number';
+              xInput.placeholder = 'x';
+              xInput.style.width = '50px';
+              const yInput = document.createElement('input');
+              yInput.type = 'number';
+              yInput.placeholder = 'y';
+              yInput.style.width = '50px';
+              xInput.value = rec[mode+'x'] || '';
+              yInput.value = rec[mode+'y'] || '';
+              xInput.addEventListener('input', ()=>{ rec[mode+'x']=xInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
+              yInput.addEventListener('input', ()=>{ rec[mode+'y']=yInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
+              b.addEventListener('click', ()=>toggleMode(g.id, mode, xInput.value, yInput.value));
+              div.appendChild(b);
+              div.appendChild(xInput);
+              div.appendChild(yInput);
+              if(mode === 'hit_standing'){
+                const sBtn = document.createElement('button');
+                sBtn.textContent = 'Start';
+                sBtn.addEventListener('click', ()=>sendMessage({device_id:g.id, action:'start_hit'}));
+                div.appendChild(sBtn);
+              }
+            } else {
+              b.addEventListener('click', ()=>toggleMode(g.id, mode));
+              div.appendChild(b);
+            }
           }
         }
         clockList.appendChild(div);
@@ -425,12 +450,12 @@
       finally{ calibBtn.disabled = false; }
     });
 
-    async function toggleMode(id, mode){
+    async function toggleMode(id, mode, x, y){
       try{
         const r = await fetch('/toggle_mode', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({device_id:id, mode})
+          body: JSON.stringify({device_id:id, mode, x:parseFloat(x), y:parseFloat(y)})
         });
         const d = await r.json();
         if(d.status !== 'started' && d.status !== 'stopped'){
@@ -461,6 +486,16 @@
           body: JSON.stringify({device_id:id, x:parseFloat(x), y:parseFloat(y)})
         });
       }catch(e){ console.error(e); }
+    }
+
+    async function sendMessage(msg){
+      try{
+        await fetch('/send_message', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(msg)
+        });
+      }catch(e){ alert('Error: ' + e); }
     }
 
     /* Command box enter */

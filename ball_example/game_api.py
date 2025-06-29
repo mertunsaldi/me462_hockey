@@ -226,13 +226,19 @@ class GameAPI:
             self.scenario_enabled = False
 
     # --- per PlotClock scenarios -------------------------------------
-    def start_clock_mode(self, clock: PlotClock, mode: str) -> None:
+    def start_clock_mode(
+        self,
+        clock: PlotClock,
+        mode: str,
+        target_mm: Tuple[float, float] | None = None,
+    ) -> None:
         if mode == "attack":
-            sc = clock.attack(self.frame_size, (100.0, 0.0))
+            tgt = target_mm if target_mm is not None else (100.0, 0.0)
+            sc = clock.attack(self.frame_size, tgt)
         elif mode == "defend":
             sc = clock.defend(self.frame_size)
         elif mode == "hit_standing":
-            sc = clock.hit_standing_ball()
+            sc = clock.hit_standing_ball(target_mm)
         elif mode == "move_object":
             raise ValueError("move_object requires parameters")
         else:
@@ -267,6 +273,10 @@ class GameAPI:
             self.preview_targets.pop(device_id, None)
 
     def process_message(self, message: Dict[str, Any]) -> None:
+        dev_id = message.get("device_id")
+        if dev_id is not None and dev_id in self.clock_scenarios:
+            self.clock_scenarios[dev_id].process_message(message)
+            return
         if self._current_scenario:
             self._current_scenario.process_message(message)
 
