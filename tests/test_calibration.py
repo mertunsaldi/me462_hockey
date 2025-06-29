@@ -32,3 +32,9 @@ def test_arena_manager_calibration_progresses():
     assert clock.calibration is not None
 
 
+def test_plotclock_accepts_manual_cal_points():
+    pts = [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0)]
+    clock = ArenaManager(cal_points_mm=pts)
+    assert clock._mm_pts == pts
+
+

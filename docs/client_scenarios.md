@@ -58,7 +58,11 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    `StandingBallHitter` clears any previous calibration so you should see the
    calibration routine whenever you start it.  Calibration points are now
    chosen slightly inside the working area so the arm doesn't hit its
-   mechanical limits.
+   mechanical limits.  The amount of inset can be adjusted when creating the
+   ``PlotClock`` by passing ``axis_len_scale``.  If omitted, the axis
+   length defaults to half the smaller workspace span.  Alternatively you
+   can fully control the calibration triangle by supplying ``cal_points_mm``
+   with three `(x, y)` tuples when constructing the clock.
 5. Optionally send messages while it is running:
    ```bash
    curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
