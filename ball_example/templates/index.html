@@ -1,149 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ball Tracker</title>
-  <style>
-    body{
-      margin:0; padding:0;
-      display:flex; flex-direction:column; align-items:center;
-      background:#333; color:#eee; font-family:Arial;
-      height:100vh; overflow:hidden;
-    }
-    #status{
-      position:absolute; top:10px; left:10px;
-      background:rgba(0,0,0,.6);
-      padding:10px; border-radius:5px;
-      line-height:1.4; z-index:10;
-    }
-    #status div{ margin-bottom:4px; }
-    #video-container{
-      max-width:85%; flex:1;
-      display:flex; justify-content:center; align-items:center;
-    }
-    #video{ width:100%; height:auto; display:block; }
 
-    /* connect and start buttons and tune buttons */
-    #start-btn{
-      position:absolute;
-      top:10px;
-      right:160px;  /* left of connect button */
-      background:#f39c12;
-      color:#fff;
-      border:none;
-      padding:10px 16px;
-      border-radius:5px;
-      font-size:14px;
-      cursor:pointer;
-      z-index:11;
+  <!-- ─────────────────────────── STYLE ────────────────────────────── -->
+  <style>
+    :root{
+      --bg-900:#121212;
+      --bg-800:#1c1c1c;
+      --bg-700:#262626;
+      --fg-100:#ffffff;
+      --accent:#4cabff;
+      --accent-alt:#ff9f1c;
+      --danger:#e74c3c;
+      --success:#2ecc71;
     }
-    #start-btn.running{
-      background:#27ae60;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    html,body{
+      margin:0; height:100%;
+      font-family:'Inter',sans-serif;
+      background:var(--bg-900); color:var(--fg-100);
+      display:flex; flex-direction:column;
     }
-    #connect-btn{
-      position:absolute;
-      top:10px;
-      right:10px;
-      background:#008cba;
-      color:#fff;
-      border:none;
-      padding:10px 16px;
-      border-radius:5px;
-      font-size:14px;
-      cursor:pointer;
-      z-index:11;
+
+    /* ─── Utilities ─────────────────────────────────────────────────── */
+    .btn{
+      all:unset; cursor:pointer; user-select:none;
+      padding:6px 14px; border-radius:6px;
+      font-size:13px; font-weight:500; text-align:center;
+      transition:background .15s;
     }
-    #connect-btn.connected{
-      background:#2e8b57;
+    .btn-primary   {background:var(--accent);}
+    .btn-secondary {background:var(--bg-700);}
+    .btn-success   {background:var(--success);}
+    .btn-danger    {background:var(--danger);}
+    .btn-primary:hover   {background:#60b5ff;}
+    .btn-secondary:hover {background:var(--bg-800);}
+    .btn[disabled]       {opacity:.4;cursor:not-allowed;}
+
+    input[type="number"]{
+      width:72px; padding:4px 6px;
+      background:var(--bg-700);
+      border:1px solid var(--bg-800);
+      border-radius:4px;
+      color:var(--fg-100);
+      font-size:13px;
     }
-    #tune-btn{
-      position:absolute;
-      top:10px;
-      right:320px; /* left of start button */
-      background:#9b59b6;
-      color:#fff;
-      border:none;
-      padding:10px 16px;
-      border-radius:5px;
-      font-size:14px;
-      cursor:pointer;
-      z-index:11;
-    }    
-    #cmd-box{
-      position:absolute;
-      top:56px;
-      right:10px;
-      width:180px;
-      padding:8px 10px;
-      border-radius:5px;
-      border:none;
-      font-size:14px;
-      outline:none;
-      opacity:.4;
-      pointer-events:none;
+    select{
+      background:var(--bg-700); color:var(--fg-100);
+      border:1px solid var(--bg-800);
+      border-radius:4px; font-size:13px; padding:4px 6px;
     }
-    #cmd-box.enabled{
-      opacity:1;
-      pointer-events:auto;
-      background:#fff;
-      color:#000;
+
+    /* ─── Top-bar buttons (IDs unchanged) ───────────────────────────── */
+    #tune-btn,#start-btn,#connect-btn{
+      position:absolute; top:10px; z-index:11;
     }
+    #connect-btn{right:10px;}
+    #start-btn  {right:160px;}
+    #tune-btn   {right:320px;}
+
+    #tune-btn          {background:var(--accent-alt);}
+    #start-btn         {background:var(--accent);}
+    #connect-btn       {background:#008cba;}
+    #start-btn.running {background:var(--success);}
+    #connect-btn.connected{background:var(--success);}
+
+    /* ─── Video left side ───────────────────────────────────────────── */
+    #video-container{
+      flex:1; display:flex; justify-content:center; align-items:center; max-width:80%;
+      /* leave some room on the right for sidebar */
+    }
+    #video{width:100%; height:auto; display:block;}
+
+    /* ─── Status box & log (stay top-left / top-right) ──────────────── */
+    #status,#pico-log{
+      background:rgba(0,0,0,.55);
+      border:1px solid var(--bg-800); border-radius:6px;
+    }
+    #status{position:absolute;top:10px;left:10px;padding:10px 14px;line-height:1.4;z-index:10;}
+    #status div{margin-bottom:4px;}
+
     #pico-log{
-      position:absolute;
-      top:86px;
-      right:10px;
-      width:180px;
-      height:120px;
-      overflow:auto;
-      padding:6px 8px;
-      border-radius:5px;
-      background:rgba(255,255,255,0.8);
-      color:#000;
-      font-size:12px;
-      white-space:pre-wrap;
+      position:absolute;top:86px;right:10px;width:180px;height:120px;
+      overflow:auto;padding:6px 8px;font-size:12px;white-space:pre-wrap;color:#ddd;
     }
+
+    /* ─── Command box ───────────────────────────────────────────────── */
+    #cmd-box{
+      position:absolute;top:56px;right:10px;width:180px;
+      padding:8px 10px;border-radius:5px;border:none;font-size:14px;outline:none;
+      opacity:.4;pointer-events:none;
+    }
+    #cmd-box.enabled{opacity:1;background:#fff;color:#000;pointer-events:auto;}
+
+    /* ─── Sidebar NOW ON THE RIGHT ──────────────────────────────────── */
     #sidebar{
       position:absolute;
-      top:220px;
-      left:10px;
-      width:200px;
-      background:rgba(0,0,0,.6);
-      padding:10px;
-      border-radius:5px;
+      top:250px;               /* below top controls */
+      right:10px;              /* right-aligned */
+      width:240px;
+      display:flex; flex-direction:column; gap:12px;
       z-index:11;
     }
-    #clock-list .clock-entry{ margin-top:6px; }
-    #clock-list button{
-      margin-left:4px;
-      font-size:12px;
-      background:#008cba;
-      color:#fff;
-      border:none;
-      padding:4px 8px;
-      border-radius:4px;
-      cursor:pointer;
+    #sidebar #calibrate-all{margin-bottom:6px;}
+
+    .clock-card{
+      background:rgba(255,255,255,.05); backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:10px;
+      padding:10px;
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      grid-gap:8px; align-items:center;
     }
-    #clock-list button.active{ background:#27ae60; color:#fff; }
+    .clock-card h4{
+      grid-column:1/3; margin:0 0 4px 0;
+      font-size:16px; font-weight:600;
+    }
+    .coords{grid-column:1/3;display:flex;gap:6px;}
+
+    .mode-group{display:flex;flex-direction:column;gap:6px;}
+    .mode-group .btn{padding:4px 0;}
+    .hit-start{grid-column:2/3;justify-self:end;}
   </style>
 </head>
+
 <body>
-  <!-- Tuning + Scenario buttons -->
-  <button id="tune-btn">Tune Detector</button>
-  <!-- Start Scenario button -->
-  <button id="start-btn">Start Scenario</button>
-  <!-- Connect Pico button -->
-  <button id="connect-btn">Connect Pico</button>
-  <!-- Command input -->
-  <input id="cmd-box" type="text" placeholder="command + Enter" list="cmd-list" autocomplete="off">
+  <!-- ─── Control buttons ──────────────────────────────────────────── -->
+  <button id="tune-btn"    class="btn">Tune Detector</button>
+  <button id="start-btn"   class="btn">Start Scenario</button>
+  <button id="connect-btn" class="btn">Connect Pico</button>
+
+  <!-- ─── Command & log boxes ─────────────────────────────────────── -->
+  <input   id="cmd-box"  type="text" placeholder="command + Enter" list="cmd-list" autocomplete="off">
   <datalist id="cmd-list"></datalist>
   <pre id="pico-log"></pre>
 
+  <!-- ─── Sidebar (right side) ─────────────────────────────────────── -->
   <div id="sidebar">
-    <button id="calibrate-all">Calibrate All</button>
+    <button id="calibrate-all" class="btn btn-secondary">Calibrate All</button>
     <div id="clock-list"></div>
   </div>
 
+  <!-- ─── Live status ──────────────────────────────────────────────── -->
   <div id="status">
     <div>Number of Balls: <span id="num_balls">0</span></div>
     <div>Speeds: <span id="speeds">[]</span></div>
@@ -151,59 +154,18 @@
     <div>Scenario: <span id="scenario_status">None</span></div>
   </div>
 
+  <!-- ─── Video feed (left) ───────────────────────────────────────── -->
   <div id="video-container">
     <img id="video" src="{{ url_for('video_feed') }}" alt="Video Stream">
   </div>
 
+  <!-- ───────────────────── SCRIPT ─────────────────────────────────── -->
   <script>
-    /* helper to select element */
-    function qs(sel){ return document.querySelector(sel); }
+    /* short-hand selector */
+    const qs = s => document.querySelector(s);
 
-    /* live stats */
-    let idsInitialized = false;
-    let lastClockKey = '';
-
-    async function updateStats(){
-      try{
-        const r = await fetch('/debug_data');
-        if(!r.ok) return;
-        const d = await r.json();
-        qs('#num_balls').textContent = d.num_balls;
-        qs('#speeds').textContent    = '[' + d.speeds.join(', ') + ']';
-        qs('#ball_ids').textContent  = d.ball_ids.join(', ');
-        if(!idsInitialized && Array.isArray(d.markers)){
-          const ids = d.markers
-            .filter(m => m.type === 'ArucoHitter' || m.type === 'ArucoManager')
-            .map(m => m.id);
-          if(ids.length){
-            clockIds = Array.from(new Set(ids));
-            idsInitialized = true;
-            updateCmdList();
-          }
-        }
-        const scSpan = qs('#scenario_status');
-        if(d.scenario_loaded){
-          scSpan.textContent = d.scenario_name + (d.scenario_running ? ' (running)' : ' (ready)');
-        } else {
-          scSpan.textContent = 'None';
-        }
-        maybeRenderClocks(d);
-
-        if(!d.scenario_loaded){
-          startBtn.disabled = true;
-          startBtn.classList.remove('running');
-          startBtn.textContent = 'Start Scenario';
-        } else if(d.scenario_running){
-          startBtn.disabled = true;
-          startBtn.classList.add('running');
-          startBtn.textContent = 'Scenario Running';
-        } else {
-          startBtn.disabled = false;
-          startBtn.classList.remove('running');
-          startBtn.textContent = 'Start Scenario';
-        }
-      } catch(e){ console.error(e); }
-    }
+    /* state holders */
+    let idsInitialized=false, lastClockKey='';
     const startBtn   = qs('#start-btn');
     const tuneBtn    = qs('#tune-btn');
     const connectBtn = qs('#connect-btn');
@@ -213,49 +175,71 @@
     const calibBtn   = qs('#calibrate-all');
     const clockList  = qs('#clock-list');
     let clockIds     = [];
-    const moveInputs = {}; // persist move-object selections and coordinates
-    const servoCmds = [
-      'getAngle()',
-      'setAngle(rad)',
-      'calibrateRotation(rad)'
-    ];
-    const pCmds = [
-      'setup(L1,L2,L3,L4,hitDia,servoMarginAngle=2.5/180*math.pi)',
-      'getXY()',
-      'getMaxX()',
-      'getMinY()',
-      'getStartAngle()',
-      'startPoseCalibration()',
-      'goHome()',
-      'checkTarget()',
-      'gotoXY()',
-      'setXY()',
-      'setXYrel()',
-      'getL1()',
-      'getL2()',
-      'getL3()',
-      'getL4()'
-    ];
-    setInterval(updateStats, 250);
-    updateStats();
+    const moveInputs = {};
 
-    async function pollPicoLog(){
+    /* command completions */
+    const servoCmds=['getAngle()','setAngle(rad)','calibrateRotation(rad)'];
+    const pCmds=[
+      'setup(L1,L2,L3,L4,hitDia,servoMarginAngle=2.5/180*math.pi)',
+      'getXY()','getMaxX()','getMinY()','getStartAngle()',
+      'startPoseCalibration()','goHome()','checkTarget()',
+      'gotoXY()','setXY()','setXYrel()',
+      'getL1()','getL2()','getL3()','getL4()'
+    ];
+
+    /* -------- live stats ------------------------------------------------- */
+    async function updateStats(){
       try{
-        const r = await fetch('/pico_lines');
+        const r = await fetch('/debug_data');
         if(!r.ok) return;
         const d = await r.json();
-        for(const line of d.lines){
-          picoLog.textContent += line + '\n';
-        }
-        if(d.lines && d.lines.length){
-          picoLog.scrollTop = picoLog.scrollHeight;
-        }
-      }catch(e){ console.error(e); }
-    }
-    setInterval(pollPicoLog, 500);
-    pollPicoLog();
-    updateCmdList();
 
+        qs('#num_balls').textContent = d.num_balls;
+        qs('#speeds').textContent    = '['+d.speeds.join(', ')+']';
+        qs('#ball_ids').textContent  = d.ball_ids.join(', ');
+
+        /* initialise IDs for autocomplete */
+        if(!idsInitialized && Array.isArray(d.markers)){
+          const ids=d.markers.filter(m=>m.type==='ArucoHitter'||m.type==='ArucoManager').map(m=>m.id);
+          if(ids.length){
+            clockIds=[...new Set(ids)];
+            idsInitialized=true;
+            updateCmdList();
+          }
+        }
+
+        /* scenario state */
+        const scSpan=qs('#scenario_status');
+        if(d.scenario_loaded){
+          scSpan.textContent=d.scenario_name+(d.scenario_running?' (running)':' (ready)');
+        }else scSpan.textContent='None';
+
+        maybeRenderClocks(d);
+
+        if(!d.scenario_loaded){
+          startBtn.disabled=true; startBtn.classList.remove('running'); startBtn.textContent='Start Scenario';
+        }else if(d.scenario_running){
+          startBtn.disabled=true; startBtn.classList.add('running'); startBtn.textContent='Scenario Running';
+        }else{
+          startBtn.disabled=false; startBtn.classList.remove('running'); startBtn.textContent='Start Scenario';
+        }
+
+      }catch(e){console.error(e);}
+    }
+    setInterval(updateStats,250); updateStats();
+
+    /* -------- pico log --------------------------------------------------- */
+    async function pollPicoLog(){
+      try{
+        const r=await fetch('/pico_lines'); if(!r.ok) return;
+        const d=await r.json();
+        for(const line of d.lines) picoLog.textContent+=line+'\n';
+        if(d.lines?.length) picoLog.scrollTop=picoLog.scrollHeight;
+      }catch(e){console.error(e);}
+    }
+    setInterval(pollPicoLog,500); pollPicoLog();
+
+    /* -------- sidebar / card rendering ----------------------------------- */
     function maybeRenderClocks(info){
       const active = info.active_modes || {};
       const key = JSON.stringify({
@@ -263,276 +247,198 @@
         b:(info.ball_details||[]).map(b=>b.id),
         o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
       });
-      if(key === lastClockKey) return;
-      lastClockKey = key;
-      renderClocks(info);
+      if(key!==lastClockKey){ lastClockKey=key; renderClocks(info); }
     }
 
     function renderClocks(info){
-      clockList.innerHTML = '';
+      clockList.innerHTML='';
       if(!Array.isArray(info.gadgets)) return;
-      const active = info.active_modes || {};
-        for(const g of info.gadgets){
-        const rec = moveInputs[g.id] || {};
-        if(g.class !== 'PlotClock' && g.class !== 'ArenaManager') continue;
-        const div = document.createElement('div');
-        div.className = 'clock-entry';
-        const span = document.createElement('span');
-        span.textContent = 'P' + g.id;
-        div.appendChild(span);
-        const modes = g.class === 'ArenaManager'
-          ? [['move_object','Move Object']]
-          : [
-              ['attack','Attack'],
-              ['defend','Defend'],
-              ['hit_standing','Hit']
-            ];
-        const xInput = document.createElement('input');
-        xInput.type = 'number';
-        xInput.placeholder = 'x';
-        xInput.style.width = '50px';
-        const yInput = document.createElement('input');
-        yInput.type = 'number';
-        yInput.placeholder = 'y';
-        yInput.style.width = '50px';
-        xInput.value = rec.x || '';
-        yInput.value = rec.y || '';
-        xInput.addEventListener('input', ()=>{ rec.x = xInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
-        yInput.addEventListener('input', ()=>{ rec.y = yInput.value; moveInputs[g.id]=rec; previewTarget(g.id,xInput.value,yInput.value); });
+      const active=info.active_modes||{};
 
-        for(const [mode,label] of modes){
-          const b = document.createElement('button');
-          b.textContent = label;
-          if(!g.calibrated) b.disabled = true;
-          const am = active[g.id];
-          if(am){
-            if(am === mode){
-              b.classList.add('active');
-            } else {
-              b.disabled = true;
-            }
-          }
-          if(g.class === 'ArenaManager'){
-            const objSel = document.createElement('select');
-            const xInput = document.createElement('input');
-            xInput.type = 'number';
-            xInput.placeholder = 'x';
-            xInput.style.width = '50px';
-            const yInput = document.createElement('input');
-            yInput.type = 'number';
-            yInput.placeholder = 'y';
-            yInput.style.width = '50px';
-            for(const ball of info.ball_details||[]){
-              const o = document.createElement('option');
-              o.value = 'ball:' + ball.id;
-              o.textContent = 'Ball ' + ball.id.slice(0,4);
-              objSel.appendChild(o);
-            }
-            for(const m of (info.markers||[])){
-              if(m.type === 'Obstacle'){
-                const o = document.createElement('option');
-                o.value = 'obs:' + m.id;
-                o.textContent = 'Obs ' + m.id;
-                objSel.appendChild(o);
-              }
-            }
-            objSel.value = rec.obj || objSel.value;
-            xInput.value = rec.x || '';
-            yInput.value = rec.y || '';
-            objSel.addEventListener('change', ()=>{ rec.obj = objSel.value; moveInputs[g.id] = rec; });
-            xInput.addEventListener('input', ()=>{ rec.x = xInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
-            yInput.addEventListener('input', ()=>{ rec.y = yInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
-            b.addEventListener('click', ()=>moveObject(g.id, objSel.value, xInput.value, yInput.value));
-            div.appendChild(b);
-            div.appendChild(objSel);
-            div.appendChild(xInput);
-            div.appendChild(yInput);
-          } else {
-            if(mode === 'attack' || mode === 'hit_standing'){
-              b.addEventListener('click', ()=>toggleMode(g.id, mode, xInput.value, yInput.value));
-            } else {
-              b.addEventListener('click', ()=>toggleMode(g.id, mode));
-            }
-            div.appendChild(b);
-            if(mode === 'attack'){
-              div.appendChild(xInput);
-              div.appendChild(yInput);
-            }
-            if(mode === 'hit_standing'){
-              const sep = document.createElement('div');
-              sep.style.margin = '4px 0';
-              sep.style.borderTop = '1px solid #888';
-              div.appendChild(sep);
-              const sBtn = document.createElement('button');
-              sBtn.textContent = 'Start';
-              sBtn.addEventListener('click', ()=>sendMessage({device_id:g.id, action:'start_hit'}));
-              div.appendChild(sBtn);
-            }
-          }
+      for(const g of info.gadgets){
+        if(g.class!=='PlotClock' && g.class!=='ArenaManager') continue;
+
+        const card=document.createElement('div');
+        card.className='clock-card';
+
+        const header=document.createElement('h4');
+        header.textContent='P'+g.id;
+        card.appendChild(header);
+
+        /* coord inputs */
+        const coords=document.createElement('div'); coords.className='coords';
+        const xInput=document.createElement('input'); xInput.type='number'; xInput.placeholder='x';
+        const yInput=document.createElement('input'); yInput.type='number'; yInput.placeholder='y';
+        coords.appendChild(xInput); coords.appendChild(yInput);
+        card.appendChild(coords);
+
+        const rec=moveInputs[g.id]||{};
+        xInput.value=rec.x||''; yInput.value=rec.y||'';
+        xInput.oninput=yInput.oninput=()=>{
+          rec.x=xInput.value; rec.y=yInput.value;
+          moveInputs[g.id]=rec; previewTarget(g.id,rec.x,rec.y);
+        };
+
+        /* btn factory */
+        const makeBtn=(label,classes,cb)=>{
+          const b=document.createElement('button');
+          b.className='btn '+classes; b.textContent=label; b.onclick=cb; return b;
+        };
+
+        /* ArenaManager block */
+        if(g.class==='ArenaManager'){
+          const row=document.createElement('div'); row.className='mode-group';
+          const objSel=document.createElement('select');
+          (info.ball_details||[]).forEach(ball=>{
+            const o=document.createElement('option'); o.value='ball:'+ball.id; o.textContent='Ball '+ball.id.slice(0,4); objSel.appendChild(o);
+          });
+          (info.markers||[]).filter(m=>m.type==='Obstacle').forEach(m=>{
+            const o=document.createElement('option'); o.value='obs:'+m.id; o.textContent='Obs '+m.id; objSel.appendChild(o);
+          });
+          objSel.value=rec.obj||objSel.value;
+          objSel.onchange=()=>{rec.obj=objSel.value;moveInputs[g.id]=rec;};
+
+          row.appendChild(
+            makeBtn('Move Object','btn-primary',()=>moveObject(g.id,objSel.value,xInput.value,yInput.value))
+          );
+          row.appendChild(objSel);
+          card.appendChild(row);
+
+        }else{ /* PlotClock block */
+          const row1=document.createElement('div'); row1.className='mode-group';
+          row1.appendChild(
+            makeBtn('Attack','btn-primary',()=>toggleMode(g.id,'attack',xInput.value,yInput.value))
+          );
+          row1.appendChild(
+            makeBtn('Defend','',()=>toggleMode(g.id,'defend'))
+          );
+          card.appendChild(row1);
+
+          const hitBtn=makeBtn('Hit','',()=>toggleMode(g.id,'hit_standing',xInput.value,yInput.value));
+          const startHit=makeBtn('Start','btn-success hit-start',()=>sendMessage({device_id:g.id,action:'start_hit'}));
+          card.appendChild(hitBtn); card.appendChild(startHit);
         }
-        clockList.appendChild(div);
+
+        /* active-mode highlight + disable others (but keep Start live) */
+        const am=active[g.id];
+        if(am){
+          [...card.querySelectorAll('.btn')].forEach(btn=>{
+            if(btn.classList.contains('hit-start')) return;            /* keep start clickable */
+            const prefix=am.replace('_standing','');                    /* 'hit' / 'attack' / 'defend' */
+            if(btn.textContent.toLowerCase().startsWith(prefix))
+              btn.classList.add('btn-primary');
+            else
+              btn.disabled=true;
+          });
+        }
+        if(!g.calibrated) card.querySelectorAll('.btn').forEach(b=>b.disabled=true);
+
+        clockList.appendChild(card);
       }
     }
 
+    /* -------- autocomplete ----------------------------------------------- */
     function updateCmdList(){
-      const val = cmdBox.value;
-      cmdList.innerHTML = '';
-      let opts = [];
-      if(!val || val.indexOf('.') === -1){
-        opts = clockIds.map(id => `P${id}.`);
-      } else if(/P\d+\.$/.test(val)){
-        opts = ['p.','sr.','sl.'].map(s => val + s);
-      } else {
-        const m = val.match(/^(P\d+\.(?:p|sr|sl))\.?/);
-        if(m){
-          const prefix = m[1];
-          if(prefix.endsWith('p')){
-            opts = pCmds.map(c => `${prefix}.${c}`);
-          } else {
-            opts = servoCmds.map(c => `${prefix}.${c}`);
-          }
-        }
+      const val=cmdBox.value; cmdList.innerHTML=''; let opts=[];
+      if(!val || val.indexOf('.')===-1){ opts=clockIds.map(id=>'P'+id+'.'); }
+      else if(/P\d+\.$/.test(val)){ opts=['p.','sr.','sl.'].map(s=>val+s); }
+      else{
+        const m=val.match(/^(P\d+\.(?:p|sr|sl))\.?/);
+        if(m){ const prefix=m[1]; opts=(prefix.endsWith('p')?pCmds:servoCmds).map(c=>prefix+'.'+c); }
       }
-      for(const o of opts){
-        const option = document.createElement('option');
-        option.value = o;
-        cmdList.appendChild(option);
-      }
+      opts.forEach(o=>{ const opt=document.createElement('option'); opt.value=o; cmdList.appendChild(opt); });
     }
-    /* open tuning page */
-    tuneBtn.addEventListener('click', () => {
-      window.open('/tune', '_blank');
-    });
-    cmdBox.addEventListener('input', updateCmdList);
-    cmdBox.addEventListener('paste', () => setTimeout(updateCmdList, 0));
-    
-    /* Scenario start button */
-    startBtn.addEventListener('click', async () => {
+    cmdBox.addEventListener('input',updateCmdList);
+    cmdBox.addEventListener('paste',()=>setTimeout(updateCmdList,0));
+
+    /* -------- misc controls (unchanged endpoints) ------------------------ */
+    tuneBtn.onclick = () => window.open('/tune','_blank');
+
+    startBtn.onclick = async ()=>{
       if(startBtn.classList.contains('running')) return;
-      startBtn.disabled = true;
-      startBtn.textContent = 'Starting…';
+      startBtn.disabled=true; startBtn.textContent='Starting…';
       try{
-        const r = await fetch('/start_scenario', { method: 'POST' });
-        const d = await r.json();
-        if(d.status === 'ok'){
-          startBtn.classList.add('running');
-          startBtn.textContent = 'Scenario Running';
-        } else {
-          alert('Failed to start scenario: ' + (d.message||''));
-          startBtn.textContent = 'Start Scenario';
-        }
-      } catch(err){
-        alert('Error: ' + err);
-        startBtn.textContent = 'Start Scenario';
-      } finally{
-        startBtn.disabled = false;
-      }
-    });
+        const r=await fetch('/start_scenario',{method:'POST'});
+        const d=await r.json();
+        if(d.status==='ok'){ startBtn.classList.add('running'); startBtn.textContent='Scenario Running'; }
+        else{ alert('Failed: '+(d.message||'')); startBtn.textContent='Start Scenario'; }
+      }catch(err){alert('Error: '+err);}
+      finally{startBtn.disabled=false;}
+    };
 
-    /* Pico connect button */
-    connectBtn.addEventListener('click', async () => {
+    connectBtn.onclick = async ()=>{
       if(connectBtn.classList.contains('connected')) return;
-      connectBtn.disabled = true;
-      connectBtn.textContent = 'Connecting…';
+      connectBtn.disabled=true; connectBtn.textContent='Connecting…';
       try{
-        const r = await fetch('/connect_pico', { method: 'POST' });
-        const d = await r.json();
-        if(d.status === 'ok'){
-          connectBtn.classList.add('connected');
-          connectBtn.textContent = 'Pico Connected';
-          cmdBox.classList.add('enabled');
-          cmdBox.focus();
-          updateCmdList();
-        } else {
-          alert('Connect failed: ' + d.message);
-          connectBtn.textContent = 'Connect Pico';
-        }
-      } catch(e){
-        alert('Connect error: ' + e);
-        connectBtn.textContent = 'Connect Pico';
-      } finally{
-        connectBtn.disabled = false;
-      }
-    });
+        const r=await fetch('/connect_pico',{method:'POST'});
+        const d=await r.json();
+        if(d.status==='ok'){
+          connectBtn.classList.add('connected'); connectBtn.textContent='Pico Connected';
+          cmdBox.classList.add('enabled'); cmdBox.focus(); updateCmdList();
+        }else{alert('Connect failed: '+d.message); connectBtn.textContent='Connect Pico';}
+      }catch(e){alert('Error: '+e); connectBtn.textContent='Connect Pico';}
+      finally{connectBtn.disabled=false;}
+    };
 
-    calibBtn.addEventListener('click', async () => {
-      calibBtn.disabled = true;
+    calibBtn.onclick = async ()=>{
+      calibBtn.disabled=true;
       try{
-        const r = await fetch('/calibrate_all', {method:'POST'});
-        const d = await r.json();
-        if(d.status !== 'ok') alert('Calibrate failed: ' + (d.message||''));
-      }catch(e){ alert('Error: ' + e); }
-      finally{ calibBtn.disabled = false; }
-    });
+        const r=await fetch('/calibrate_all',{method:'POST'});
+        const d=await r.json();
+        if(d.status!=='ok') alert('Calibrate failed: '+(d.message||''));
+      }catch(e){alert('Error: '+e);}
+      finally{calibBtn.disabled=false;}
+    };
 
-    async function toggleMode(id, mode, x, y){
+    async function toggleMode(id,mode,x,y){
       try{
-        const r = await fetch('/toggle_mode', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({device_id:id, mode, x:parseFloat(x), y:parseFloat(y)})
+        const r=await fetch('/toggle_mode',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({device_id:id,mode,x:parseFloat(x),y:parseFloat(y)})
         });
-        const d = await r.json();
-        if(d.status !== 'started' && d.status !== 'stopped'){
-          alert('Mode error: ' + (d.message||''));
-        }
-      }catch(e){ alert('Error: ' + e); }
+        const d=await r.json();
+        if(d.status!=='started' && d.status!=='stopped') alert('Mode error: '+(d.message||''));
+      }catch(e){alert('Error: '+e);}
     }
-
-    async function moveObject(id, obj, x, y){
+    async function moveObject(id,obj,x,y){
       try{
-        const r = await fetch('/move_object', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({device_id:id, object:obj, x:parseFloat(x), y:parseFloat(y)})
+        const r=await fetch('/move_object',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({device_id:id,object:obj,x:parseFloat(x),y:parseFloat(y)})
         });
-        const d = await r.json();
-        if(d.status !== 'started'){
-          alert('Move error: ' + (d.message||''));
-        }
-      }catch(e){ alert('Error: ' + e); }
+        const d=await r.json();
+        if(d.status!=='started') alert('Move error: '+(d.message||''));
+      }catch(e){alert('Error: '+e);}
     }
-
-    async function previewTarget(id, x, y){
+    async function previewTarget(id,x,y){
       try{
-        await fetch('/preview_target', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({device_id:id, x:parseFloat(x), y:parseFloat(y)})
+        await fetch('/preview_target',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({device_id:id,x:parseFloat(x),y:parseFloat(y)})
         });
-      }catch(e){ console.error(e); }
+      }catch(e){console.error(e);}
     }
-
     async function sendMessage(msg){
       try{
-        await fetch('/send_message', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(msg)
+        await fetch('/send_message',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(msg)
         });
-      }catch(e){ alert('Error: ' + e); }
+      }catch(e){alert('Error: '+e);}
     }
 
-    /* Command box enter */
-    cmdBox.addEventListener('keydown', async e => {
-      if(e.key !== 'Enter') return;
-      const cmd = cmdBox.value.trim();
-      if(!cmd) return;
+    /* enter -> send raw cmd */
+    cmdBox.addEventListener('keydown',async e=>{
+      if(e.key!=='Enter') return;
+      const cmd=cmdBox.value.trim(); if(!cmd) return;
       try{
-        const r = await fetch('/send_cmd', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({cmd})
+        const r=await fetch('/send_cmd',{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
         });
-        const d = await r.json();
-        if(d.status !== 'ok'){
-          alert('Pico error: ' + d.message);
-        } else {
-          cmdBox.value = '';
-        }
-      } catch(err){
-        alert('Send error: ' + err);
-      }
+        const d=await r.json();
+        if(d.status!=='ok') alert('Pico error: '+d.message);
+        else cmdBox.value='';
+      }catch(err){alert('Send error: '+err);}
     });
   </script>
 </body>
