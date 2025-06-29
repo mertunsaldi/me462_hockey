@@ -6,7 +6,7 @@ import serial.tools.list_ports
 import time
 import math
 import numpy as np
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Arena
+from .models import Ball, Obstacle, ArucoMarker, ArucoHitter, ArucoManager, Arena
 
 
 class Gadgets:
@@ -456,3 +456,10 @@ class ArenaManager(PlotClock):
                         return  # outside arena, ignore command
 
         super().send_command(cmd_name, *params)
+
+    # ------------------------------------------------------------------
+    def grab_and_release(self, obj: Union[Ball, Obstacle], target_x: float, target_y: float):
+        """Return a GrabAndRelease scenario for this arena manager."""
+        from .scenarios import GrabAndRelease
+
+        return GrabAndRelease(self, obj, (target_x, target_y))

@@ -2,7 +2,7 @@ import math
 import numpy as np
 import time
 from typing import List, Optional, Tuple, Union, Dict, Any
-from .models import Ball, ArucoMarker, ArucoHitter
+from .models import Ball, Obstacle, ArucoMarker, ArucoHitter
 from .gadgets import PlotClock
 
 
@@ -532,3 +532,50 @@ class StandingBallHitter(Scenario):
         if self._start_mm:
             return [f"Start ({self._start_mm[0]:.1f},{self._start_mm[1]:.1f} mm)"]
         return ["Start"]
+
+
+class GrabAndRelease(Scenario):
+    """Move to an object, grab it, then move to a target and release."""
+
+    WAIT_TIME = 0.5  # seconds to wait after each move
+
+    def __init__(self, manager: "ArenaManager", obj: Union[Ball, Obstacle], target_mm: Tuple[float, float]):
+        self.manager = manager
+        self.obj = obj
+        self.target_mm = target_mm
+        self._step = 0
+        self._last_time = 0.0
+
+    def on_start(self) -> None:
+        self.finished = False
+        self._step = 0
+        self._last_time = 0.0
+
+    def update(self, detections) -> None:
+        if self.finished:
+            return
+        now = time.time()
+
+        # initial move to object
+        if self._step == 0:
+            if not self.manager.calibration:
+                return
+            x_px, y_px = self.obj.center
+            obj_mm = self.manager.find_mm(x_px, y_px)
+            self.manager.send_command(f"p.setXY({obj_mm[0]}, {obj_mm[1]})")
+            self._last_time = now
+            self._step = 1
+            return
+
+        # print grab after delay
+        if self._step == 1 and now - self._last_time >= self.WAIT_TIME:
+            print("GRAB")
+            self.manager.send_command(f"p.setXY({self.target_mm[0]}, {self.target_mm[1]})")
+            self._last_time = now
+            self._step = 2
+            return
+
+        if self._step == 2 and now - self._last_time >= self.WAIT_TIME:
+            print("RELEASE")
+            self.finished = True
+
