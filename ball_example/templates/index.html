@@ -315,8 +315,12 @@
           card.appendChild(row1);
 
           const hitBtn=makeBtn('Hit','',()=>toggleMode(g.id,'hit_standing',xInput.value,yInput.value));
-          const startHit=makeBtn('Start','btn-success hit-start',()=>sendMessage({device_id:g.id,action:'start_hit'}));
-          card.appendChild(hitBtn); card.appendChild(startHit);
+          card.appendChild(hitBtn);
+          const startHit=makeBtn('Start','btn-success hit-start',()=>{
+            startHit.disabled=true;
+            sendMessage({device_id:g.id,action:'start_hit'});
+          });
+          if(active[g.id]==='hit_standing') card.appendChild(startHit);
         }
 
         /* active-mode highlight + disable others (but keep Start live) */
