@@ -52,7 +52,15 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    marker (ID 1) are visible to the camera while connecting.  Any additional
    PlotClock markers will be ignored. The button will turn green once the
    connection succeeds.
-4. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario,
+4. Optionally set different calibration triangles for each PlotClock before
+   connecting:
+   ```python
+   api.set_calibration_points({
+       0: [(10, 20), (10, 10), (0, 10)],
+       1: [(-20, 30), (-20, 10), (-30, 10)],
+   })
+   ```
+5. Open `http://<host-ip>:8000/` in a browser. After uploading the scenario,
    press **Start Scenario** (or POST to `/start_scenario`) to begin execution.
    When a scenario starts, its `on_start()` method runs. The built-in
    `StandingBallHitter` clears any previous calibration so you should see the
@@ -63,7 +71,7 @@ The repository contains an example scenario in `examples/standing_hitter_client.
    length defaults to half the smaller workspace span.  Alternatively you
    can fully control the calibration triangle by supplying ``cal_points_mm``
    with three `(x, y)` tuples when constructing the clock.
-5. Optionally send messages while it is running:
+6. Optionally send messages while it is running:
    ```bash
    curl -X POST http://localhost:8000/send_message -H 'Content-Type: application/json' -d '{"cmd": "stop"}'
    ```
