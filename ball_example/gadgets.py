@@ -16,7 +16,7 @@ from .models import Ball, Obstacle, ArucoMarker, ArucoHitter, ArucoManager, Aren
 # ``CAL_MARGIN_SCALE`` expresses this margin relative to the mechanism's
 # first link length ``L1``.  The default value preserves the previous
 # behaviour of a 10 mm margin when ``L1`` is 35 mm.
-CAL_MARGIN_SCALE = 7.0 / 35.0
+CAL_MARGIN_SCALE = 5.0 / 35.0
 
 
 class Gadgets:
@@ -208,7 +208,7 @@ class PlotClock(Gadgets):
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
         self._axis_len = 0.5 * min(span_x, span_y)
-        base_x = 0
+        base_x = self._axis_len/2
         base_y = self.min_y
 
         self.cal_margin_mm = self.cal_margin_scale * self.l1
@@ -219,7 +219,7 @@ class PlotClock(Gadgets):
         self._mm_pts = [
             (base_x + m, base_y + self._axis_len - m),
             (base_x + m, base_y + m),
-            (-base_x, base_y + m),]
+            (base_x - m, base_y + m),]
 
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
