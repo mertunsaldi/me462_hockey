@@ -31,13 +31,21 @@ def test_move_object_ball():
     scenario = mgr.move_object(ball, 100, 200)
     scenario.on_start()
 
+    # step 0 -> move to ball
     scenario.update([])
     assert master.sent == ["P1.p.setXY(10, 20)"]
 
+    # step 1 -> grab (no command)
+    scenario._last_time -= scenario.WAIT_TIME + 0.1
+    scenario.update([])
+    assert master.sent == ["P1.p.setXY(10, 20)"]
+
+    # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.setXY(100, 200)"]
 
+    # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert scenario.finished
@@ -65,13 +73,21 @@ def test_move_object_obstacle():
     scenario = mgr.move_object(obs, 100, 200)
     scenario.on_start()
 
+    # step 0 -> move to object
     scenario.update([])
     assert master.sent == ["P1.p.setXY(30, 40)"]
 
+    # step 1 -> grab (no command)
+    scenario._last_time -= scenario.WAIT_TIME + 0.1
+    scenario.update([])
+    assert master.sent == ["P1.p.setXY(30, 40)"]
+
+    # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert master.sent == ["P1.p.setXY(30, 40)", "P1.p.setXY(100, 200)"]
 
+    # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert scenario.finished
