@@ -131,6 +131,8 @@ class GameAPI:
             labels = self._current_scenario.get_extra_labels()
             if labels:
                 extra_labels.extend(labels if isinstance(labels, list) else [labels])
+            if self._current_scenario.finished:
+                self.stop_scenario()
 
         finished_ids = []
         for dev_id, sc in list(self.clock_scenarios.items()):

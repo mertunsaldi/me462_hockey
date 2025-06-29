@@ -1,9 +1,10 @@
 import math
 import numpy as np
 import time
+import random
 from typing import List, Optional, Tuple, Union, Dict, Any
 from .models import Ball, Obstacle, ArucoMarker, ArucoHitter
-from .gadgets import PlotClock
+from .gadgets import PlotClock, ArenaManager
 
 
 class Scenario:
@@ -686,4 +687,154 @@ class MoveObject(Scenario):
         if not self.manager.calibration:
             return None
         return ["Target"]
+
+
+class SingleHitStandingBallHitter(StandingBallHitter):
+    """StandingBallHitter variant that finishes after a single strike."""
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.finished = False
+
+    def update(self, detections) -> None:
+        super().update(detections)
+        if (
+            self._strike_time is not None
+            and not self._armed
+            and not self._fired
+        ):
+            self.finished = True
+
+
+class MoveBallHitRandom(Scenario):
+    """Move the lone ball to the hitter and strike toward a random target."""
+
+    PREVIEW_TIME = 1.0  # seconds
+
+    def __init__(self, manager: ArenaManager, hitter: PlotClock):
+        self.manager = manager
+        self.hitter = hitter
+        self.move_sc: MoveObject | None = None
+        self.hit_sc: SingleHitStandingBallHitter | None = None
+        self._step = 0
+        self._target_mm: Tuple[float, float] | None = None
+        self._preview_until = 0.0
+
+    def on_start(self) -> None:
+        self.finished = False
+        self.move_sc = None
+        self.hit_sc = None
+        self._step = 0
+        self._target_mm = None
+        self._preview_until = 0.0
+
+    # ------------------------------------------------------------------
+    def _random_target_mm(self) -> Tuple[float, float]:
+        if (
+            isinstance(self.manager, ArenaManager)
+            and self.manager.arena is not None
+            and self.hitter.calibration
+        ):
+            poly = self.manager.arena.get_arena_corners()
+            if len(poly) >= 3:
+                xs = [p[0] for p in poly]
+                ys = [p[1] for p in poly]
+                min_x, max_x = min(xs), max(xs)
+                min_y, max_y = min(ys), max(ys)
+                for _ in range(50):
+                    x = random.uniform(min_x, max_x)
+                    y = random.uniform(min_y, max_y)
+                    if ArenaManager._pt_in_poly((int(x), int(y)), poly):
+                        break
+                else:
+                    x, y = (min_x + max_x) / 2, (min_y + max_y) / 2
+                return self.hitter.find_mm(int(x), int(y))
+
+        # fallback: anywhere inside hitter workspace
+        x = random.uniform(*self.hitter.x_range)
+        y = random.uniform(*self.hitter.y_range)
+        return (x, y)
+
+    def _start_hit(self) -> None:
+        self._target_mm = self._random_target_mm()
+        self.hit_sc = SingleHitStandingBallHitter(self.hitter, self._target_mm)
+        self.hit_sc.on_start()
+        self._preview_until = time.time() + self.PREVIEW_TIME
+
+    # ------------------------------------------------------------------
+    def update(self, detections) -> None:
+        if self.finished:
+            return
+
+        if self._step == 0:
+            if not (self.manager.calibration and self.hitter.calibration):
+                return
+            balls = [d for d in detections if isinstance(d, Ball)]
+            if len(balls) != 1:
+                return
+            ball = balls[0]
+            cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) / 2
+            cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) / 2
+            self.move_sc = MoveObject(self.manager, ball, (cx, cy))
+            self.move_sc.on_start()
+            self._step = 1
+            return
+
+        if self._step == 1 and self.move_sc is not None:
+            self.move_sc.update(detections)
+            if self.move_sc.finished:
+                self._start_hit()
+                self._step = 2
+            return
+
+        if self._step == 2 and self.hit_sc is not None:
+            self.hit_sc.update(detections)
+            if time.time() >= self._preview_until and not self.hit_sc._armed:
+                self.hit_sc.process_message({"action": "start_hit"})
+            if self.hit_sc.finished:
+                self.finished = True
+
+    # ------------------------------------------------------------------
+    def get_line_points(self):
+        lines = []
+        if self.move_sc:
+            l = self.move_sc.get_line_points()
+            if l:
+                lines.extend(l if isinstance(l, list) else [l])
+        if self.hit_sc:
+            l = self.hit_sc.get_line_points()
+            if l:
+                lines.extend(l if isinstance(l, list) else [l])
+        return lines or None
+
+    def get_extra_points(self):
+        pts = []
+        if self.move_sc:
+            p = self.move_sc.get_extra_points()
+            if p:
+                pts.extend(p if isinstance(p, list) else [p])
+        if self.hit_sc:
+            p = self.hit_sc.get_extra_points()
+            if p:
+                pts.extend(p if isinstance(p, list) else [p])
+        if self._target_mm and self.hitter.calibration:
+            try:
+                pts.append(self.hitter.mm_to_pixel(self._target_mm))
+            except RuntimeError:
+                pass
+        return pts or None
+
+    def get_extra_labels(self):
+        labels = []
+        if self.move_sc:
+            l = self.move_sc.get_extra_labels()
+            if l:
+                labels.extend(l if isinstance(l, list) else [l])
+        if self.hit_sc:
+            l = self.hit_sc.get_extra_labels()
+            if l:
+                labels.extend(l if isinstance(l, list) else [l])
+        if self._target_mm:
+            labels.append("Target")
+        return labels or None
 
