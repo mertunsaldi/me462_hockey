@@ -250,7 +250,7 @@
     function maybeRenderClocks(info){
       const active = info.active_modes || {};
       const key = JSON.stringify({
-        g:(info.gadgets||[]).map(g=>[g.id,g.class,active[g.id]]),
+        g:(info.gadgets||[]).map(g=>[g.id,g.class,g.calibrated,active[g.id]]),
         b:(info.ball_details||[]).map(b=>b.id),
         o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
       });
