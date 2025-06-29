@@ -152,6 +152,7 @@
 
     /* live stats */
     let idsInitialized = false;
+    let lastClockKey = '';
 
     async function updateStats(){
       try{
@@ -177,7 +178,7 @@
         } else {
           scSpan.textContent = 'None';
         }
-        renderClocks(d);
+        maybeRenderClocks(d);
 
         if(!d.scenario_loaded){
           startBtn.disabled = true;
@@ -244,6 +245,18 @@
     setInterval(pollPicoLog, 500);
     pollPicoLog();
     updateCmdList();
+
+    function maybeRenderClocks(info){
+      const active = info.active_modes || {};
+      const key = JSON.stringify({
+        g:(info.gadgets||[]).map(g=>[g.id,g.class,active[g.id]]),
+        b:(info.ball_details||[]).map(b=>b.id),
+        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
+      });
+      if(key === lastClockKey) return;
+      lastClockKey = key;
+      renderClocks(info);
+    }
 
     function renderClocks(info){
       clockList.innerHTML = '';
