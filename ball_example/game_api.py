@@ -217,6 +217,8 @@ class GameAPI:
             sc = clock.defend(self.frame_size)
         elif mode == "hit_standing":
             sc = clock.hit_standing_ball()
+        elif mode == "follow_obstacle":
+            sc = clock.follow_obstacle()
         else:
             raise ValueError("bad mode")
         sc.on_start()
