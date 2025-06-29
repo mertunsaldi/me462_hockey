@@ -11,7 +11,7 @@ if __package__ in (None, ""):
 from .game_api import GameAPI
 from .detectors import BallDetector
 from .models import ArucoWall, Arena, Obstacle
-from .gadgets import ArenaManager
+from .gadgets import ArenaManager, PlotClock
 from high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -235,6 +235,21 @@ def connect_pico():
                     break
                 last_count = len(detected_clocks)
                 stable_start = time.time()
+
+        # prepare built-in scenario when manager 0 and plotclock 1 are present
+        manager = next(
+            (c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0),
+            None,
+        )
+        hitter = next(
+            (c for c in detected_clocks if isinstance(c, PlotClock) and c.device_id == 1),
+            None,
+        )
+        if manager and hitter:
+            from .scenarios import MoveBallHitRandom
+
+            api._current_scenario = MoveBallHitRandom(manager, hitter)
+            api.scenario_enabled = False
 
         return jsonify({"status": "ok"})
     except Exception as e:
