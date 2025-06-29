@@ -261,6 +261,9 @@
           ['defend','Defend'],
           ['hit_standing','Hit']
         ];
+        if(g.class === 'ArenaManager'){
+          modes.push(['follow_obstacle','FolOb']);
+        }
         for(const [mode,label] of modes){
           const b = document.createElement('button');
           b.textContent = label;
