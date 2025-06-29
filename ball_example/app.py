@@ -10,7 +10,7 @@ if __package__ in (None, ""):
 
 from .game_api import GameAPI
 from .detectors import BallDetector
-from .models import ArucoWall, Arena
+from .models import ArucoWall, Arena, Obstacle
 from .gadgets import ArenaManager
 from high_level import calibrate_clocks, draw_arena
 
@@ -280,6 +280,63 @@ def toggle_mode():
 
     api.start_clock_mode(clock, mode)
     return jsonify({"status": "started"})
+
+
+@app.route("/move_object", methods=["POST"])
+def move_object_route():
+    data = request.get_json(silent=True) or {}
+    device_id = int(data.get("device_id", -1))
+    obj_spec = data.get("object")
+    try:
+        x_mm = float(data.get("x"))
+        y_mm = float(data.get("y"))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "invalid"}), 400
+    with api.lock:
+        manager = api.plotclocks.get(device_id)
+        if not isinstance(manager, ArenaManager):
+            return jsonify({"status": "error", "message": "invalid"}), 400
+        if not obj_spec:
+            return jsonify({"status": "error", "message": "invalid"}), 400
+
+        if obj_spec.startswith("ball:"):
+            bid = obj_spec.split(":", 1)[1]
+            obj = next((b for b in api.balls if b.id == bid), None)
+        elif obj_spec.startswith("obs:"):
+            oid = int(obj_spec.split(":", 1)[1])
+            obj = next((m for m in api.arucos if isinstance(m, Obstacle) and m.id == oid), None)
+        else:
+            obj = None
+
+    if obj is None:
+        return jsonify({"status": "error", "message": "not found"}), 400
+
+    if device_id in api.clock_scenarios:
+        api.stop_clock_mode(device_id)
+
+    api.start_move_object(manager, obj, (x_mm, y_mm))
+    api.clear_preview_target(device_id)
+    return jsonify({"status": "started"})
+
+
+@app.route("/preview_target", methods=["POST"])
+def preview_target_route():
+    data = request.get_json(silent=True) or {}
+    device_id = int(data.get("device_id", -1))
+    with api.lock:
+        manager = api.plotclocks.get(device_id)
+        if not isinstance(manager, ArenaManager):
+            return jsonify({"status": "error", "message": "invalid"}), 400
+
+    try:
+        x_mm = float(data.get("x"))
+        y_mm = float(data.get("y"))
+    except (TypeError, ValueError):
+        api.clear_preview_target(device_id)
+        return jsonify({"status": "ok"})
+
+    api.set_preview_target(device_id, (x_mm, y_mm))
+    return jsonify({"status": "ok"})
 
 
 @app.route("/send_cmd", methods=["POST"])

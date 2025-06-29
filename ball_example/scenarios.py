@@ -534,7 +534,7 @@ class StandingBallHitter(Scenario):
         return ["Start"]
 
 
-class GrabAndRelease(Scenario):
+class MoveObject(Scenario):
     """Move to an object, grab it, then move to a target and release."""
 
     WAIT_TIME = 0.5  # seconds to wait after each move

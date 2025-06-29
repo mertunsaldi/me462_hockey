@@ -518,8 +518,11 @@ class ArenaManager(PlotClock):
         super().send_command(cmd_name, *params)
 
     # ------------------------------------------------------------------
-    def grab_and_release(self, obj: Union[Ball, Obstacle], target_x: float, target_y: float):
-        """Return a GrabAndRelease scenario for this arena manager."""
-        from .scenarios import GrabAndRelease
+    def move_object(self, obj: Union[Ball, Obstacle], target_x: float, target_y: float):
+        """Return a MoveObject scenario for this arena manager."""
+        from .scenarios import MoveObject
 
-        return GrabAndRelease(self, obj, (target_x, target_y))
+        return MoveObject(self, obj, (target_x, target_y))
+
+    # backwards compatibility
+    grab_and_release = move_object

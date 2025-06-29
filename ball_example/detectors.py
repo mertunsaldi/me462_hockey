@@ -41,13 +41,14 @@ class ArucoDetector:
 
                 cx = int(np.mean(pts[:, 0]))
                 cy = int(np.mean(pts[:, 1]))
-                if int(marker_id) in (0, 1):
+                m_id = int(marker_id)
+                if m_id in (0, 1):
                     markers.append(
-                        Obstacle(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                        Obstacle(id=m_id, corners=pts_int, center=(cx, cy))
                     )
                 else:
                     markers.append(
-                        ArucoMarker(id=int(marker_id), corners=pts_int, center=(cx, cy))
+                        ArucoMarker(id=m_id, corners=pts_int, center=(cx, cy))
                     )
 
         if ids4 is not None:

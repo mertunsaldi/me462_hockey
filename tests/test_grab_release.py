@@ -9,7 +9,7 @@ from ball_example.gadgets import ArenaManager
 from ball_example.models import Ball, Obstacle
 
 
-def test_grab_and_release_commands():
+def test_move_object_ball():
     mgr = ArenaManager(device_id=1)
     mgr.calibration = {
         "u_x": np.array([1.0, 0.0]),
@@ -28,7 +28,7 @@ def test_grab_and_release_commands():
     mgr.master = master
 
     ball = Ball((10, 20), 5)
-    scenario = mgr.grab_and_release(ball, 100, 200)
+    scenario = mgr.move_object(ball, 100, 200)
     scenario.on_start()
 
     scenario.update([])
@@ -43,7 +43,7 @@ def test_grab_and_release_commands():
     assert scenario.finished
 
 
-def test_grab_and_release_obstacle():
+def test_move_object_obstacle():
     mgr = ArenaManager(device_id=1)
     mgr.calibration = {
         "u_x": np.array([1.0, 0.0]),
@@ -62,7 +62,7 @@ def test_grab_and_release_obstacle():
     mgr.master = master
 
     obs = Obstacle(0, [], (30, 40))
-    scenario = mgr.grab_and_release(obs, 100, 200)
+    scenario = mgr.move_object(obs, 100, 200)
     scenario.on_start()
 
     scenario.update([])
