@@ -361,25 +361,21 @@ class BallReflector(Scenario):
         # state variables
         self._line = None  # ((x1,y1),(x2,y2))
         self._meet_px = None  # (mx, my) in pixels
-        self._fired = False  # ensure single strike sequence only once
         self._goal_px = None  # last commanded point in pixels
         self.reach_tol_px = 30  # tolerance (≈ 6–8 mm on a 640×480 frame)
         self.cmd_interval_s = 0.1  # min time between commands
         self._last_cmd_time = 0.0  # unix-time of last setxy
         self._work_lines = None  # list[(p1,p2)…] rectangle edges (px)
         self._initialized = False
-        self._strike_time = None
 
     def on_start(self) -> None:
         """Reset internal state."""
         self._line = None
         self._meet_px = None
-        self._fired = False
         self._goal_px = None
         self._last_cmd_time = 0.0
         self._work_lines = None
         self._initialized = False
-        self._strike_time = None
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
@@ -416,10 +412,6 @@ class BallReflector(Scenario):
         # ── 2. Reset overlay state every frame ──────────────────────
         self._line = self._meet_px = None
 
-        if self._fired and self._strike_time and time.time() - self._strike_time > 0.7:
-            self._fired = False
-            self._goal_px = None
-            self._strike_time = None
 
         ball = next((d for d in detections if isinstance(d, Ball)), None)
         hitter = next((d for d in detections if isinstance(d, ArucoHitter)), None)
@@ -484,17 +476,10 @@ class BallReflector(Scenario):
         now = time.time()
         time_ok = (now - self._last_cmd_time) >= self.cmd_interval_s
 
-        goal_reached = False
-        if self._goal_px is not None:
-            gx, gy = self._goal_px
-            goal_reached = (hx - gx) ** 2 + (hy - gy) ** 2 <= self.reach_tol_px**2
-
-        if self._goal_px is None or goal_reached and time_ok:
+        if time_ok:
             self.clock.send_command(f"p.setXY({meet_mm[0]}, {meet_mm[1]})")
             self._goal_px = self._meet_px
             self._last_cmd_time = now
-            self._fired = True
-            self._strike_time = now
 
     # ------------------------------------------------------------------
     def get_line_points(self):
