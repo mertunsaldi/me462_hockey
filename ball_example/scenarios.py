@@ -417,10 +417,9 @@ class BallReflector(Scenario):
         self._line = self._meet_px = None
 
         if self._fired and self._strike_time and time.time() - self._strike_time > 0.7:
-            wx, wy = self.clock.wait_position_mm()
-            self.clock.send_command(f"p.setXY({wx}, {wy})")
             self._fired = False
             self._goal_px = None
+            self._strike_time = None
 
         ball = next((d for d in detections if isinstance(d, Ball)), None)
         hitter = next((d for d in detections if isinstance(d, ArucoHitter)), None)
