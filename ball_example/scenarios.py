@@ -534,10 +534,12 @@ class StandingBallHitter(Scenario):
         return ["Start"]
 
 
-class GrabAndRelease(Scenario):
+class MoveObject(Scenario):
     """Move to an object, grab it, then move to a target and release."""
 
-    WAIT_TIME = 0.5  # seconds to wait after each move
+    #: seconds to wait between actions. This gives the PlotClock enough time to
+    #: physically move and actuate its gripper.
+    WAIT_TIME = 0.5
 
     def __init__(self, manager: "ArenaManager", obj: Union[Ball, Obstacle], target_mm: Tuple[float, float]):
         self.manager = manager
@@ -567,15 +569,36 @@ class GrabAndRelease(Scenario):
             self._step = 1
             return
 
-        # print grab after delay
+        # wait, then grab the object
         if self._step == 1 and now - self._last_time >= self.WAIT_TIME:
             print("GRAB")
-            self.manager.send_command(f"p.setXY({self.target_mm[0]}, {self.target_mm[1]})")
             self._last_time = now
             self._step = 2
             return
 
+        # after grabbing, move to the target
         if self._step == 2 and now - self._last_time >= self.WAIT_TIME:
+            self.manager.send_command(f"p.setXY({self.target_mm[0]}, {self.target_mm[1]})")
+            self._last_time = now
+            self._step = 3
+            return
+
+        # finally release the object once at the target
+        if self._step == 3 and now - self._last_time >= self.WAIT_TIME:
             print("RELEASE")
             self.finished = True
+
+    def get_extra_points(self):
+        if not self.manager.calibration:
+            return None
+        try:
+            pt = self.manager.mm_to_pixel(self.target_mm)
+        except RuntimeError:
+            return None
+        return [pt]
+
+    def get_extra_labels(self):
+        if not self.manager.calibration:
+            return None
+        return ["Target"]
 

@@ -9,7 +9,7 @@ from ball_example.gadgets import ArenaManager
 from ball_example.models import Ball, Obstacle
 
 
-def test_grab_and_release_commands():
+def test_move_object_ball():
     mgr = ArenaManager(device_id=1)
     mgr.calibration = {
         "u_x": np.array([1.0, 0.0]),
@@ -28,22 +28,32 @@ def test_grab_and_release_commands():
     mgr.master = master
 
     ball = Ball((10, 20), 5)
-    scenario = mgr.grab_and_release(ball, 100, 200)
+    scenario = mgr.move_object(ball, 100, 200)
     scenario.on_start()
+    assert scenario.get_extra_points() == [(100, 200)]
+    assert scenario.get_extra_labels() == ["Target"]
 
+    # step 0 -> move to ball
     scenario.update([])
     assert master.sent == ["P1.p.setXY(10, 20)"]
 
+    # step 1 -> grab (no command)
+    scenario._last_time -= scenario.WAIT_TIME + 0.1
+    scenario.update([])
+    assert master.sent == ["P1.p.setXY(10, 20)"]
+
+    # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.setXY(100, 200)"]
 
+    # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert scenario.finished
 
 
-def test_grab_and_release_obstacle():
+def test_move_object_obstacle():
     mgr = ArenaManager(device_id=1)
     mgr.calibration = {
         "u_x": np.array([1.0, 0.0]),
@@ -62,16 +72,26 @@ def test_grab_and_release_obstacle():
     mgr.master = master
 
     obs = Obstacle(0, [], (30, 40))
-    scenario = mgr.grab_and_release(obs, 100, 200)
+    scenario = mgr.move_object(obs, 100, 200)
     scenario.on_start()
+    assert scenario.get_extra_points() == [(100, 200)]
+    assert scenario.get_extra_labels() == ["Target"]
 
+    # step 0 -> move to object
     scenario.update([])
     assert master.sent == ["P1.p.setXY(30, 40)"]
 
+    # step 1 -> grab (no command)
+    scenario._last_time -= scenario.WAIT_TIME + 0.1
+    scenario.update([])
+    assert master.sent == ["P1.p.setXY(30, 40)"]
+
+    # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert master.sent == ["P1.p.setXY(30, 40)", "P1.p.setXY(100, 200)"]
 
+    # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
     assert scenario.finished

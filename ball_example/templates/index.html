@@ -152,6 +152,7 @@
 
     /* live stats */
     let idsInitialized = false;
+    let lastClockKey = '';
 
     async function updateStats(){
       try{
@@ -177,7 +178,7 @@
         } else {
           scSpan.textContent = 'None';
         }
-        renderClocks(d);
+        maybeRenderClocks(d);
 
         if(!d.scenario_loaded){
           startBtn.disabled = true;
@@ -203,6 +204,7 @@
     const calibBtn   = qs('#calibrate-all');
     const clockList  = qs('#clock-list');
     let clockIds     = [];
+    const moveInputs = {}; // persist move-object selections and coordinates
     const servoCmds = [
       'getAngle()',
       'setAngle(rad)',
@@ -245,22 +247,37 @@
     pollPicoLog();
     updateCmdList();
 
+    function maybeRenderClocks(info){
+      const active = info.active_modes || {};
+      const key = JSON.stringify({
+        g:(info.gadgets||[]).map(g=>[g.id,g.class,active[g.id]]),
+        b:(info.ball_details||[]).map(b=>b.id),
+        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
+      });
+      if(key === lastClockKey) return;
+      lastClockKey = key;
+      renderClocks(info);
+    }
+
     function renderClocks(info){
       clockList.innerHTML = '';
       if(!Array.isArray(info.gadgets)) return;
       const active = info.active_modes || {};
-      for(const g of info.gadgets){
+        for(const g of info.gadgets){
+        const rec = moveInputs[g.id] || {};
         if(g.class !== 'PlotClock' && g.class !== 'ArenaManager') continue;
         const div = document.createElement('div');
         div.className = 'clock-entry';
         const span = document.createElement('span');
         span.textContent = 'P' + g.id;
         div.appendChild(span);
-        const modes = [
-          ['attack','Attack'],
-          ['defend','Defend'],
-          ['hit_standing','Hit']
-        ];
+        const modes = g.class === 'ArenaManager'
+          ? [['move_object','Move Object']]
+          : [
+              ['attack','Attack'],
+              ['defend','Defend'],
+              ['hit_standing','Hit']
+            ];
         for(const [mode,label] of modes){
           const b = document.createElement('button');
           b.textContent = label;
@@ -273,8 +290,45 @@
               b.disabled = true;
             }
           }
-          b.addEventListener('click', ()=>toggleMode(g.id, mode));
-          div.appendChild(b);
+          if(g.class === 'ArenaManager'){
+            const objSel = document.createElement('select');
+            const xInput = document.createElement('input');
+            xInput.type = 'number';
+            xInput.placeholder = 'x';
+            xInput.style.width = '50px';
+            const yInput = document.createElement('input');
+            yInput.type = 'number';
+            yInput.placeholder = 'y';
+            yInput.style.width = '50px';
+            for(const ball of info.ball_details||[]){
+              const o = document.createElement('option');
+              o.value = 'ball:' + ball.id;
+              o.textContent = 'Ball ' + ball.id.slice(0,4);
+              objSel.appendChild(o);
+            }
+            for(const m of (info.markers||[])){
+              if(m.type === 'Obstacle'){
+                const o = document.createElement('option');
+                o.value = 'obs:' + m.id;
+                o.textContent = 'Obs ' + m.id;
+                objSel.appendChild(o);
+              }
+            }
+            objSel.value = rec.obj || objSel.value;
+            xInput.value = rec.x || '';
+            yInput.value = rec.y || '';
+            objSel.addEventListener('change', ()=>{ rec.obj = objSel.value; moveInputs[g.id] = rec; });
+            xInput.addEventListener('input', ()=>{ rec.x = xInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
+            yInput.addEventListener('input', ()=>{ rec.y = yInput.value; moveInputs[g.id]=rec; previewTarget(g.id, xInput.value, yInput.value); });
+            b.addEventListener('click', ()=>moveObject(g.id, objSel.value, xInput.value, yInput.value));
+            div.appendChild(b);
+            div.appendChild(objSel);
+            div.appendChild(xInput);
+            div.appendChild(yInput);
+          } else {
+            b.addEventListener('click', ()=>toggleMode(g.id, mode));
+            div.appendChild(b);
+          }
         }
         clockList.appendChild(div);
       }
@@ -383,6 +437,30 @@
           alert('Mode error: ' + (d.message||''));
         }
       }catch(e){ alert('Error: ' + e); }
+    }
+
+    async function moveObject(id, obj, x, y){
+      try{
+        const r = await fetch('/move_object', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({device_id:id, object:obj, x:parseFloat(x), y:parseFloat(y)})
+        });
+        const d = await r.json();
+        if(d.status !== 'started'){
+          alert('Move error: ' + (d.message||''));
+        }
+      }catch(e){ alert('Error: ' + e); }
+    }
+
+    async function previewTarget(id, x, y){
+      try{
+        await fetch('/preview_target', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({device_id:id, x:parseFloat(x), y:parseFloat(y)})
+        });
+      }catch(e){ console.error(e); }
     }
 
     /* Command box enter */

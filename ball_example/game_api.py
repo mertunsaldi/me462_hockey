@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 import time
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 import cv2
 import numpy as np
@@ -53,6 +53,7 @@ class GameAPI:
         self.scenario_enabled = False
         self.clock_scenarios: Dict[int, Scenario] = {}
         self.clock_modes: Dict[int, str] = {}
+        self.preview_targets: Dict[int, Tuple[float, float]] = {}
         self._cam_started = False
 
     # ------------------------------------------------------------------
@@ -131,7 +132,8 @@ class GameAPI:
             if labels:
                 extra_labels.extend(labels if isinstance(labels, list) else [labels])
 
-        for sc in list(self.clock_scenarios.values()):
+        finished_ids = []
+        for dev_id, sc in list(self.clock_scenarios.items()):
             sc.update(detections)
             line = sc.get_line_points()
             if line:
@@ -142,6 +144,20 @@ class GameAPI:
             labels = sc.get_extra_labels()
             if labels:
                 extra_labels.extend(labels if isinstance(labels, list) else [labels])
+            if sc.finished:
+                finished_ids.append(dev_id)
+
+        for dev_id in finished_ids:
+            self.stop_clock_mode(dev_id)
+            self.clear_preview_target(dev_id)
+
+        with self.lock:
+            preview = list(self.preview_targets.items())
+        for dev_id, tgt in preview:
+            clock = self.plotclocks.get(dev_id)
+            if isinstance(clock, ArenaManager) and clock.calibration:
+                extra_pts.append(clock.mm_to_pixel(tgt))
+                extra_labels.append("Target")
 
         annotated = render_overlay(
             frame,
@@ -217,6 +233,8 @@ class GameAPI:
             sc = clock.defend(self.frame_size)
         elif mode == "hit_standing":
             sc = clock.hit_standing_ball()
+        elif mode == "move_object":
+            raise ValueError("move_object requires parameters")
         else:
             raise ValueError("bad mode")
         sc.on_start()
@@ -228,6 +246,25 @@ class GameAPI:
         if sc:
             sc.on_stop()
         self.clock_modes.pop(device_id, None)
+
+    def start_move_object(
+        self,
+        manager: ArenaManager,
+        obj: Union[Ball, Obstacle],
+        target_mm: Tuple[float, float],
+    ) -> None:
+        sc = manager.move_object(obj, target_mm[0], target_mm[1])
+        sc.on_start()
+        self.clock_scenarios[manager.device_id] = sc
+        self.clock_modes[manager.device_id] = "move_object"
+
+    def set_preview_target(self, device_id: int, target_mm: Tuple[float, float]) -> None:
+        with self.lock:
+            self.preview_targets[device_id] = target_mm
+
+    def clear_preview_target(self, device_id: int) -> None:
+        with self.lock:
+            self.preview_targets.pop(device_id, None)
 
     def process_message(self, message: Dict[str, Any]) -> None:
         if self._current_scenario:
