@@ -128,8 +128,17 @@ class PlotClock(Gadgets):
     Gadget for driving a PlotClock ("vurucu5000") firmware over serial.
 
     It now owns an **internal calibration FSM** – no external PlotClockCalibration
-    scenario needed.  Call `calibrate(detections)` every frame until it returns a
-    non‑None dict, which is also stored in `self.calibration`.
+    scenario needed.  Call :meth:`calibrate` every frame until it returns a
+    non‑None dict, which is also stored in :attr:`calibration`.
+
+    Parameters
+    ----------
+    axis_len_scale:
+        Scale factor for the default calibration triangle size relative to the
+        workspace span.  ``0.5`` is used when omitted.
+    cal_points_mm:
+        Optional manual (x, y) points in millimetres to use for the calibration
+        triangle.  When provided, these three points override ``axis_len_scale``.
     """
 
     # ──────────────────────────────────────────────────────────
@@ -143,14 +152,18 @@ class PlotClock(Gadgets):
         device_id: Optional[int] = None,
         master: Optional[MasterPico] = None,
         cal_margin_scale: float = CAL_MARGIN_SCALE,
+        axis_len_scale: Optional[float] = None,
+        cal_points_mm: Optional[List[Tuple[float, float]]] = None,
     ):
         super().__init__(None, baudrate=115200, timeout=20)
         self.device_id = device_id
         self.master = master
         self.cal_margin_scale = cal_margin_scale
+        self.axis_len_scale = axis_len_scale
+        self.cal_points_mm = cal_points_mm
         self.commands = {
         #istersek buraya commandlar ekleyebiliriz
-        "mode": "mode {0}",    
+        "mode": "mode {0}",
         }
         # Obtain working space geometry directly from the attached PlotClock if
         # possible.  ``getMaxX`` and ``getMinY`` give the horizontal limits and
@@ -207,7 +220,8 @@ class PlotClock(Gadgets):
         self._cal_state: int = 0          # 0=idle,1..n=fsm
         span_x = 2 * self.max_x
         span_y = self.y_range[1] - self.min_y
-        self._axis_len = 0.5 * min(span_x, span_y)
+        scale = 0.5 if self.axis_len_scale is None else self.axis_len_scale
+        self._axis_len = scale * min(span_x, span_y)
         base_x = 0
         base_y = self.min_y
 
@@ -216,10 +230,14 @@ class PlotClock(Gadgets):
         # Keep calibration points away from the edges -----------------
         m = self.cal_margin_mm
 
-        self._mm_pts = [
-            (base_x + m, base_y + self._axis_len - m),
-            (base_x + m, base_y + m),
-            (-base_x, base_y + m),]
+        if self.cal_points_mm is not None:
+            self._mm_pts = list(self.cal_points_mm)
+        else:
+            self._mm_pts = [
+                (base_x + m, base_y + self._axis_len - m),
+                (base_x + m, base_y + m),
+                (-base_x, base_y + m),
+            ]
 
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0

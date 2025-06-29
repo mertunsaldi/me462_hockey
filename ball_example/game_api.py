@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 import time
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -32,7 +32,7 @@ from .scenario_loader import load_scenario, ScenarioLoadError
 class GameAPI:
     """Encapsulates the processing pipeline and scenario management."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, cal_points_by_id: Optional[Dict[int, List[Tuple[float, float]]]] = None) -> None:
         self.camera = Camera(src=2, width=1280, height=720, fourcc="MJPG")
         self.frame_size = self.camera.get_resolution()
         self.tracker_mgr = BallTracker()
@@ -48,10 +48,16 @@ class GameAPI:
         self.plotclocks: Dict[int, PlotClock] = {}
         self.pico_lock = threading.Lock()
         self.pico_connected = False
+        self.cal_points_by_id: Dict[int, List[Tuple[float, float]]] = dict(cal_points_by_id or {})
 
         self._current_scenario: Scenario | None = None
         self.scenario_enabled = False
         self._cam_started = False
+
+    # ------------------------------------------------------------------
+    def set_calibration_points(self, mapping: Dict[int, List[Tuple[float, float]]]) -> None:
+        """Update per-device manual calibration coordinates."""
+        self.cal_points_by_id.update(mapping)
 
     # ------------------------------------------------------------------
     def set_cam_source(
@@ -108,10 +114,11 @@ class GameAPI:
         if self.pico_connected:
             for m in markers:
                 if m.id not in self.plotclocks:
+                    pts = self.cal_points_by_id.get(m.id)
                     if isinstance(m, ArucoManager):
-                        self.plotclocks[m.id] = ArenaManager(device_id=m.id, master=self.master_pico)
+                        self.plotclocks[m.id] = ArenaManager(device_id=m.id, master=self.master_pico, cal_points_mm=pts)
                     elif isinstance(m, ArucoHitter):
-                        self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
+                        self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico, cal_points_mm=pts)
 
         scenario_line = None
         extra_pts = None
