@@ -241,25 +241,25 @@
 
     /* -------- sidebar / card rendering ----------------------------------- */
     function maybeRenderClocks(info){
-      const active = info.active_modes || {};
       const key = JSON.stringify({
-        g:(info.gadgets||[]).map(g=>[g.id,g.class,g.calibrated,active[g.id]]),
+        g:(info.gadgets||[]).map(g=>[g.id,g.class,g.calibrated]),
         b:(info.ball_details||[]).map(b=>b.id),
         o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
       });
       if(key!==lastClockKey){ lastClockKey=key; renderClocks(info); }
+      updateActiveStyles(info);
     }
 
     function renderClocks(info){
       clockList.innerHTML='';
       if(!Array.isArray(info.gadgets)) return;
       const active=info.active_modes||{};
-
       for(const g of info.gadgets){
         if(g.class!=='PlotClock' && g.class!=='ArenaManager') continue;
 
         const card=document.createElement('div');
         card.className='clock-card';
+        card.dataset.id=g.id;
 
         const header=document.createElement('h4');
         header.textContent='P'+g.id;
@@ -319,25 +319,36 @@
           const startHit=makeBtn('Start','btn-success hit-start',()=>{
             startHit.disabled=true;
             sendMessage({device_id:g.id,action:'start_hit'});
+            setTimeout(()=>{startHit.disabled=false;},1000);
           });
+          startHit.dataset.id=g.id;
           if(active[g.id]==='hit_standing') card.appendChild(startHit);
         }
 
-        /* active-mode highlight + disable others (but keep Start live) */
-        const am=active[g.id];
-        if(am){
-          [...card.querySelectorAll('.btn')].forEach(btn=>{
-            if(btn.classList.contains('hit-start')) return;            /* keep start clickable */
-            const prefix=am.replace('_standing','');                    /* 'hit' / 'attack' / 'defend' */
-            if(btn.textContent.toLowerCase().startsWith(prefix))
-              btn.classList.add('btn-primary');
-            else
-              btn.disabled=true;
-          });
-        }
         if(!g.calibrated) card.querySelectorAll('.btn').forEach(b=>b.disabled=true);
 
         clockList.appendChild(card);
+      }
+    }
+
+    function updateActiveStyles(info){
+      const active=info.active_modes||{};
+      for(const g of info.gadgets||[]){
+        const card=clockList.querySelector(`.clock-card[data-id='${g.id}']`);
+        if(!card) continue;
+        const am=active[g.id];
+        const startBtn=card.querySelector('.hit-start');
+        if(startBtn) startBtn.style.display=am==='hit_standing'?'':'none';
+        [...card.querySelectorAll('.btn')].forEach(btn=>{
+          if(btn.classList.contains('hit-start')) return;
+          if(am){
+            const prefix=am.replace('_standing','');
+            if(btn.textContent.toLowerCase().startsWith(prefix)){
+              btn.classList.add('btn-primary'); btn.disabled=false;
+            }else btn.disabled=true;
+          }else{ btn.disabled=false; btn.classList.remove('btn-primary'); }
+        });
+        if(!g.calibrated) card.querySelectorAll('.btn').forEach(b=>b.disabled=true);
       }
     }
 

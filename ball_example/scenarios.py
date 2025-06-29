@@ -83,6 +83,7 @@ class BallAttacker(Scenario):
         self._prev_time = None  # for frame period
         self._cur_speed_ps = None  # puck speed px / s
         self._initialized = False
+        self._strike_time = None
 
     def on_start(self) -> None:
         """Reset internal state."""
@@ -92,6 +93,7 @@ class BallAttacker(Scenario):
         self._prev_time = None
         self._cur_speed_ps = None
         self._initialized = False
+        self._strike_time = None
 
     # ===============================================================
     def _ray_hits_polygon(self, bx, by, dx, dy):
@@ -224,6 +226,12 @@ class BallAttacker(Scenario):
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
     def _update_phase(self, ball, hitter):
+        if self._phase == self.PHASE_STRIKE:
+            if self._strike_time and time.time() - self._strike_time > 0.7:
+                wx, wy = self.clock.wait_position_mm()
+                self.clock.send_command(f"p.setXY({wx}, {wy})")
+                self._reset_plan()
+            return
         # still switch TRAVEL → WAIT as before
         if self._phase == self.PHASE_TRAVEL and hitter:
             hx, hy = map(float, hitter.center)
@@ -260,11 +268,13 @@ class BallAttacker(Scenario):
             if score >= 1.0:  # θ  — strike threshold
                 self.clock.send_command(f"p.setXY({self._meet_mm[0]}, {self._meet_mm[1]})")
                 self._phase = self.PHASE_STRIKE
+                self._strike_time = time.time()
 
     # ------------------------------------------------------------------
     def _reset_plan(self):
         self._locked_M = self._locked_norm = None
         self._phase = None
+        self._strike_time = None
 
     # ------------------------------------------------------------------
     # GUI overlay callbacks
@@ -358,6 +368,7 @@ class BallReflector(Scenario):
         self._last_cmd_time = 0.0  # unix-time of last setxy
         self._work_lines = None  # list[(p1,p2)…] rectangle edges (px)
         self._initialized = False
+        self._strike_time = None
 
     def on_start(self) -> None:
         """Reset internal state."""
@@ -368,6 +379,7 @@ class BallReflector(Scenario):
         self._last_cmd_time = 0.0
         self._work_lines = None
         self._initialized = False
+        self._strike_time = None
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
@@ -403,6 +415,12 @@ class BallReflector(Scenario):
 
         # ── 2. Reset overlay state every frame ──────────────────────
         self._line = self._meet_px = None
+
+        if self._fired and self._strike_time and time.time() - self._strike_time > 0.7:
+            wx, wy = self.clock.wait_position_mm()
+            self.clock.send_command(f"p.setXY({wx}, {wy})")
+            self._fired = False
+            self._goal_px = None
 
         ball = next((d for d in detections if isinstance(d, Ball)), None)
         hitter = next((d for d in detections if isinstance(d, ArucoHitter)), None)
@@ -476,6 +494,8 @@ class BallReflector(Scenario):
             self.clock.send_command(f"p.setXY({meet_mm[0]}, {meet_mm[1]})")
             self._goal_px = self._meet_px
             self._last_cmd_time = now
+            self._fired = True
+            self._strike_time = now
 
     # ------------------------------------------------------------------
     def get_line_points(self):
@@ -507,21 +527,30 @@ class StandingBallHitter(Scenario):
         self._start_mm: Optional[Tuple[float, float]] = None
         self._fired = False  # ensure we send move-strike sequence only once
         self._armed = False
+        self._strike_time = None
 
     def on_start(self) -> None:
         """Reset internal state when the scenario begins."""
         self._fired = False
         self._armed = False
+        self._strike_time = None
 
     def process_message(self, message: Dict[str, Any]) -> None:
         if message.get("action") == "start_hit":
             self._armed = True
+            self._fired = False
 
     # ------------------------------------------------------------------
     def update(self, detections):
         # 1) require calibration first
         if not self.clock.calibration:
             return  # nothing else until calibrated
+
+        if self._fired and self._strike_time and time.time() - self._strike_time > 0.7:
+            wx, wy = self.clock.wait_position_mm()
+            self.clock.send_command(f"p.setXY({wx}, {wy})")
+            self._fired = False
+            self._armed = False
 
         # 2) reset per‑frame state
         self.hitter = self.target = self.ball = None
@@ -568,6 +597,7 @@ class StandingBallHitter(Scenario):
                         f"p.setXY({ball_mm[0]}, {ball_mm[1]})"
                     )
                     self._fired = True
+                    self._strike_time = time.time()
 
     # ------------------------------------------------------------------
     def get_line_points(self):

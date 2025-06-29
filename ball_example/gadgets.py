@@ -384,6 +384,10 @@ class PlotClock(Gadgets):
         from .scenarios import StandingBallHitter
         return StandingBallHitter(self, target_mm)
 
+    def wait_position_mm(self) -> Tuple[float, float]:
+        """Return a safe waiting (x,y) inside the workspace."""
+        return (0.0, self.min_y + self.cal_margin_mm)
+
     def draw_working_area(
         self,
         frame: np.ndarray,
