@@ -435,6 +435,29 @@ class PlotClock(Gadgets):
             cv2.arrowedLine(frame, origin, end_x, (255, 0, 0), 2, tipLength=0.2)
             cv2.arrowedLine(frame, origin, end_y, (0, 0, 255), 2, tipLength=0.2)
 
+    def get_working_area_polygon(self) -> List[Tuple[int, int]]:
+        """Return the pixel coordinates outlining the working area."""
+        if not self.calibration:
+            return []
+
+        r = self.workspace_radius
+        d = self.workspace_dist
+        max_x = self.max_x
+        min_y = self.min_y
+
+        num = 50
+        xs_left = np.linspace(-max_x, 0, num)
+        ys_left = np.sqrt(np.clip(r * r - (xs_left - d) ** 2, 0, None))
+        xs_right = np.linspace(0, max_x, num)
+        ys_right = np.sqrt(np.clip(r * r - (xs_right + d) ** 2, 0, None))
+
+        pts_mm: List[Tuple[float, float]] = list(zip(xs_left, ys_left))
+        pts_mm += list(zip(xs_right, ys_right))
+        pts_mm.append((max_x, min_y))
+        pts_mm.append((-max_x, min_y))
+
+        return [self.mm_to_pixel(p) for p in pts_mm]
+
 
 class ArenaManager(PlotClock):
     """PlotClock variant representing the arena manager.
@@ -490,6 +513,15 @@ class ArenaManager(PlotClock):
 
         # Fall back to the regular PlotClock workspace
         super().draw_working_area(frame, color=color, thickness=thickness)
+
+    def get_working_area_polygon(self) -> List[Tuple[int, int]]:
+        """Return the polygon of the current arena or workspace."""
+        if self.arena is not None:
+            corners = self.arena.get_arena_corners()
+            if len(corners) >= 3:
+                return corners
+            return []
+        return super().get_working_area_polygon()
 
     # ------------------------------------------------------------------
     def send_command(self, cmd_name: str, *params: Any) -> None:
