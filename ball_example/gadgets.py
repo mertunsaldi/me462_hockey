@@ -393,7 +393,14 @@ class PlotClock(Gadgets):
         color: Tuple[int, int, int] = (0, 255, 0),
         thickness: int = 2,
     ) -> None:
-        """Draw the reachable working space of this clock on ``frame``."""
+        """Draw the reachable workspace of this PlotClock on ``frame``.
+
+        The region is bounded by two vertical lines at ``x = ±max_x`` and a
+        horizontal line at ``y = min_y``.  The upper boundary is the union of two
+        circular arcs with radius ``L1 + L2``.  From ``x = -max_x`` to ``0`` the
+        arc is centred at ``(L3 / 2, 0)`` while from ``0`` to ``max_x`` it is
+        centred at ``(-L3 / 2, 0)``.
+        """
         import cv2
 
         if not self.calibration:
