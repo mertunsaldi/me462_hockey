@@ -16,7 +16,7 @@ from .models import Ball, Obstacle, ArucoMarker, ArucoHitter, ArucoManager, Aren
 # ``CAL_MARGIN_SCALE`` expresses this margin relative to the mechanism's
 # first link length ``L1``.  The default value preserves the previous
 # behaviour of a 10 mm margin when ``L1`` is 35 mm.
-CAL_MARGIN_SCALE = 7.0 / 35.0
+CAL_MARGIN_SCALE = 10.0 / 35.0
 
 
 class Gadgets:
@@ -196,7 +196,7 @@ class PlotClock(Gadgets):
                 self.l1 = 65.0
             else:
                 self.max_x = 365.0827
-                self.min_y = 108.0
+                self.min_y = 100.0
                 self.workspace_radius = 270+328
                 self.workspace_dist = 75.0
                 self.l1 = 270
@@ -216,15 +216,15 @@ class PlotClock(Gadgets):
         # Keep calibration points away from the edges -----------------
         m = self.cal_margin_mm
 
+        # self._mm_pts = [
+            # (base_x + m, base_y + self._axis_len - m),
+            # (base_x + m, base_y + m),
+            # (-base_x, base_y + m),]
+        
         self._mm_pts = [
             (base_x + m, base_y + self._axis_len - m),
-            (base_x + m, base_y + m),
-            (-base_x, base_y + m),]
-        
-        # self._mm_pts = [
-        #     (base_x + m, base_y + self._axis_len - 1.8*m),
-        #     (base_x + m, base_y + self._axis_len + 1.8*m),
-        #     (-base_x - m, base_y + self._axis_len + 1.8*m),]
+            (base_x + m, base_y + self._axis_len + m),
+            (-base_x - m, base_y + self._axis_len + m),]
 
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
