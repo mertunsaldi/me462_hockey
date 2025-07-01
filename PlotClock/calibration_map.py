@@ -130,6 +130,15 @@ def main() -> None:
     calibrate_clocks([mgr], _get_dets)
     print("Calibration complete")
 
+    if not mgr.calibration:
+        print("Arena Manager failed to calibrate")
+        return
+
+    poly_pts = mgr.get_working_area_polygon()
+    if len(poly_pts) < 3:
+        print("Working area polygon not available")
+        return
+
     grid_mm = build_grid(mgr, NUM_POINTS)
     grid_px = [mgr.mm_to_pixel(pt) for pt in grid_mm]
 
