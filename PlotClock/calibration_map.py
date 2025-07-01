@@ -145,6 +145,9 @@ def main() -> None:
     results: List[Tuple[float, float, int, int]] = []
     running = False
     idx = 0
+    moving = False
+    move_start = 0.0
+    current_target: Tuple[float, float] | None = None
 
     root = tk.Tk()
     root.title("Arena Manager Calibration Map")
@@ -160,7 +163,7 @@ def main() -> None:
     btn.configure(command=on_start)
 
     def update_loop() -> None:
-        nonlocal idx, running
+        nonlocal idx, running, moving, move_start, current_target
         frame = api.get_annotated_frame()
         if frame is not None:
             if arena:
@@ -180,26 +183,31 @@ def main() -> None:
             label.configure(image=im_tk)
             label.image = im_tk
 
-        if running and idx < len(grid_mm):
-            target = grid_mm[idx]
-            mgr.send_command(f"p.setXY({target[0]}, {target[1]})")
-            time.sleep(1.5)
-            with api.lock:
-                dets = list(api.arucos)
-            mgr_marker = next((d for d in dets if isinstance(d, ArucoManager)), None)
-            if mgr_marker:
-                px = mgr_marker.center[0] - servo_origin[0]
-                py = mgr_marker.center[1] - servo_origin[1]
-                results.append((target[0], target[1], px, py))
-            idx += 1
-            if idx >= len(grid_mm):
-                with open("calibration_map.csv", "w", newline="") as f:
-                    w = csv.writer(f)
-                    w.writerow(["cmd_x_mm", "cmd_y_mm", "px_x", "px_y"])
-                    w.writerows(results)
-                print("Calibration data saved to calibration_map.csv")
-                running = False
-        if running or idx < len(grid_mm):
+        if running:
+            if not moving and idx < len(grid_mm):
+                current_target = grid_mm[idx]
+                mgr.send_command(f"p.setXY({current_target[0]}, {current_target[1]})")
+                move_start = time.time()
+                moving = True
+            elif moving and time.time() - move_start >= 1.5:
+                with api.lock:
+                    dets = list(api.arucos)
+                mgr_marker = next((d for d in dets if isinstance(d, ArucoManager)), None)
+                if mgr_marker and current_target is not None:
+                    px = mgr_marker.center[0] - servo_origin[0]
+                    py = mgr_marker.center[1] - servo_origin[1]
+                    results.append((current_target[0], current_target[1], px, py))
+                idx += 1
+                moving = False
+                if idx >= len(grid_mm):
+                    with open("calibration_map.csv", "w", newline="") as f:
+                        w = csv.writer(f)
+                        w.writerow(["cmd_x_mm", "cmd_y_mm", "px_x", "px_y"])
+                        w.writerows(results)
+                    print("Calibration data saved to calibration_map.csv")
+                    running = False
+
+        if running or idx < len(grid_mm) or moving:
             root.after(30, update_loop)
         else:
             root.quit()
