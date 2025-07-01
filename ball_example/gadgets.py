@@ -616,6 +616,7 @@ class ArenaManager(PlotClock):
 
             # Send corrective relative move directly via base implementation
             PlotClock.send_command(self, f"p.setXYrel({dx_mm}, {dy_mm})")
+            time.sleep(1.0)
             self._pending_target_mm = None
 
     # ------------------------------------------------------------------

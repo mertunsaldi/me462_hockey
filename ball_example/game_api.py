@@ -116,6 +116,13 @@ class GameAPI:
                     elif isinstance(m, ArucoHitter):
                         self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
 
+            # update ArenaManager positions for feedback
+            for m in markers:
+                if isinstance(m, ArucoManager):
+                    clock = self.plotclocks.get(m.id)
+                    if isinstance(clock, ArenaManager):
+                        clock.update_manager_position(m.center)
+
         scenario_lines = []
         extra_pts: List[tuple] = []
         extra_labels: List[str] = []
