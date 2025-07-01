@@ -476,6 +476,10 @@ class ArenaManager(PlotClock):
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
         self._servo_px_dist: Optional[float] = None
+        self._manager_center_px: Optional[Tuple[int, int]] = None
+        self._pending_target_mm: Optional[Tuple[float, float]] = None
+        self.relative_error_px: Optional[Tuple[float, float]] = None
+        self.relative_error_mm: Optional[Tuple[float, float]] = None
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -592,14 +596,33 @@ class ArenaManager(PlotClock):
         return super().get_working_area_polygon()
 
     # ------------------------------------------------------------------
-    def send_command(self, cmd_name: str, *params: Any) -> None:
-        """Prevent moves outside the arena polygon when set."""
+    def update_manager_position(self, center_px: Tuple[int, int]) -> None:
+        """Update the last detected manager marker position and apply feedback."""
+
+        self._manager_center_px = center_px
         if (
-            self.arena is not None
-            and self.calibration
-            and isinstance(cmd_name, str)
-            and cmd_name.strip().startswith("p.setXY")
+            self._pending_target_mm is not None
+            and self.calibration is not None
         ):
+            tgt_mm = self._pending_target_mm
+            tgt_px = self.mm_to_pixel(tgt_mm)
+            dx_px = tgt_px[0] - center_px[0]
+            dy_px = tgt_px[1] - center_px[1]
+            self.relative_error_px = (float(dx_px), float(dy_px))
+            cur_mm = self.pixel_to_mm(center_px)
+            dx_mm = tgt_mm[0] - cur_mm[0]
+            dy_mm = tgt_mm[1] - cur_mm[1]
+            self.relative_error_mm = (float(dx_mm), float(dy_mm))
+
+            # Send corrective relative move directly via base implementation
+            PlotClock.send_command(self, f"p.setXYrel({dx_mm}, {dy_mm})")
+            self._pending_target_mm = None
+
+    # ------------------------------------------------------------------
+    def send_command(self, cmd_name: str, *params: Any) -> None:
+        """Prevent out-of-bounds moves and track target for feedback."""
+        target_mm: Optional[Tuple[float, float]] = None
+        if isinstance(cmd_name, str) and cmd_name.strip().startswith("p.setXY"):
             import re
 
             m = re.match(r"p\.setXY\(([^,]+),([^\)]+)\)", cmd_name.replace(" ", ""))
@@ -607,15 +630,24 @@ class ArenaManager(PlotClock):
                 try:
                     x = float(m.group(1))
                     y = float(m.group(2))
+                    target_mm = (x, y)
                 except ValueError:
-                    pass
-                else:
-                    px, py = self.mm_to_pixel((x, y))
-                    corners = self.arena.get_arena_corners()
-                    if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
-                        return  # outside arena, ignore command
+                    target_mm = None
+
+        if (
+            target_mm is not None
+            and self.arena is not None
+            and self.calibration is not None
+        ):
+            px, py = self.mm_to_pixel(target_mm)
+            corners = self.arena.get_arena_corners()
+            if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
+                return  # outside arena, ignore command
 
         super().send_command(cmd_name, *params)
+
+        if target_mm is not None:
+            self._pending_target_mm = target_mm
 
     # ------------------------------------------------------------------
     def move_object(self, obj: Union[Ball, Obstacle], target_x: float, target_y: float):
