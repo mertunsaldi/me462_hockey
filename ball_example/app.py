@@ -27,7 +27,7 @@ POLY_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "PlotClock", "calibration_poly.csv")
 )
 api = GameAPI(coeffs_path=POLY_PATH)
-api.set_cam_source(0, width=1280, height=720, fourcc="MJPG")
+api.set_cam_source(4, width=1280, height=720, fourcc="MJPG")
 
 if hasattr(app, "before_first_request"):
     @app.before_first_request
