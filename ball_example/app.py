@@ -2,6 +2,7 @@ import cv2, math, threading, time
 import numpy as np
 from typing import Optional
 from flask import Flask, render_template, Response, jsonify, request
+import os
 
 if __package__ in (None, ""):
     import os, sys
@@ -22,7 +23,9 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 # Core processing API
-POLY_PATH = "calibration_poly.csv"
+POLY_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "PlotClock", "calibration_poly.csv")
+)
 api = GameAPI(coeffs_path=POLY_PATH)
 api.set_cam_source(0, width=1280, height=720, fourcc="MJPG")
 
