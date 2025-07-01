@@ -627,12 +627,16 @@ class ArenaManager(PlotClock):
 
     # ------------------------------------------------------------------
     def setXY_updated_manager(self, x: float, y: float) -> None:
-        """Move to ``(x, y)`` and apply a corrective move after a short delay."""
+        """Move to ``(x, y)`` and trigger a background feedback update."""
 
         self.send_command(f"p.setXY({x}, {y})")
-        time.sleep(2.0)
-        if self._manager_center_px is not None:
-            self.update_manager_position(self._manager_center_px)
+
+        def _worker() -> None:
+            time.sleep(2.0)
+            if self._manager_center_px is not None:
+                self.update_manager_position(self._manager_center_px)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     # ------------------------------------------------------------------
     def send_command(self, cmd_name: str, *params: Any) -> None:

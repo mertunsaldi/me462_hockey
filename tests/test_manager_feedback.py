@@ -1,4 +1,4 @@
-import os, sys, types, pytest, time
+import os, sys, types, pytest, time, threading
 
 pytest.importorskip("numpy")
 import numpy as np
@@ -37,13 +37,26 @@ def test_setxy_feedback_sends_relative_move():
     mgr.record_manager_position((0, 0))
 
     def fake_sleep(t):
-        mgr.record_manager_position((8, 18))
+        if t > 1.5:
+            mgr.record_manager_position((8, 18))
 
     original_sleep = time.sleep
+    original_thread = threading.Thread
+
+    class DummyThread:
+        def __init__(self, target=None, daemon=None):
+            self._target = target
+
+        def start(self):
+            if self._target:
+                self._target()
+
     time.sleep = fake_sleep
+    threading.Thread = DummyThread
     try:
         mgr.setXY_updated_manager(10, 20)
     finally:
         time.sleep = original_sleep
+        threading.Thread = original_thread
 
     assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.setXYrel(2.0, 2.0)"]
