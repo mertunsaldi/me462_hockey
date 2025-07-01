@@ -14,7 +14,7 @@ from ball_example.gadgets import ArenaManager
 from high_level import calibrate_clocks, draw_arena
 
 
-NUM_POINTS = 50
+NUM_POINTS = 40
 
 
 def eval_poly(coeffs: np.ndarray, x: float, y: float) -> float:
@@ -220,7 +220,7 @@ def main() -> None:
         print("Working area polygon not available")
         return
 
-    grid_mm = build_grid(mgr, NUM_POINTS)
+    grid_mm = build_grid(mgr, NUM_POINTS, margin_mm=1.0)
     grid_px = [mgr.mm_to_pixel(pt) for pt in grid_mm]
 
     results: List[Tuple[float, float, float, float]] = []

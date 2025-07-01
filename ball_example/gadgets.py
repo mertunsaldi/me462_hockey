@@ -479,6 +479,7 @@ class ArenaManager(PlotClock):
         self._coeff_x: Optional[np.ndarray] = None
         self._coeff_y: Optional[np.ndarray] = None
         if coeffs_path:
+            print(f"Loading coefficients from {coeffs_path}")
             self.load_correction(coeffs_path)
 
     # ------------------------------------------------------------------
@@ -512,9 +513,11 @@ class ArenaManager(PlotClock):
             elif len(rows) >= 2:
                 self._coeff_x = np.array([float(v) for v in rows[0]], dtype=float)
                 self._coeff_y = np.array([float(v) for v in rows[1]], dtype=float)
+            print(f"Using coefficients {self._coeff_x} and {self._coeff_y}")
         except (ValueError, IndexError):
             self._coeff_x = None
             self._coeff_y = None
+
 
     def _apply_correction(self, x: float, y: float) -> Tuple[float, float]:
         """Return corrected coordinates if polynomial is loaded."""
@@ -566,7 +569,7 @@ class ArenaManager(PlotClock):
             p1 = np.array(servos[0].center, dtype=float)
             p2 = np.array(servos[1].center, dtype=float)
             mid = (p1 + p2) / 2.0
-            dx = p2 - p1
+            dx = -abs(p2 - p1)
             px_dist = float(np.linalg.norm(dx))
             if px_dist < 1e-6:
                 return None
