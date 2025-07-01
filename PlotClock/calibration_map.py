@@ -339,10 +339,9 @@ def main() -> None:
                     btn_correct.config(state=tk.NORMAL)
                     running = False
 
-        if running or idx < len(grid_mm) or moving:
-            root.after(30, update_loop)
-        else:
-            root.quit()
+        # Continue updating the UI after the calibration phase so the user can
+        # trigger the corrected movements without the window closing
+        root.after(30, update_loop)
 
     root.after(0, update_loop)
     root.mainloop()
