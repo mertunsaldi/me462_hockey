@@ -97,44 +97,33 @@ def build_grid(
     # working polygon.
     spacing *= 0.9
 
-    cand_pts: List[Tuple[float, float]] = []
+    rows: List[List[Tuple[float, float]]] = []
     y = min_y
     while y <= max_y:
+        row: List[Tuple[float, float]] = []
         x = min_x
         while x <= max_x:
-            cand_pts.append((float(x), float(y)))
+            pt = (float(x), float(y))
+            px_pt = mgr.mm_to_pixel(pt)
+            dist = cv2.pointPolygonTest(poly_np, px_pt, True)
+            if dist > margin_px:
+                row.append(pt)
             x += spacing
+        if row:
+            rows.append(row)
         y += spacing
 
+    pts: List[Tuple[float, float]] = []
+    for i, row in enumerate(rows):
+        ordered = sorted(row, key=lambda p: p[0], reverse=(i % 2 == 1))
+        pts.extend(ordered)
 
-    inside: List[Tuple[float, float]] = []
-    for pt in cand_pts:
-        px_pt = mgr.mm_to_pixel(pt)
-        dist = cv2.pointPolygonTest(poly_np, px_pt, True)
-        if dist > margin_px:
-            inside.append(pt)
-
-    if len(inside) < num:
+    if len(pts) < num:
         raise RuntimeError(
-            f"Only {len(inside)} points found inside working area; consider reducing the margin"
+            f"Only {len(pts)} points found inside working area; consider reducing the margin"
         )
 
-    def farthest_first(points: List[Tuple[float, float]], k: int) -> List[Tuple[float, float]]:
-        rng = np.random.default_rng()
-        pts = points[:]
-        sel = [pts.pop(rng.integers(len(pts)))]
-        while len(sel) < k and pts:
-            dists = np.array([
-                min(np.linalg.norm(np.array(p) - np.array(s)) for s in sel)
-                for p in pts
-            ])
-            idx = int(np.argmax(dists))
-            sel.append(pts.pop(idx))
-        if len(sel) > k:
-            sel = sel[:k]
-        return sel
-
-    return farthest_first(inside, num)
+    return pts[:num]
 
 
 def main() -> None:
