@@ -17,10 +17,36 @@ from high_level import calibrate_clocks, draw_arena
 NUM_POINTS = 50
 
 
+def eval_poly(coeffs: np.ndarray, x: float, y: float) -> float:
+    """Evaluate a 2D quadratic polynomial with coefficients ``coeffs``."""
+    return (
+        coeffs[0]
+        + coeffs[1] * x
+        + coeffs[2] * y
+        + coeffs[3] * x * x
+        + coeffs[4] * x * y
+        + coeffs[5] * y * y
+    )
+
+
+def fit_polynomial(
+    inputs: np.ndarray, outputs: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Fit a 2D quadratic polynomial mapping ``inputs`` -> ``outputs``."""
+    x = inputs[:, 0]
+    y = inputs[:, 1]
+    A = np.column_stack(
+        [np.ones(len(inputs)), x, y, x**2, x * y, y**2]
+    )
+    coeff_x, *_ = np.linalg.lstsq(A, outputs[:, 0], rcond=None)
+    coeff_y, *_ = np.linalg.lstsq(A, outputs[:, 1], rcond=None)
+    return coeff_x, coeff_y
+
+
 def compute_servo_transform(
     markers: List[ArucoMarker],
-) -> Tuple[Tuple[int, int], np.ndarray, np.ndarray]:
-    """Return the servo origin and orientation axes in pixels.
+) -> Tuple[Tuple[int, int], np.ndarray, np.ndarray, float]:
+    """Return the servo origin, axes and marker distance in pixels.
 
     The axes are aligned with the arena manager's coordinate frame so that the
     resulting pixel coordinates match the orientation used for ``setXY``
@@ -37,6 +63,7 @@ def compute_servo_transform(
     p2 = np.array(servos[1].center, dtype=float)
     mid = (p1 + p2) / 2.0
     dx = -np.abs(p2 - p1)
+    servo_px_dist = float(np.linalg.norm(p2 - p1))
     norm = np.linalg.norm(dx)
     if norm < 1e-6:
         raise RuntimeError("Servo markers too close")
@@ -49,7 +76,7 @@ def compute_servo_transform(
         e_x = -e_x
 
     origin = (int(mid[0]), int(mid[1]))
-    return origin, e_x, e_y
+    return origin, e_x, e_y, servo_px_dist
 
 
 def build_grid(
@@ -138,6 +165,7 @@ def main() -> None:
     servo_origin: Tuple[int, int] | None = None
     servo_ex: np.ndarray | None = None
     servo_ey: np.ndarray | None = None
+    servo_px_dist: float | None = None
     start = time.time()
     while time.time() - start < 10:
         time.sleep(0.1)
@@ -162,10 +190,16 @@ def main() -> None:
                 and next((d for d in detections if isinstance(d, ArucoManager)), None)
                 is not None
             ):
-                servo_origin, servo_ex, servo_ey = compute_servo_transform(detections)
+                servo_origin, servo_ex, servo_ey, servo_px_dist = compute_servo_transform(detections)
         if mgr and servo_origin is not None:
             break
-    if mgr is None or servo_origin is None or servo_ex is None or servo_ey is None:
+    if (
+        mgr is None
+        or servo_origin is None
+        or servo_ex is None
+        or servo_ey is None
+        or servo_px_dist is None
+    ):
         print("Required markers not found")
         return
 
@@ -195,6 +229,9 @@ def main() -> None:
     moving = False
     move_start = 0.0
     current_target: Tuple[float, float] | None = None
+    coeff_x: np.ndarray | None = None
+    coeff_y: np.ndarray | None = None
+    correct_mode = False
 
     root = tk.Tk()
     root.title("Arena Manager Calibration Map")
@@ -202,16 +239,31 @@ def main() -> None:
     label.pack()
     btn = tk.Button(root, text="Start Calibration")
     btn.pack()
+    btn_correct = tk.Button(root, text="Go to Corrected Points", state=tk.DISABLED)
+    btn_correct.pack()
 
     def on_start():
-        nonlocal running
+        nonlocal running, correct_mode, idx
         running = True
+        correct_mode = False
+        idx = 0
         btn.config(state=tk.DISABLED)
 
     btn.configure(command=on_start)
 
+    def on_correct():
+        nonlocal running, correct_mode, idx
+        if coeff_x is None or coeff_y is None:
+            return
+        running = True
+        correct_mode = True
+        idx = 0
+        btn_correct.config(state=tk.DISABLED)
+
+    btn_correct.configure(command=on_correct)
+
     def update_loop() -> None:
-        nonlocal idx, running, moving, move_start, current_target
+        nonlocal idx, running, moving, move_start, current_target, coeff_x, coeff_y
         frame = api.get_annotated_frame()
         if frame is not None:
             if arena:
@@ -245,7 +297,11 @@ def main() -> None:
         if running:
             if not moving and idx < len(grid_mm):
                 current_target = grid_mm[idx]
-                mgr.send_command(f"p.setXY({current_target[0]}, {current_target[1]})")
+                tx, ty = current_target
+                if correct_mode and coeff_x is not None and coeff_y is not None:
+                    tx = eval_poly(coeff_x, current_target[0], current_target[1])
+                    ty = eval_poly(coeff_y, current_target[0], current_target[1])
+                mgr.send_command(f"p.setXY({tx}, {ty})")
                 move_start = time.time()
                 moving = True
             elif moving and time.time() - move_start >= 1.5:
@@ -260,15 +316,27 @@ def main() -> None:
                     )
                     px = float(np.dot(delta, servo_ex))
                     py = float(np.dot(delta, servo_ey))
-                    results.append((current_target[0], current_target[1], px, py))
+                    if not correct_mode:
+                        results.append(
+                            (current_target[0], current_target[1], px, py)
+                        )
                 idx += 1
                 moving = False
                 if idx >= len(grid_mm):
-                    with open("calibration_map.csv", "w", newline="") as f:
-                        w = csv.writer(f)
-                        w.writerow(["cmd_x_mm", "cmd_y_mm", "px_x", "px_y"])
-                        w.writerows(results)
-                    print("Calibration data saved to calibration_map.csv")
+                    if not correct_mode:
+                        with open("calibration_map.csv", "w", newline="") as f:
+                            w = csv.writer(f)
+                            w.writerow(["cmd_x_mm", "cmd_y_mm", "px_x", "px_y"])
+                            w.writerows(results)
+                        print("Calibration data saved to calibration_map.csv")
+                        mm_per_px = ArenaManager.SERVO_MM_DIST / servo_px_dist
+                        inp = np.array([[r[2] * mm_per_px, r[3] * mm_per_px] for r in results])
+                        out = np.array([[r[0], r[1]] for r in results])
+                        coeff_x, coeff_y = fit_polynomial(inp, out)
+                        print("x coeffs:", coeff_x.tolist())
+                        print("y coeffs:", coeff_y.tolist())
+                        print("Use eval_poly(coeff_x, x, y) and eval_poly(coeff_y, x, y) for corrected setXY values")
+                    btn_correct.config(state=tk.NORMAL)
                     running = False
 
         if running or idx < len(grid_mm) or moving:
