@@ -1,10 +1,20 @@
-import os, sys, pytest
+import os, sys, pytest, threading
 pytest.importorskip("cv2")
 import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from ball_example.gadgets import ArenaManager
+
+
+class DummyTimer:
+    def __init__(self, delay, func, *a, **kw):
+        self.delay = delay
+        self.func = func
+        self.args = a
+        self.kw = kw
+    def start(self):
+        self.func(*self.args, **self.kw)
 from ball_example.models import ArucoWall, Arena
 
 
@@ -14,7 +24,8 @@ def _wall(x, y):
     return ArucoWall(0, corners, (x + 12, y + 12))
 
 
-def test_draw_working_area_uses_arena_polygon():
+def test_draw_working_area_uses_arena_polygon(monkeypatch):
+    monkeypatch.setattr(threading, "Timer", DummyTimer)
     arena = Arena([
         _wall(10, 10),
         _wall(110, 10),
@@ -28,7 +39,8 @@ def test_draw_working_area_uses_arena_polygon():
     assert frame.sum() > 0
 
 
-def test_plotclock_draw_working_area_shows_axes():
+def test_plotclock_draw_working_area_shows_axes(monkeypatch):
+    monkeypatch.setattr(threading, "Timer", DummyTimer)
     mgr = ArenaManager()
     mgr.calibration = {
         "u_x": np.array([1.0, 0.0]),
@@ -42,7 +54,8 @@ def test_plotclock_draw_working_area_shows_axes():
     assert frame[50:80, 50].sum() > 0
 
 
-def test_arena_manager_blocks_out_of_bounds_move():
+def test_arena_manager_blocks_out_of_bounds_move(monkeypatch):
+    monkeypatch.setattr(threading, "Timer", DummyTimer)
     arena = Arena([
         _wall(0, 0),
         _wall(100, 0),

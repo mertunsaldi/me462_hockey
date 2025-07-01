@@ -474,6 +474,9 @@ class ArenaManager(PlotClock):
     def __init__(self, *args, arena: Optional[Arena] = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
+        self._manager_center_px: Optional[Tuple[int, int]] = None
+        self._pending_target_mm: Optional[Tuple[float, float]] = None
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -560,3 +563,35 @@ class ArenaManager(PlotClock):
 
     # backwards compatibility
     grab_and_release = move_object
+
+    # ------------------------------------------------------------------
+    def setXY_updated_manager(self, x: float, y: float) -> None:
+        """Move manager then adjust once the new position is detected.
+
+        This call is **non‑blocking**; a timer triggers
+        :meth:`update_manager_position` roughly two seconds later to
+        compensate any error using ``p.setXYrel``.
+        """
+        self.send_command(f"p.setXY({x}, {y})")
+        with self._lock:
+            self._pending_target_mm = (x, y)
+        threading.Timer(2.0, self.update_manager_position).start()
+
+    def update_manager_position(self) -> None:
+        with self._lock:
+            target = self._pending_target_mm
+            center = self._manager_center_px
+        if target is None or center is None or not self.calibration:
+            return
+
+        cur_mm = self.pixel_to_mm(center)
+        dx = target[0] - cur_mm[0]
+        dy = target[1] - cur_mm[1]
+
+        self.send_command(f"p.setXYrel({dx}, {dy})")
+
+        def _clear():
+            with self._lock:
+                self._pending_target_mm = None
+
+        threading.Timer(1.0, _clear).start()
