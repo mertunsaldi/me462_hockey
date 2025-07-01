@@ -329,13 +329,20 @@ def main() -> None:
                             w.writerow(["cmd_x_mm", "cmd_y_mm", "px_x", "px_y"])
                             w.writerows(results)
                         print("Calibration data saved to calibration_map.csv")
+
                         mm_per_px = ArenaManager.SERVO_MM_DIST / servo_px_dist
                         inp = np.array([[r[2] * mm_per_px, r[3] * mm_per_px] for r in results])
                         out = np.array([[r[0], r[1]] for r in results])
                         coeff_x, coeff_y = fit_polynomial(inp, out)
-                        print("x coeffs:", coeff_x.tolist())
-                        print("y coeffs:", coeff_y.tolist())
-                        print("Use eval_poly(coeff_x, x, y) and eval_poly(coeff_y, x, y) for corrected setXY values")
+
+                        with open("calibration_poly.csv", "w", newline="") as f:
+                            w = csv.writer(f)
+                            w.writerow(["cx0", "cx1", "cx2", "cx3", "cx4", "cx5"])
+                            w.writerow([f"{c:.6f}" for c in coeff_x])
+                            w.writerow(["cy0", "cy1", "cy2", "cy3", "cy4", "cy5"])
+                            w.writerow([f"{c:.6f}" for c in coeff_y])
+
+                        print("Calibration polynomial saved to calibration_poly.csv")
                     btn_correct.config(state=tk.NORMAL)
                     running = False
 

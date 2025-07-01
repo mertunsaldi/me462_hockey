@@ -22,7 +22,8 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 # Core processing API
-api = GameAPI()
+POLY_PATH = "calibration_poly.csv"
+api = GameAPI(coeffs_path=POLY_PATH)
 api.set_cam_source(0, width=1280, height=720, fourcc="MJPG")
 
 if hasattr(app, "before_first_request"):

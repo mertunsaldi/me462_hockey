@@ -32,7 +32,7 @@ from .scenario_loader import load_scenario, ScenarioLoadError
 class GameAPI:
     """Encapsulates the processing pipeline and scenario management."""
 
-    def __init__(self) -> None:
+    def __init__(self, coeffs_path: str | None = None) -> None:
         self.camera = Camera(src=2, width=1280, height=720, fourcc="MJPG")
         self.frame_size = self.camera.get_resolution()
         self.tracker_mgr = BallTracker()
@@ -46,6 +46,7 @@ class GameAPI:
 
         self.master_pico = MasterPico(port=None, baudrate=115200, timeout=0.2)
         self.plotclocks: Dict[int, PlotClock] = {}
+        self._coeffs_path = coeffs_path
         self.pico_lock = threading.Lock()
         self.pico_connected = False
 
@@ -112,7 +113,11 @@ class GameAPI:
             for m in markers:
                 if m.id not in self.plotclocks:
                     if isinstance(m, ArucoManager):
-                        self.plotclocks[m.id] = ArenaManager(device_id=m.id, master=self.master_pico)
+                        self.plotclocks[m.id] = ArenaManager(
+                            device_id=m.id,
+                            master=self.master_pico,
+                            coeffs_path=self._coeffs_path,
+                        )
                     elif isinstance(m, ArucoHitter):
                         self.plotclocks[m.id] = PlotClock(device_id=m.id, master=self.master_pico)
 

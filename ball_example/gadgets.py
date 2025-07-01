@@ -472,10 +472,57 @@ class ArenaManager(PlotClock):
     calibration_marker_cls = ArucoManager
     SERVO_MM_DIST: float = 148.0
 
-    def __init__(self, *args, arena: Optional[Arena] = None, **kwargs) -> None:
+    def __init__(self, *args, arena: Optional[Arena] = None, coeffs_path: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
         self._servo_px_dist: Optional[float] = None
+        self._coeff_x: Optional[np.ndarray] = None
+        self._coeff_y: Optional[np.ndarray] = None
+        if coeffs_path:
+            self.load_correction(coeffs_path)
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _eval_poly(coeffs: np.ndarray, x: float, y: float) -> float:
+        """Evaluate a quadratic polynomial."""
+        return (
+            coeffs[0]
+            + coeffs[1] * x
+            + coeffs[2] * y
+            + coeffs[3] * x * x
+            + coeffs[4] * x * y
+            + coeffs[5] * y * y
+        )
+
+    def load_correction(self, path: str) -> None:
+        """Load polynomial coefficients from ``path``."""
+        import csv
+
+        try:
+            with open(path, newline="") as f:
+                r = csv.reader(f)
+                rows = [row for row in r]
+        except OSError:
+            return
+
+        try:
+            if len(rows) >= 4:
+                self._coeff_x = np.array([float(v) for v in rows[1]], dtype=float)
+                self._coeff_y = np.array([float(v) for v in rows[3]], dtype=float)
+            elif len(rows) >= 2:
+                self._coeff_x = np.array([float(v) for v in rows[0]], dtype=float)
+                self._coeff_y = np.array([float(v) for v in rows[1]], dtype=float)
+        except (ValueError, IndexError):
+            self._coeff_x = None
+            self._coeff_y = None
+
+    def _apply_correction(self, x: float, y: float) -> Tuple[float, float]:
+        """Return corrected coordinates if polynomial is loaded."""
+        if self._coeff_x is not None and self._coeff_y is not None:
+            cx = self._eval_poly(self._coeff_x, x, y)
+            cy = self._eval_poly(self._coeff_y, x, y)
+            return cx, cy
+        return x, y
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -593,13 +640,8 @@ class ArenaManager(PlotClock):
 
     # ------------------------------------------------------------------
     def send_command(self, cmd_name: str, *params: Any) -> None:
-        """Prevent moves outside the arena polygon when set."""
-        if (
-            self.arena is not None
-            and self.calibration
-            and isinstance(cmd_name, str)
-            and cmd_name.strip().startswith("p.setXY")
-        ):
+        """Intercept ``p.setXY`` to apply arena bounds and correction."""
+        if isinstance(cmd_name, str) and cmd_name.strip().startswith("p.setXY"):
             import re
 
             m = re.match(r"p\.setXY\(([^,]+),([^\)]+)\)", cmd_name.replace(" ", ""))
@@ -610,10 +652,14 @@ class ArenaManager(PlotClock):
                 except ValueError:
                     pass
                 else:
-                    px, py = self.mm_to_pixel((x, y))
-                    corners = self.arena.get_arena_corners()
-                    if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
-                        return  # outside arena, ignore command
+                    if self.arena is not None and self.calibration:
+                        px, py = self.mm_to_pixel((x, y))
+                        corners = self.arena.get_arena_corners()
+                        if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
+                            return  # outside arena, ignore command
+
+                    x, y = self._apply_correction(x, y)
+                    cmd_name = f"p.setXY({x},{y})"
 
         super().send_command(cmd_name, *params)
 
