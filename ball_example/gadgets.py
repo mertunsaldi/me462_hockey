@@ -482,6 +482,12 @@ class ArenaManager(PlotClock):
         self.relative_error_mm: Optional[Tuple[float, float]] = None
 
     # ------------------------------------------------------------------
+    def record_manager_position(self, center_px: Tuple[int, int]) -> None:
+        """Record the latest detected manager marker position."""
+
+        self._manager_center_px = center_px
+
+    # ------------------------------------------------------------------
     @staticmethod
     def _pt_in_poly(pt: Tuple[int, int], poly: List[Tuple[int, int]]) -> bool:
         """Return True if ``pt`` lies inside polygon ``poly``."""
@@ -618,6 +624,15 @@ class ArenaManager(PlotClock):
             PlotClock.send_command(self, f"p.setXYrel({dx_mm}, {dy_mm})")
             time.sleep(1.0)
             self._pending_target_mm = None
+
+    # ------------------------------------------------------------------
+    def setXY_updated_manager(self, x: float, y: float) -> None:
+        """Move to ``(x, y)`` and apply a corrective move after a short delay."""
+
+        self.send_command(f"p.setXY({x}, {y})")
+        time.sleep(2.0)
+        if self._manager_center_px is not None:
+            self.update_manager_position(self._manager_center_px)
 
     # ------------------------------------------------------------------
     def send_command(self, cmd_name: str, *params: Any) -> None:

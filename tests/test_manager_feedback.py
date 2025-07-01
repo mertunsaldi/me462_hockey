@@ -1,4 +1,4 @@
-import os, sys, types, pytest
+import os, sys, types, pytest, time
 
 pytest.importorskip("numpy")
 import numpy as np
@@ -34,12 +34,16 @@ def test_setxy_feedback_sends_relative_move():
     master = DummyMaster()
     mgr.master = master
 
-    mgr.update_manager_position((0, 0))
-    mgr.send_command("p.setXY(10, 20)")
-    assert master.sent == ["P1.p.setXY(10, 20)"]
+    mgr.record_manager_position((0, 0))
 
-    master.sent.clear()
-    mgr.update_manager_position((8, 18))
-    assert mgr.relative_error_px == (2.0, 2.0)
-    assert mgr.relative_error_mm == (2.0, 2.0)
-    assert master.sent == ["P1.p.setXYrel(2.0, 2.0)"]
+    def fake_sleep(t):
+        mgr.record_manager_position((8, 18))
+
+    original_sleep = time.sleep
+    time.sleep = fake_sleep
+    try:
+        mgr.setXY_updated_manager(10, 20)
+    finally:
+        time.sleep = original_sleep
+
+    assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.setXYrel(2.0, 2.0)"]
