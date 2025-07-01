@@ -27,18 +27,69 @@ def compute_servo_origin(markers: List[ArucoMarker]) -> Tuple[int, int]:
     return int(mid[0]), int(mid[1])
 
 
-def build_grid(mgr: ArenaManager, num: int) -> List[Tuple[float, float]]:
-    min_x, max_x = mgr.x_range
-    min_y, max_y = mgr.y_range
+def build_grid(
+    mgr: ArenaManager,
+    num: int,
+    *,
+    margin_mm: float | None = None,
+) -> List[Tuple[float, float]]:
+    """Return ``num`` grid points inside the manager working area.
+
+    The polygon describing the working area is obtained from
+    :meth:`ArenaManager.get_working_area_polygon`.  Points are kept
+    at least ``margin_mm`` away from the polygon boundary.
+    """
+
+    poly_px = mgr.get_working_area_polygon()
+    if len(poly_px) < 3:
+        raise RuntimeError("working area polygon not available")
+
+    if margin_mm is None:
+        margin_mm = getattr(mgr, "cal_margin_mm", 5.0)
+
+    poly_mm = [mgr.pixel_to_mm(pt) for pt in poly_px]
+    xs = [p[0] for p in poly_mm]
+    ys = [p[1] for p in poly_mm]
+
+    min_x = min(xs) + margin_mm
+    max_x = max(xs) - margin_mm
+    min_y = min(ys) + margin_mm
+    max_y = max(ys) - margin_mm
+
     grid_x = int(math.ceil(math.sqrt(num)))
     grid_y = int(math.ceil(num / grid_x))
-    xs = np.linspace(min_x, max_x, grid_x)
-    ys = np.linspace(min_y, max_y, grid_y)
+    grid_x = max(1, grid_x)
+    grid_y = max(1, grid_y)
+
+    cand_pts: List[Tuple[float, float]] = []
+    for j in range(grid_y):
+        y = (
+            min_y
+            if grid_y == 1
+            else min_y + (max_y - min_y) * j / (grid_y - 1)
+        )
+        for i in range(grid_x):
+            x = (
+                min_x
+                if grid_x == 1
+                else min_x + (max_x - min_x) * i / (grid_x - 1)
+            )
+            cand_pts.append((float(x), float(y)))
+
+    poly_np = np.array(poly_px, dtype=np.int32)
+    px_per_mm = float(np.linalg.norm(mgr.calibration["u_x"]))
+    margin_px = margin_mm * px_per_mm
+
     pts: List[Tuple[float, float]] = []
-    for y in ys:
-        for x in xs:
-            pts.append((float(x), float(y)))
-    return pts[:num]
+    for pt in cand_pts:
+        px_pt = mgr.mm_to_pixel(pt)
+        dist = cv2.pointPolygonTest(poly_np, px_pt, True)
+        if dist > margin_px:
+            pts.append(pt)
+            if len(pts) >= num:
+                break
+
+    return pts
 
 
 def main() -> None:
