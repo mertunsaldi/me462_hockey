@@ -17,14 +17,36 @@ from high_level import calibrate_clocks, draw_arena
 NUM_POINTS = 50
 
 
-def compute_servo_origin(markers: List[ArucoMarker]) -> Tuple[int, int]:
+def compute_servo_transform(
+    markers: List[ArucoMarker],
+) -> Tuple[Tuple[int, int], np.ndarray, np.ndarray]:
+    """Return the servo origin and orientation axes in pixels.
+
+    The axes are aligned with the arena manager's coordinate frame so that the
+    resulting pixel coordinates match the orientation used for ``setXY``
+    commands.
+    """
+
     servos = [m for m in markers if isinstance(m, ArucoMarker) and m.id == 47]
-    if len(servos) < 2:
-        raise RuntimeError("Need two servo markers with id 47")
+    mgr = next((m for m in markers if isinstance(m, ArucoManager)), None)
+    if len(servos) < 2 or mgr is None:
+        raise RuntimeError("Need two servo markers (id 47) and manager marker")
+
     p1 = np.array(servos[0].center, dtype=float)
     p2 = np.array(servos[1].center, dtype=float)
     mid = (p1 + p2) / 2.0
-    return int(mid[0]), int(mid[1])
+    dx = p2 - p1
+    norm = np.linalg.norm(dx)
+    if norm < 1e-6:
+        raise RuntimeError("Servo markers too close")
+    e_x = dx / norm
+    e_y = np.array([-e_x[1], e_x[0]])
+    mgr_vec = np.array(mgr.center, dtype=float) - mid
+    if np.dot(mgr_vec, e_y) < 0:
+        e_y = -e_y
+
+    origin = (int(mid[0]), int(mid[1]))
+    return origin, e_x, e_y
 
 
 def build_grid(
@@ -102,6 +124,8 @@ def main() -> None:
     mgr: ArenaManager | None = None
     arena: Arena | None = None
     servo_origin: Tuple[int, int] | None = None
+    servo_ex: np.ndarray | None = None
+    servo_ey: np.ndarray | None = None
     start = time.time()
     while time.time() - start < 10:
         time.sleep(0.1)
@@ -114,11 +138,15 @@ def main() -> None:
                 if walls:
                     arena = Arena(walls)
                     mgr.set_arena(arena)
-            if servo_origin is None and len([d for d in detections if isinstance(d, ArucoMarker) and d.id == 47]) >= 2:
-                servo_origin = compute_servo_origin(detections)
-        if mgr and servo_origin:
+            if (
+                servo_origin is None
+                and len([d for d in detections if isinstance(d, ArucoMarker) and d.id == 47]) >= 2
+                and next((d for d in detections if isinstance(d, ArucoManager)), None) is not None
+            ):
+                servo_origin, servo_ex, servo_ey = compute_servo_transform(detections)
+        if mgr and servo_origin is not None:
             break
-    if mgr is None or servo_origin is None:
+    if mgr is None or servo_origin is None or servo_ex is None or servo_ey is None:
         print("Required markers not found")
         return
 
@@ -142,7 +170,7 @@ def main() -> None:
     grid_mm = build_grid(mgr, NUM_POINTS)
     grid_px = [mgr.mm_to_pixel(pt) for pt in grid_mm]
 
-    results: List[Tuple[float, float, int, int]] = []
+    results: List[Tuple[float, float, float, float]] = []
     running = False
     idx = 0
     moving = False
@@ -170,6 +198,17 @@ def main() -> None:
                 draw_arena(frame, arena)
             mgr.draw_working_area(frame)
             cv2.circle(frame, servo_origin, 5, (255, 0, 0), -1)
+            axis_len = 40
+            end_x = (
+                int(servo_origin[0] + servo_ex[0] * axis_len),
+                int(servo_origin[1] + servo_ex[1] * axis_len),
+            )
+            end_y = (
+                int(servo_origin[0] + servo_ey[0] * axis_len),
+                int(servo_origin[1] + servo_ey[1] * axis_len),
+            )
+            cv2.arrowedLine(frame, servo_origin, end_x, (255, 0, 0), 2, tipLength=0.2)
+            cv2.arrowedLine(frame, servo_origin, end_y, (0, 0, 255), 2, tipLength=0.2)
             with api.lock:
                 markers = list(api.arucos)
             servos = [m for m in markers if isinstance(m, ArucoMarker) and m.id == 47]
@@ -194,8 +233,9 @@ def main() -> None:
                     dets = list(api.arucos)
                 mgr_marker = next((d for d in dets if isinstance(d, ArucoManager)), None)
                 if mgr_marker and current_target is not None:
-                    px = mgr_marker.center[0] - servo_origin[0]
-                    py = mgr_marker.center[1] - servo_origin[1]
+                    delta = np.array(mgr_marker.center, dtype=float) - np.array(servo_origin, dtype=float)
+                    px = float(np.dot(delta, servo_ex))
+                    py = float(np.dot(delta, servo_ey))
                     results.append((current_target[0], current_target[1], px, py))
                 idx += 1
                 moving = False
