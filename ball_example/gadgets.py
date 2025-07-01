@@ -717,13 +717,13 @@ class ArenaManager(PlotClock):
             and self.calibration is not None
         ):
             if self.arena is not None and self.calibration:
-                        px, py = self.mm_to_pixel(target_mm)
-                        corners = self.arena.get_arena_corners()
-                        if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
-                            return  # outside arena, ignore command
+                px, py = self.mm_to_pixel(target_mm)
+                corners = self.arena.get_arena_corners()
+                if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
+                    return  # outside arena, ignore command
 
-                    x, y = self._apply_correction(x, y)
-                    cmd_name = f"p.setXY({x},{y})"
+                x, y = self._apply_correction(x, y)
+                cmd_name = f"p.setXY({x},{y})"
 
         super().send_command(cmd_name, *params)
 

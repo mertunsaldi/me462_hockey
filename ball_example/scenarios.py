@@ -203,7 +203,7 @@ class BallAttacker(Scenario):
             return
 
         # send first move toward S
-        self.clock.setXY_updated_manager(start_mm[0], start_mm[1])
+        self.clock.send_command(f"p.setXY({start_mm[0]}, {start_mm[1]})")
 
         # lock everything
         self._locked_M = np.array([mx, my])
@@ -230,7 +230,7 @@ class BallAttacker(Scenario):
         if self._phase == self.PHASE_STRIKE:
             if self._strike_time and time.time() - self._strike_time > 0.7:
                 wx, wy = self.clock.wait_position_mm()
-                self.clock.setXY_updated_manager(wx, wy)
+                self.clock.send_command(f"p.setXY({wx}, {wy})")
                 self._reset_plan()
             return
         # still switch TRAVEL → WAIT as before
@@ -267,10 +267,7 @@ class BallAttacker(Scenario):
             )
 
             if score >= 1.0:  # θ  — strike threshold
-                self.clock.setXY_updated_manager(
-                    self._meet_mm[0],
-                    self._meet_mm[1],
-                )
+                self.clock.send_command(f"p.setXY({self._meet_mm[0]}, {self._meet_mm[1]})")
                 self._phase = self.PHASE_STRIKE
                 self._strike_time = time.time()
 
@@ -489,10 +486,7 @@ class BallReflector(Scenario):
                 update_needed = d_perp > self.meet_strip_px
 
             if update_needed:
-                self.clock.setXY_updated_manager(
-                    meet_mm[0],
-                    meet_mm[1],
-                )
+                self.clock.send_command(f"p.setXY({meet_mm[0]}, {meet_mm[1]})")
                 self._goal_px = self._meet_px
                 self._last_cmd_time = now
 
@@ -547,7 +541,7 @@ class StandingBallHitter(Scenario):
 
         if self._fired and self._strike_time and time.time() - self._strike_time > 0.7:
             wx, wy = self.clock.wait_position_mm()
-            self.clock.setXY_updated_manager(wx, wy)
+            self.clock.send_command(f"p.setXY({wx}, {wy})")
             self._fired = False
             self._armed = False
 
@@ -588,15 +582,9 @@ class StandingBallHitter(Scenario):
                 # once per run: move hitter then strike
                 if not self._fired and self._armed and self._start_mm:
                     ball_mm = self.clock.find_mm(bx, by)
-                    self.clock.setXY_updated_manager(
-                        self._start_mm[0],
-                        self._start_mm[1],
-                    )
+                    self.clock.send_command(f"p.setXY({self._start_mm[0]}, {self._start_mm[1]})")
                     time.sleep(0.7)
-                    self.clock.setXY_updated_manager(
-                        ball_mm[0],
-                        ball_mm[1],
-                    )
+                    self.clock.send_command(f"p.setXY({ball_mm[0]}, {ball_mm[1]})")
                     self._fired = True
                     self._strike_time = time.time()
 
