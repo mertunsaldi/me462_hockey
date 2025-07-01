@@ -477,6 +477,14 @@ class ArenaManager(PlotClock):
     calibration_marker_cls = ArucoManager
     SERVO_MM_DIST: float = 148.0
 
+    def grip(self) -> None:
+        """Close the manager's gripper."""
+        self.send_command("p.grip()")
+
+    def release(self) -> None:
+        """Open the manager's gripper."""
+        self.send_command("p.release()")
+
     def __init__(self, *args, arena: Optional[Arena] = None, coeffs_path: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena

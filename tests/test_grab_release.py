@@ -37,19 +37,20 @@ def test_move_object_ball():
     scenario.update([])
     assert master.sent == ["P1.p.setXY(10, 20)"]
 
-    # step 1 -> grab (no command)
+    # step 1 -> grab
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
-    assert master.sent == ["P1.p.setXY(10, 20)"]
+    assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.grip()"]
 
     # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
-    assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.setXY(100, 200)"]
+    assert master.sent == ["P1.p.setXY(10, 20)", "P1.p.grip()", "P1.p.setXY(100, 200)"]
 
     # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
+    assert master.sent[-2].startswith("P1.p.release()")
     assert scenario.finished
 
 
@@ -81,17 +82,18 @@ def test_move_object_obstacle():
     scenario.update([])
     assert master.sent == ["P1.p.setXY(30, 40)"]
 
-    # step 1 -> grab (no command)
+    # step 1 -> grab
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
-    assert master.sent == ["P1.p.setXY(30, 40)"]
+    assert master.sent == ["P1.p.setXY(30, 40)", "P1.p.grip()"]
 
     # step 2 -> move to target
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
-    assert master.sent == ["P1.p.setXY(30, 40)", "P1.p.setXY(100, 200)"]
+    assert master.sent == ["P1.p.setXY(30, 40)", "P1.p.grip()", "P1.p.setXY(100, 200)"]
 
     # step 3 -> release
     scenario._last_time -= scenario.WAIT_TIME + 0.1
     scenario.update([])
+    assert master.sent[-2].startswith("P1.p.release()")
     assert scenario.finished
