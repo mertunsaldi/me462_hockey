@@ -81,35 +81,31 @@ def build_grid(
     min_y = min(ys) + margin_mm
     max_y = max(ys) - margin_mm
 
-    grid_x = int(math.ceil(math.sqrt(num)))
-    grid_y = int(math.ceil(num / grid_x))
-    grid_x = max(1, grid_x)
-    grid_y = max(1, grid_y)
-
-    # The polygon may occupy only a portion of the bounding box.  To ensure we
-    # obtain ``num`` valid points even for irregular shapes, generate a much
-    # denser grid than strictly necessary and then uniformly sample from the
-    # points that lie within the working area.
-    oversample = 5
-
-    cand_pts: List[Tuple[float, float]] = []
-    for j in range(grid_y * oversample):
-        y = (
-            min_y
-            if grid_y == 1
-            else min_y + (max_y - min_y) * j / (grid_y * oversample - 1)
-        )
-        for i in range(grid_x * oversample):
-            x = (
-                min_x
-                if grid_x == 1
-                else min_x + (max_x - min_x) * i / (grid_x * oversample - 1)
-            )
-            cand_pts.append((float(x), float(y)))
-
     poly_np = np.array(poly_px, dtype=np.int32)
     px_per_mm = float(np.linalg.norm(mgr.calibration["u_x"]))
     margin_px = margin_mm * px_per_mm
+
+    # Estimate grid spacing from the polygon area to obtain a roughly
+    # uniform distribution of points across irregular shapes.
+    area = float(cv2.contourArea(np.array(poly_mm, dtype=np.float32)))
+    if area <= 0:
+        raise RuntimeError("invalid working area polygon")
+    spacing = math.sqrt(area / num)
+
+    # Decrease spacing slightly so that we generate more candidates than
+    # strictly required.  This helps when parts of the grid fall outside the
+    # working polygon.
+    spacing *= 0.9
+
+    cand_pts: List[Tuple[float, float]] = []
+    y = min_y
+    while y <= max_y:
+        x = min_x
+        while x <= max_x:
+            cand_pts.append((float(x), float(y)))
+            x += spacing
+        y += spacing
+
 
     inside: List[Tuple[float, float]] = []
     for pt in cand_pts:
@@ -123,10 +119,22 @@ def build_grid(
             f"Only {len(inside)} points found inside working area; consider reducing the margin"
         )
 
-    indices = np.linspace(0, len(inside) - 1, num, dtype=int)
-    pts = [inside[i] for i in indices]
+    def farthest_first(points: List[Tuple[float, float]], k: int) -> List[Tuple[float, float]]:
+        rng = np.random.default_rng()
+        pts = points[:]
+        sel = [pts.pop(rng.integers(len(pts)))]
+        while len(sel) < k and pts:
+            dists = np.array([
+                min(np.linalg.norm(np.array(p) - np.array(s)) for s in sel)
+                for p in pts
+            ])
+            idx = int(np.argmax(dists))
+            sel.append(pts.pop(idx))
+        if len(sel) > k:
+            sel = sel[:k]
+        return sel
 
-    return pts
+    return farthest_first(inside, num)
 
 
 def main() -> None:
