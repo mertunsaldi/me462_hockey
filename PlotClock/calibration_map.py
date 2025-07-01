@@ -86,18 +86,24 @@ def build_grid(
     grid_x = max(1, grid_x)
     grid_y = max(1, grid_y)
 
+    # The polygon may occupy only a portion of the bounding box.  To
+    # ensure we obtain ``num`` valid points even for irregular shapes,
+    # generate a denser grid than strictly necessary and keep the first
+    # ``num`` points that fall inside the working area.
+    oversample = 3
+
     cand_pts: List[Tuple[float, float]] = []
-    for j in range(grid_y):
+    for j in range(grid_y * oversample):
         y = (
             min_y
             if grid_y == 1
-            else min_y + (max_y - min_y) * j / (grid_y - 1)
+            else min_y + (max_y - min_y) * j / (grid_y * oversample - 1)
         )
-        for i in range(grid_x):
+        for i in range(grid_x * oversample):
             x = (
                 min_x
                 if grid_x == 1
-                else min_x + (max_x - min_x) * i / (grid_x - 1)
+                else min_x + (max_x - min_x) * i / (grid_x * oversample - 1)
             )
             cand_pts.append((float(x), float(y)))
 
@@ -114,7 +120,12 @@ def build_grid(
             if len(pts) >= num:
                 break
 
-    return pts
+    if len(pts) < num:
+        raise RuntimeError(
+            f"Only {len(pts)} points found inside working area; consider reducing the margin"
+        )
+
+    return pts[:num]
 
 
 def main() -> None:
@@ -134,7 +145,10 @@ def main() -> None:
         time.sleep(0.1)
         with api.lock:
             detections = list(api.arucos)
-            mgr = next((c for c in api.plotclocks.values() if isinstance(c, ArenaManager)), None)
+            mgr = next(
+                (c for c in api.plotclocks.values() if isinstance(c, ArenaManager)),
+                None,
+            )
         if mgr:
             if arena is None:
                 walls = [d for d in detections if isinstance(d, ArucoWall)]
@@ -143,8 +157,12 @@ def main() -> None:
                     mgr.set_arena(arena)
             if (
                 servo_origin is None
-                and len([d for d in detections if isinstance(d, ArucoMarker) and d.id == 47]) >= 2
-                and next((d for d in detections if isinstance(d, ArucoManager)), None) is not None
+                and len(
+                    [d for d in detections if isinstance(d, ArucoMarker) and d.id == 47]
+                )
+                >= 2
+                and next((d for d in detections if isinstance(d, ArucoManager)), None)
+                is not None
             ):
                 servo_origin, servo_ex, servo_ey = compute_servo_transform(detections)
         if mgr and servo_origin is not None:
@@ -191,6 +209,7 @@ def main() -> None:
         nonlocal running
         running = True
         btn.config(state=tk.DISABLED)
+
     btn.configure(command=on_start)
 
     def update_loop() -> None:
@@ -234,9 +253,13 @@ def main() -> None:
             elif moving and time.time() - move_start >= 1.5:
                 with api.lock:
                     dets = list(api.arucos)
-                mgr_marker = next((d for d in dets if isinstance(d, ArucoManager)), None)
+                mgr_marker = next(
+                    (d for d in dets if isinstance(d, ArucoManager)), None
+                )
                 if mgr_marker and current_target is not None:
-                    delta = np.array(mgr_marker.center, dtype=float) - np.array(servo_origin, dtype=float)
+                    delta = np.array(mgr_marker.center, dtype=float) - np.array(
+                        servo_origin, dtype=float
+                    )
                     px = float(np.dot(delta, servo_ex))
                     py = float(np.dot(delta, servo_ey))
                     results.append((current_target[0], current_target[1], px, py))
