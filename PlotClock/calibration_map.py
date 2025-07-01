@@ -86,11 +86,11 @@ def build_grid(
     grid_x = max(1, grid_x)
     grid_y = max(1, grid_y)
 
-    # The polygon may occupy only a portion of the bounding box.  To
-    # ensure we obtain ``num`` valid points even for irregular shapes,
-    # generate a denser grid than strictly necessary and keep the first
-    # ``num`` points that fall inside the working area.
-    oversample = 3
+    # The polygon may occupy only a portion of the bounding box.  To ensure we
+    # obtain ``num`` valid points even for irregular shapes, generate a much
+    # denser grid than strictly necessary and then uniformly sample from the
+    # points that lie within the working area.
+    oversample = 5
 
     cand_pts: List[Tuple[float, float]] = []
     for j in range(grid_y * oversample):
@@ -111,21 +111,22 @@ def build_grid(
     px_per_mm = float(np.linalg.norm(mgr.calibration["u_x"]))
     margin_px = margin_mm * px_per_mm
 
-    pts: List[Tuple[float, float]] = []
+    inside: List[Tuple[float, float]] = []
     for pt in cand_pts:
         px_pt = mgr.mm_to_pixel(pt)
         dist = cv2.pointPolygonTest(poly_np, px_pt, True)
         if dist > margin_px:
-            pts.append(pt)
-            if len(pts) >= num:
-                break
+            inside.append(pt)
 
-    if len(pts) < num:
+    if len(inside) < num:
         raise RuntimeError(
-            f"Only {len(pts)} points found inside working area; consider reducing the margin"
+            f"Only {len(inside)} points found inside working area; consider reducing the margin"
         )
 
-    return pts[:num]
+    indices = np.linspace(0, len(inside) - 1, num, dtype=int)
+    pts = [inside[i] for i in indices]
+
+    return pts
 
 
 def main() -> None:
