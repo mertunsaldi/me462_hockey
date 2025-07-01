@@ -69,9 +69,9 @@ def test_arena_manager_blocks_out_of_bounds_move():
     master = DummyMaster()
     mgr.master = master
 
-    mgr.send_command("p.setXY(50,50)")
+    mgr.setXY_updated_manager(50, 50)
     assert master.sent == ["P1.p.setXY(50,50)"]
 
     master.sent.clear()
-    mgr.send_command("p.setXY(150,150)")
+    mgr.setXY_updated_manager(150, 150)
     assert master.sent == []

@@ -221,6 +221,11 @@ class PlotClock(Gadgets):
             (base_x + m, base_y + m),
             (-base_x, base_y + m),]
 
+        # self._mm_pts = [
+        #     (base_x + m, base_y + self._axis_len - 1.8*m),
+        #     (base_x + m, base_y + self._axis_len + 1.8*m),
+        #     (-base_x - m, base_y + self._axis_len + 1.8*m),]
+
         self._px_hits: List[Tuple[int,int]] = []
         self._last_cmd_t: float = 0.0
         self._delay: float = 2.0          # seconds between moves
@@ -478,9 +483,20 @@ class ArenaManager(PlotClock):
         self._servo_px_dist: Optional[float] = None
         self._coeff_x: Optional[np.ndarray] = None
         self._coeff_y: Optional[np.ndarray] = None
+        self._manager_center_px: Optional[Tuple[int, int]] = None
+        self._pending_target_mm: Optional[Tuple[float, float]] = None
+        self.relative_error_px: Optional[Tuple[float, float]] = None
+        self.relative_error_mm: Optional[Tuple[float, float]] = None
+
         if coeffs_path:
             print(f"Loading coefficients from {coeffs_path}")
             self.load_correction(coeffs_path)
+
+    # ------------------------------------------------------------------
+    def record_manager_position(self, center_px: Tuple[int, int]) -> None:
+        """Record the latest detected manager marker position."""
+
+        self._manager_center_px = center_px
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -642,8 +658,47 @@ class ArenaManager(PlotClock):
         return super().get_working_area_polygon()
 
     # ------------------------------------------------------------------
+    def update_manager_position(self, center_px: Tuple[int, int]) -> None:
+        """Update the last detected manager marker position and apply feedback."""
+
+        self._manager_center_px = center_px
+        if (
+            self._pending_target_mm is not None
+            and self.calibration is not None
+        ):
+            tgt_mm = self._pending_target_mm
+            tgt_px = self.mm_to_pixel(tgt_mm)
+            dx_px = tgt_px[0] - center_px[0]
+            dy_px = tgt_px[1] - center_px[1]
+            self.relative_error_px = (float(dx_px), float(dy_px))
+            cur_mm = self.pixel_to_mm(center_px)
+            dx_mm = tgt_mm[0] - cur_mm[0]
+            dy_mm = tgt_mm[1] - cur_mm[1]
+            self.relative_error_mm = (float(dx_mm), float(dy_mm))
+
+            # Send corrective relative move directly via base implementation
+            PlotClock.send_command(self, f"p.setXYrel({dx_mm}, {dy_mm})")
+            time.sleep(1.0)
+            self._pending_target_mm = None
+
+    # ------------------------------------------------------------------
+    def setXY_updated_manager(self, x: float, y: float) -> None:
+        """Move to ``(x, y)`` and trigger a background feedback update."""
+
+        self.send_command(f"p.setXY({x}, {y})")
+
+        def _worker() -> None:
+            time.sleep(2.0)
+            if self._manager_center_px is not None:
+                self.update_manager_position(self._manager_center_px)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    # ------------------------------------------------------------------
     def send_command(self, cmd_name: str, *params: Any) -> None:
         """Intercept ``p.setXY`` to apply arena bounds and correction."""
+        """Prevent out-of-bounds moves and track target for feedback."""
+        target_mm: Optional[Tuple[float, float]] = None
         if isinstance(cmd_name, str) and cmd_name.strip().startswith("p.setXY"):
             import re
 
@@ -652,11 +707,17 @@ class ArenaManager(PlotClock):
                 try:
                     x = float(m.group(1))
                     y = float(m.group(2))
+                    target_mm = (x, y)
                 except ValueError:
-                    pass
-                else:
-                    if self.arena is not None and self.calibration:
-                        px, py = self.mm_to_pixel((x, y))
+                    target_mm = None
+
+        if (
+            target_mm is not None
+            and self.arena is not None
+            and self.calibration is not None
+        ):
+            if self.arena is not None and self.calibration:
+                        px, py = self.mm_to_pixel(target_mm)
                         corners = self.arena.get_arena_corners()
                         if len(corners) >= 3 and not self._pt_in_poly((px, py), corners):
                             return  # outside arena, ignore command
@@ -665,6 +726,9 @@ class ArenaManager(PlotClock):
                     cmd_name = f"p.setXY({x},{y})"
 
         super().send_command(cmd_name, *params)
+
+        if target_mm is not None:
+            self._pending_target_mm = target_mm
 
     # ------------------------------------------------------------------
     def move_object(self, obj: Union[Ball, Obstacle], target_x: float, target_y: float):
