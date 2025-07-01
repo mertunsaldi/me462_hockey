@@ -470,10 +470,12 @@ class ArenaManager(PlotClock):
     """
 
     calibration_marker_cls = ArucoManager
+    SERVO_MM_DIST: float = 148.0
 
     def __init__(self, *args, arena: Optional[Arena] = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
+        self._servo_px_dist: Optional[float] = None
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -497,6 +499,53 @@ class ArenaManager(PlotClock):
         """Assign the current arena (or ``None`` to clear)."""
         self.arena = arena
 
+    # ------------------------------------------------------------------
+    def calibrate(
+        self, detections: List[Union[Ball, ArucoMarker, ArucoHitter, ArucoManager]]
+    ) -> Optional[Dict[str, Any]]:
+        """Calibrate using two servo markers (ID 47) and manager marker (ID 0)."""
+
+        if self.calibration:
+            return self.calibration
+
+        servos = [
+            d
+            for d in detections
+            if isinstance(d, ArucoMarker) and getattr(d, "id", None) == 47
+        ]
+        mgr = next((d for d in detections if isinstance(d, ArucoManager)), None)
+
+        if len(servos) >= 2 and mgr is not None:
+            p1 = np.array(servos[0].center, dtype=float)
+            p2 = np.array(servos[1].center, dtype=float)
+            mid = (p1 + p2) / 2.0
+            dx = p2 - p1
+            px_dist = float(np.linalg.norm(dx))
+            if px_dist < 1e-6:
+                return None
+            scale = px_dist / self.SERVO_MM_DIST
+            x_hat = dx / px_dist
+            u_x = x_hat * scale
+            y_hat = np.array([-x_hat[1], x_hat[0]])
+            mgr_vec = np.array(mgr.center, dtype=float) - mid
+            if np.dot(mgr_vec, y_hat) < 0:
+                y_hat = -y_hat
+            u_y = y_hat * scale
+
+            self._u_x = u_x
+            self._u_y = u_y
+            self._origin_px = mid
+            self._servo_px_dist = px_dist
+            self.calibration = {
+                "u_x": u_x,
+                "u_y": u_y,
+                "origin_px": (int(mid[0]), int(mid[1])),
+                "servo_px_dist": px_dist,
+            }
+            return self.calibration
+
+        return None
+
     def draw_working_area(
         self,
         frame: np.ndarray,
@@ -511,6 +560,23 @@ class ArenaManager(PlotClock):
             if len(corners) >= 3:
                 poly = np.array(corners, dtype=np.int32)
                 cv2.polylines(frame, [poly], True, color, thickness)
+                if (
+                    self._origin_px is not None
+                    and self._u_x is not None
+                    and self._u_y is not None
+                ):
+                    origin = tuple(int(v) for v in self._origin_px)
+                    axis_len = max(30, int(0.1 * min(frame.shape[:2])))
+                    end_x = (
+                        int(origin[0] + self._u_x[0] * axis_len),
+                        int(origin[1] + self._u_x[1] * axis_len),
+                    )
+                    end_y = (
+                        int(origin[0] + self._u_y[0] * axis_len),
+                        int(origin[1] + self._u_y[1] * axis_len),
+                    )
+                    cv2.arrowedLine(frame, origin, end_x, (255, 0, 0), 2, tipLength=0.2)
+                    cv2.arrowedLine(frame, origin, end_y, (0, 0, 255), 2, tipLength=0.2)
                 return
 
         # Fall back to the regular PlotClock workspace
