@@ -32,6 +32,7 @@ def compute_servo_transform(
     if len(servos) < 2 or mgr is None:
         raise RuntimeError("Need two servo markers (id 47) and manager marker")
 
+    servos = sorted(servos, key=lambda m: m.center[0])
     p1 = np.array(servos[0].center, dtype=float)
     p2 = np.array(servos[1].center, dtype=float)
     mid = (p1 + p2) / 2.0
@@ -44,6 +45,8 @@ def compute_servo_transform(
     mgr_vec = np.array(mgr.center, dtype=float) - mid
     if np.dot(mgr_vec, e_y) < 0:
         e_y = -e_y
+    if e_x[0] * e_y[1] - e_x[1] * e_y[0] < 0:
+        e_x = -e_x
 
     origin = (int(mid[0]), int(mid[1]))
     return origin, e_x, e_y
