@@ -372,9 +372,9 @@ def move_manager_route():
     if not isinstance(manager, ArenaManager):
         return jsonify({"status": "error", "message": "not connected"}), 400
 
-    if scenario_loaded:
-        print("scenario loaded, rejecting move")
-        return jsonify({"status": "error", "message": "scenario loaded"}), 400
+    if scenario_running:
+        print("scenario running, rejecting move")
+        return jsonify({"status": "error", "message": "scenario running"}), 400
 
     if manager.calibration is None:
         return jsonify({"status": "error", "message": "uncalibrated"}), 400

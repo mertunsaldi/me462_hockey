@@ -186,6 +186,7 @@
     const videoCont  = qs('#video-container');
     const cursor     = qs('#cursor');
     let scenarioLoaded = false;
+    let scenarioRunning = false;
     const calibData = {};
     let debugInfo = {balls:[], obstacles:[]};
     let selectedObj = null;
@@ -232,6 +233,7 @@
         /* scenario state */
         const scSpan=qs('#scenario_status');
         scenarioLoaded = !!d.scenario_loaded;
+        scenarioRunning = !!d.scenario_running;
         if(d.scenario_loaded){
           scSpan.textContent=d.scenario_name+(d.scenario_running?' (running)':' (ready)');
         }else scSpan.textContent='None';
@@ -441,7 +443,7 @@
 
     videoCont.addEventListener('contextmenu',async e=>{
       e.preventDefault();
-      if(scenarioLoaded) return;
+      if(scenarioRunning) return;
       const rect=video.getBoundingClientRect();
       const x=e.clientX-rect.left; const y=e.clientY-rect.top;
       if(x<0||y<0||x>rect.width||y>rect.height) return;
