@@ -363,10 +363,12 @@ def move_manager_route():
 
     with api.lock:
         manager = api.plotclocks.get(device_id)
-        scenario_running = api.scenario_enabled or device_id in api.clock_scenarios
+        scenario_loaded = api._current_scenario is not None
 
-    if not isinstance(manager, ArenaManager) or scenario_running:
-        return jsonify({"status": "error", "message": "invalid"}), 400
+    if not isinstance(manager, ArenaManager):
+        return jsonify({"status": "error", "message": "not connected"}), 400
+    if scenario_loaded:
+        return jsonify({"status": "error", "message": "scenario loaded"}), 400
 
     if manager.calibration is None:
         return jsonify({"status": "error", "message": "uncalibrated"}), 400
@@ -376,7 +378,7 @@ def move_manager_route():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
-    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    manager.send_command(f"p.setXY({x_mm:.2f}, {y_mm:.2f})")
     api.set_preview_target(device_id, (x_mm, y_mm))
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
 

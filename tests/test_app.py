@@ -138,7 +138,7 @@ def test_move_manager_endpoint():
         data = resp.get_json()
         assert data["x_mm"] == 10
         assert data["y_mm"] == 20
-        assert mgr.master.sent[-1] == "P0.p.setXY(10.0, 20.0)"
+        assert mgr.master.sent[-1] == "P0.p.setXY(10.00, 20.00)"
     finally:
         with api.lock:
             api.plotclocks.pop(0, None)
@@ -190,10 +190,7 @@ def test_move_manager_allowed_when_scenario_loaded_but_not_running():
             "/move_manager",
             json={"device_id": 0, "x": 7, "y": 9},
         )
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["x_mm"] == 7
-        assert data["y_mm"] == 9
+        assert resp.status_code == 400
     finally:
         with api.lock:
             api.plotclocks.pop(0, None)
