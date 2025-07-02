@@ -136,6 +136,8 @@ class PlotClock(Gadgets):
     # Construction / serial helpers
     # ──────────────────────────────────────────────────────────
     calibration_marker_cls = ArucoHitter
+    # Default idle location within the workspace
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 60.0)
 
     def __init__(
         self,
@@ -398,6 +400,8 @@ class PlotClock(Gadgets):
 
     def wait_position_mm(self) -> Tuple[float, float]:
         """Return a safe waiting (x,y) inside the workspace."""
+        if self.WAIT_POS_MM is not None:
+            return self.WAIT_POS_MM
         return (0.0, self.min_y + self.cal_margin_mm)
 
     def draw_working_area(
@@ -484,6 +488,7 @@ class ArenaManager(PlotClock):
     """
 
     calibration_marker_cls = ArucoManager
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 250.0)
     SERVO_MM_DIST: float = 148.0
 
     def grip(self) -> None:

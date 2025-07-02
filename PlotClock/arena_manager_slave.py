@@ -247,7 +247,15 @@ def parse_command(cmd):
     try:
         obj_name, sep2, method_part = code_part.partition(".")
         if obj_name in device_objects:
-            result = eval(f'device_objects["{obj_name}"].{method_part}')
+            # special-case simple gripper commands for robustness
+            if method_part == "grip()":
+                device_objects[obj_name].grip()
+                result = None
+            elif method_part == "release()":
+                device_objects[obj_name].release()
+                result = None
+            else:
+                result = eval(f'device_objects["{obj_name}"].{method_part}')
             if result is not None:
                 uart.write(f"{DEVICE_ID}:{str(result)}\n".encode())  # Güvenli encode
         else:
@@ -279,7 +287,8 @@ led_on = False
 interval = 500  # milisaniye
 last_toggle_time = utime.ticks_ms()
 
-plotClock.gotoXY(0, 200)
+# Move to a convenient idle location after boot
+plotClock.gotoXY(0, 250)
 
 uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
 
