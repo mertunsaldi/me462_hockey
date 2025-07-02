@@ -57,6 +57,9 @@ class GameAPI:
         self.preview_targets: Dict[int, Tuple[float, float]] = {}
         self.selected_obj: Optional[Tuple[str, str]] = None
         self._cam_started = False
+        # scenario that could be loaded automatically after detection but is not
+        # active by default
+        self.default_scenario: Optional[str] = None
 
     # ------------------------------------------------------------------
     def set_cam_source(
@@ -338,6 +341,7 @@ class GameAPI:
             and self.scenario_enabled,
             "scenario_name": scenario_name,
             "selected_obj": self.selected_obj,
+            "default_scenario": self.default_scenario,
         }
 
         marker_details = [

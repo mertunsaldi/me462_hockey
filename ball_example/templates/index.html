@@ -157,6 +157,7 @@
     <div>Speeds: <span id="speeds">[]</span></div>
     <div>IDs: <span id="ball_ids"></span></div>
     <div>Scenario: <span id="scenario_status">None</span></div>
+    <div>Default Scenario: <span id="default_scenario">None</span></div>
   </div>
 
   <!-- ─── Video feed (left) ───────────────────────────────────────── -->
@@ -232,11 +233,13 @@
 
         /* scenario state */
         const scSpan=qs('#scenario_status');
+        const defSpan=qs('#default_scenario');
         scenarioLoaded = !!d.scenario_loaded;
         scenarioRunning = !!d.scenario_running;
         if(d.scenario_loaded){
           scSpan.textContent=d.scenario_name+(d.scenario_running?' (running)':' (ready)');
         }else scSpan.textContent='None';
+        defSpan.textContent=d.default_scenario||'None';
 
         maybeRenderClocks(d);
 
