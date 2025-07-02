@@ -449,19 +449,16 @@
       const scaleY=video.naturalHeight/rect.height||1;
       const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
       if(selectedObj){
-        const card=clockList.querySelector('.clock-card[data-id="0"]');
-        if(card){
-          const xInput=card.querySelector('.coord-x');
-          const yInput=card.querySelector('.coord-y');
-          const cal=calibData[0];
-          if(xInput && yInput && cal){
-            const mm=pxToMm(px,py,cal);
-            xInput.value=mm[0].toFixed(2);
-            yInput.value=mm[1].toFixed(2);
-            moveInputs[0]=moveInputs[0]||{};
-            moveInputs[0].x=xInput.value; moveInputs[0].y=yInput.value;
-            previewTarget(0,xInput.value,yInput.value);
-          }
+        const cal=calibData[0];
+        if(cal){
+          const mm=pxToMm(px,py,cal);
+          previewTarget(0,mm[0],mm[1]);
+          try{
+            await fetch('/move_object',{
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({device_id:0,object:selectedObj.type+':'+selectedObj.id,x:mm[0],y:mm[1]})
+            });
+          }catch(err){console.error(err);}
         }
         return;
       }
