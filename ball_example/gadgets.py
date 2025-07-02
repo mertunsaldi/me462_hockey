@@ -216,10 +216,19 @@ class PlotClock(Gadgets):
         # Keep calibration points away from the edges -----------------
         m = self.cal_margin_mm
 
+
+
+        # self._mm_pts = [
+        #     (base_x + m, base_y + self._axis_len - m),
+        #     (base_x + m, base_y + m),
+        #     (-base_x, base_y + m),]
+        
         self._mm_pts = [
-            (base_x + m, base_y + self._axis_len - m),
             (base_x + m, base_y + m),
-            (-base_x, base_y + m),]
+            (base_x + m, base_y + self._axis_len - m),
+            (-base_x - m, base_y + self._axis_len - m)]
+        
+
 
         # self._mm_pts = [
         #     (base_x + m, base_y + self._axis_len - 1.8*m),

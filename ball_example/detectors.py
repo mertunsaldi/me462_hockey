@@ -8,6 +8,7 @@ from .models import (
     Obstacle,
     ArucoManager,
     ArucoWall,
+    PhysicalTarget
 )
 
 # Global background subtractor for motion detection
@@ -42,9 +43,13 @@ class ArucoDetector:
                 cx = int(np.mean(pts[:, 0]))
                 cy = int(np.mean(pts[:, 1]))
                 m_id = int(marker_id)
-                if m_id in (0, 1):
+                if m_id == 0:
                     markers.append(
                         Obstacle(id=m_id, corners=pts_int, center=(cx, cy))
+                    )
+                elif m_id == 1:
+                    markers.append(
+                        PhysicalTarget(id=m_id, corners=pts_int, center=(cx, cy))
                     )
                 else:
                     markers.append(

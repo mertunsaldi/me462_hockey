@@ -19,6 +19,10 @@ class Obstacle(ArucoMarker):
     """Represents a detected obstacle marker."""
     pass
 
+class PhysicalTarget(ArucoMarker):
+    """Represents a detected obstacle marker."""
+    pass
+
 
 class ArucoManager(ArucoMarker):
     """Represents an arena manager ArUco marker."""
