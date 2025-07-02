@@ -7,12 +7,14 @@ This document explains how to use the `ball_example` module, how to run the prov
 The repository ships with a ready-to-use Flask application located in `ball_example/app.py`. Start it either as a module or by executing the script directly:
 
 ```bash
-python -m ball_example.app     # recommended
+python -m ball_example.app     
 # or
 python ball_example/app.py
 ```
 
-By default the server listens on `0.0.0.0:8000` and begins processing frames from camera index 0. The web interface served at `/` shows the live video with all detections overlaid.
+By default the server listens on `{your_ip}:8000` and begins processing frames from camera index 0. The web interface served at `/` shows the live video with all detections overlaid. Also, `{your_ip}:8000/debug` shows information about detections and object properties.
+
+Note: `{your_ip}:8000/tune` shows a masked frame, which does NOT represent the one used for detecting balls.
 
 The server exposes several endpoints used by the JavaScript front end (see `templates/` and `static/`). The most important ones are:
 
@@ -129,7 +131,7 @@ For inspiration check the implementation of `MoveBallHitRandom` in `ball_example
 
 ## Building a Custom GUI
 
-`app.py` demonstrates how to wire `GameAPI` into a Flask web interface. An undergraduate student can develop their own GUI by creating a small program that imports `GameAPI` and periodically fetches frames. The minimal loop looks like:
+`app.py` demonstrates how to wire `GameAPI` into a Flask web interface. A user can develop their own GUI by creating a small program that imports `GameAPI` and periodically fetches frames. The minimal loop looks like:
 
 ```python
 from ball_example.game_api import GameAPI
@@ -144,23 +146,25 @@ while True:
         pass
 ```
 
-You are free to design a completely different interface, e.g. using `tkinter` or `PyQt`. Just call the methods on `GameAPI` to move the PlotClocks and trigger scenarios as needed.
+You are free to design a completely different interface, e.g. using `tkinter` or `PyQt`. Just call the methods on `GameAPI` to move the PlotClocks and trigger scenarios as needed. One may take a look at demo files under `/examples` folder, they provide simple features using tkinter.
 
 ## Firmware and Calibration Scripts
 
 The hardware is driven by a pair of Raspberry Pi Pico boards. The repository contains MicroPython firmware for these devices inside the `PlotClock` directory:
 
 - `PlotClockMaster.py` – runs on the **master** Pico. It simply forwards all serial commands from the host to the slave board via UART and echoes back any replies. Flash this file onto the Pico connected to the host PC.
-- `PlotClockSlave.py` – firmware for a PlotClock robot. It decodes commands such as `p.hit()` or `p.setXY()` and drives the servos accordingly. Deploy it to the Pico attached to the hitter arm.
+- `PlotClockSlave.py` – firmware for a PlotClock robot. It decodes commands such as `p.getMinY()` or `p.setXY()` and sends a script back or drives the servos accordingly. Deploy it to the Pico attached to the hitter plotclock.
 - `arena_manager_slave.py` – similar to the PlotClock slave but controls the **Arena Manager** with the gripper. Flash this on the Pico driving the manager mechanism.
 
-Use a tool like `mpremote` or `rshell` to copy the scripts to the respective boards. The master Pico appears as a USB serial device on the host machine while the slave Pico is connected only to the master via UART.
+Use a tool like `mpremote` or `rshell` or `Thonny` to copy the scripts to the respective boards, naming them `main.py`. The master Pico appears as a USB serial device on the host machine while the slave Pico is connected only to the master via UART.
 
 Calibration of the arena manager is performed with `calibration_map.py`. Execute
 this script on the host after connecting the devices. It builds a grid of points
 inside the working area, moves the manager to each one and records the resulting
 image coordinates. Once complete it writes `calibration_map.csv` and
-`calibration_poly.csv` which are loaded automatically by `ArenaManager`.
+`calibration_poly.csv` which are loaded automatically by `ArenaManager`. Optionally, one may also test how the calibration turned out via `Go to Corrected Points` button.
+
+Note: It is necessary for the camera to see all the arena corners (4x4 Aruco markers of id 13).
 
 ### Calibration Logic
 
@@ -235,8 +239,6 @@ development:
   useful when writing small scripts.
 - `simple_api.py` – interprets a list of action dictionaries and runs
   them sequentially using the `CommandScenario` class.
-- `master_pico.py` – manages the serial connection to the master Pico
-  that forwards commands to the slaves.
 - `detectors.py` and `trackers.py` – implement ArUco and ball detection
   along with Kalman-based tracking.
 
@@ -246,5 +248,5 @@ development:
 - Read `docs/client_scenarios.md` for more details on uploading scenarios.
 - Examine the HTML templates under `ball_example/templates/` to see how the existing UI interacts with the endpoints.
 
-Armed with these pieces you should be able to extend the system and build your own applications around the ball example.
+Using these pieces you should be able to extend the system and build your own applications around the ball example.
 
