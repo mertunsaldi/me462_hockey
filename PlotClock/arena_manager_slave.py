@@ -192,14 +192,17 @@ class PlotClock:
     def release(self):
         self._set_gripper_angle(180)
 
-    def grip_smooth(self, start_angle, end_angle, step=1, delay=0.02):
+    def grip_smooth(self, end_angle=50, step=5, delay=0.01):
         if self.gripper_servo is None:
             return
-        if start_angle < end_angle:
-            angles = range(start_angle, end_angle + 1, step)
-        else:
-            angles = range(start_angle, end_angle - 1, -step)
-        for angle in angles:
+        for angle in range(180, end_angle - 3, -step):
+            self._set_gripper_angle(angle)
+            utime.sleep(delay)
+
+    def release_smooth(self, end_angle=180, step=2, delay=0.01):
+        if self.gripper_servo is None:
+            return
+        for angle in range(50, end_angle + 1, step):
             self._set_gripper_angle(angle)
             utime.sleep(delay)
                
@@ -276,7 +279,11 @@ led_on = False
 interval = 500  # milisaniye
 last_toggle_time = utime.ticks_ms()
 
-plotClock.gotoXY(0, 200)
+plotClock.gotoXY(0, 220)
+plotClock.release_smooth()
+wait_ms(4000)
+plotClock.grip_smooth()
+
 
 uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
 
