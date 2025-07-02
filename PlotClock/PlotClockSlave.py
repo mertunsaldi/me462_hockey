@@ -211,15 +211,7 @@ def parse_command(cmd):
     try:
         obj_name, sep2, method_part = code_part.partition(".")
         if obj_name in device_objects:
-            # handle simple gripper commands explicitly
-            if method_part == "grip()":
-                device_objects[obj_name].grip()
-                result = None
-            elif method_part == "release()":
-                device_objects[obj_name].release()
-                result = None
-            else:
-                result = eval(f'device_objects["{obj_name}"].{method_part}')
+            result = eval(f'device_objects["{obj_name}"].{method_part}')
             if result is not None:
                 uart.write(f"{DEVICE_ID}:{str(result)}\n".encode())  # Güvenli encode
         else:
