@@ -602,7 +602,7 @@ class ArenaManager(PlotClock):
             p1 = np.array(servos[0].center, dtype=float)
             p2 = np.array(servos[1].center, dtype=float)
             mid = (p1 + p2) / 2.0
-            dx = -abs(p2 - p1)
+            dx = abs(p2 - p1)
             px_dist = float(np.linalg.norm(dx))
             if px_dist < 1e-6:
                 return None
