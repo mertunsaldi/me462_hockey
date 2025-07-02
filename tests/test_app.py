@@ -148,7 +148,7 @@ def test_move_manager_endpoint():
             api.plotclocks.pop(0, None)
 
 
-def test_move_manager_reject_when_scenario_present():
+def test_move_manager_override_when_scenario_running():
     client = hockey_app.app.test_client()
     api = hockey_app.api
     mgr = ArenaManager(device_id=0, master=DummyMaster())
@@ -167,7 +167,9 @@ def test_move_manager_reject_when_scenario_present():
             "/move_manager",
             json={"device_id": 0, "x": 5, "y": 5},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert api._current_scenario is None
+        assert not api.scenario_enabled
     finally:
         with api.lock:
             api.plotclocks.pop(0, None)
@@ -175,7 +177,7 @@ def test_move_manager_reject_when_scenario_present():
             api.scenario_enabled = False
 
 
-def test_move_manager_allowed_when_scenario_loaded_but_not_running():
+def test_move_manager_override_when_scenario_ready():
     client = hockey_app.app.test_client()
     api = hockey_app.api
     mgr = ArenaManager(device_id=0, master=DummyMaster())
@@ -194,7 +196,9 @@ def test_move_manager_allowed_when_scenario_loaded_but_not_running():
             "/move_manager",
             json={"device_id": 0, "x": 7, "y": 9},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert api._current_scenario is None
+        assert not api.scenario_enabled
     finally:
         with api.lock:
             api.plotclocks.pop(0, None)
