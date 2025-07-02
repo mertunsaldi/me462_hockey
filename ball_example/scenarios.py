@@ -651,7 +651,7 @@ class MoveObject(Scenario):
 
         # wait, then grab the object
         if self._step == 1 and now - self._last_time >= self.WAIT_TIME:
-            self.manager.grip()
+            self.manager.grip_smooth(180, 50)
             self._last_time = now
             self._step = 2
             return
@@ -668,7 +668,7 @@ class MoveObject(Scenario):
 
         # finally release the object once at the target
         if self._step == 3 and now - self._last_time >= self.WAIT_TIME:
-            self.manager.release()
+            self.manager.release_smooth(50, 180)
             wx, wy = self.manager.wait_position_mm()
             self.manager.setXY_updated_manager(wx, wy)
             self.finished = True

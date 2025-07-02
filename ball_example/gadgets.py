@@ -494,6 +494,14 @@ class ArenaManager(PlotClock):
         """Open the manager's gripper."""
         self.send_command("p.release()")
 
+    def grip_smooth(self, start: int = 180, end: int = 50, step: int = 1, delay: float = 0.02) -> None:
+        """Smoothly close the gripper from ``start`` to ``end`` angle."""
+        self.send_command(f"p.grip_smooth({start},{end},{step},{delay})")
+
+    def release_smooth(self, start: int = 50, end: int = 180, step: int = 1, delay: float = 0.02) -> None:
+        """Smoothly open the gripper from ``start`` to ``end`` angle."""
+        self.send_command(f"p.release_smooth({start},{end},{step},{delay})")
+
     def __init__(self, *args, arena: Optional[Arena] = None, coeffs_path: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.arena: Optional[Arena] = arena
