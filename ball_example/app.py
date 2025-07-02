@@ -365,20 +365,16 @@ def move_manager_route():
         manager = api.plotclocks.get(device_id)
         scenario_loaded = api._current_scenario is not None
         scenario_running = api.scenario_enabled
-        if scenario_loaded:
-            if scenario_running and hasattr(api._current_scenario, "on_stop"):
-                try:
-                    api._current_scenario.on_stop()
-                except Exception:
-                    pass
-            api.scenario_enabled = False
-            api._current_scenario = None
     print(
         f"move_manager req dev={device_id} px=({x_px},{y_px}) scenario_loaded={scenario_loaded} running={scenario_running}"
     )
 
     if not isinstance(manager, ArenaManager):
         return jsonify({"status": "error", "message": "not connected"}), 400
+
+    if scenario_loaded:
+        print("scenario loaded, rejecting move")
+        return jsonify({"status": "error", "message": "scenario loaded"}), 400
 
     if manager.calibration is None:
         return jsonify({"status": "error", "message": "uncalibrated"}), 400
@@ -390,11 +386,27 @@ def move_manager_route():
         return jsonify({"status": "error", "message": str(e)}), 400
     print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
 
-    print(f"sending updated manager move to ({x_mm:.2f}, {y_mm:.2f})")
-    manager.setXY_updated_manager(x_mm, y_mm)
+    print(f"sending manager move to ({x_mm:.2f}, {y_mm:.2f})")
+    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
     api.set_preview_target(device_id, (x_mm, y_mm))
     print("preview target set")
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
+
+
+@app.route("/select_object", methods=["POST"])
+def select_object_route():
+    data = request.get_json(silent=True) or {}
+    obj = data.get("object")
+    with api.lock:
+        if not obj:
+            api.set_selected_object(None)
+        else:
+            try:
+                obj_type, obj_id = obj.split(":", 1)
+                api.set_selected_object((obj_type, obj_id))
+            except Exception:
+                return jsonify({"status": "error", "message": "invalid"}), 400
+    return jsonify({"status": "ok"})
 
 
 @app.route("/preview_target", methods=["POST"])

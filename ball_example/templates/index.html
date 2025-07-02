@@ -425,6 +425,7 @@
       objs.forEach(o=>{const d=Math.hypot(o.x-px,o.y-py); if(d<bestDist){bestDist=d; best=o;}});
       if(best){
         selectedObj=best;
+        fetch('/select_object',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({object:best.type+':'+best.id})});
         const card=clockList.querySelector('.clock-card[data-id="0"]');
         if(card){
           const objSel=card.querySelector('select');
@@ -432,11 +433,15 @@
         }
         const cal=calibData[0];
         if(cal){ const mm=pxToMm(best.x,best.y,cal); previewTarget(0,mm[0],mm[1]); }
-      } else selectedObj=null;
+      } else {
+        selectedObj=null;
+        fetch('/select_object',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({object:null})});
+      }
     });
 
     videoCont.addEventListener('contextmenu',async e=>{
       e.preventDefault();
+      if(scenarioLoaded) return;
       const rect=video.getBoundingClientRect();
       const x=e.clientX-rect.left; const y=e.clientY-rect.top;
       if(x<0||y<0||x>rect.width||y>rect.height) return;
