@@ -55,6 +55,7 @@ class GameAPI:
         self.clock_scenarios: Dict[int, Scenario] = {}
         self.clock_modes: Dict[int, str] = {}
         self.preview_targets: Dict[int, Tuple[float, float]] = {}
+        self.selected_obj: Optional[Tuple[str, str]] = None
         self._cam_started = False
 
     # ------------------------------------------------------------------
@@ -180,6 +181,7 @@ class GameAPI:
             line_points=None,
             extra_points=extra_pts if extra_pts else None,
             extra_labels=extra_labels if extra_labels else None,
+            highlight={"type": self.selected_obj[0], "id": self.selected_obj[1]} if self.selected_obj else None,
         )
 
         for p1, p2 in scenario_lines:
@@ -286,6 +288,10 @@ class GameAPI:
         with self.lock:
             self.preview_targets.pop(device_id, None)
 
+    def set_selected_object(self, obj: Optional[Tuple[str, str]]) -> None:
+        with self.lock:
+            self.selected_obj = obj
+
     def process_message(self, message: Dict[str, Any]) -> None:
         dev_id = message.get("device_id")
         if dev_id is not None and dev_id in self.clock_scenarios:
@@ -331,6 +337,7 @@ class GameAPI:
             "scenario_running": self._current_scenario is not None
             and self.scenario_enabled,
             "scenario_name": scenario_name,
+            "selected_obj": self.selected_obj,
         }
 
         marker_details = [
