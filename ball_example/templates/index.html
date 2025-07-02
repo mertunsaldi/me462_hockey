@@ -72,9 +72,14 @@
     /* ─── Video left side ───────────────────────────────────────────── */
     #video-container{
       flex:1; display:flex; justify-content:center; align-items:center; max-width:80%;
+      position:relative; /* overlay cursor */
       /* leave some room on the right for sidebar */
     }
     #video{width:100%; height:auto; display:block;}
+    #cursor{
+      position:absolute; width:20px; height:20px; margin-left:-10px; margin-top:-10px;
+      pointer-events:none; border:1px solid #fff; border-radius:50%; display:none;
+    }
 
     /* ─── Status box & log (stay top-left / top-right) ──────────────── */
     #status,#pico-log{
@@ -157,6 +162,7 @@
   <!-- ─── Video feed (left) ───────────────────────────────────────── -->
   <div id="video-container">
     <img id="video" src="{{ url_for('video_feed') }}" alt="Video Stream">
+    <div id="cursor"></div>
   </div>
 
   <!-- ───────────────────── SCRIPT ─────────────────────────────────── -->
@@ -176,6 +182,10 @@
     const clockList  = qs('#clock-list');
     let clockIds     = [];
     const moveInputs = {};
+    const video      = qs('#video');
+    const videoCont  = qs('#video-container');
+    const cursor     = qs('#cursor');
+    let scenarioLoaded = false;
 
     /* command completions */
     const servoCmds=['getAngle()','setAngle(rad)','calibrateRotation(rad)'];
@@ -210,6 +220,7 @@
 
         /* scenario state */
         const scSpan=qs('#scenario_status');
+        scenarioLoaded = !!d.scenario_loaded;
         if(d.scenario_loaded){
           scSpan.textContent=d.scenario_name+(d.scenario_running?' (running)':' (ready)');
         }else scSpan.textContent='None';
@@ -365,6 +376,30 @@
     }
     cmdBox.addEventListener('input',updateCmdList);
     cmdBox.addEventListener('paste',()=>setTimeout(updateCmdList,0));
+
+    /* -------- cursor & right-click move --------------------------------- */
+    videoCont.addEventListener('mousemove',e=>{
+      const rect=video.getBoundingClientRect();
+      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
+      if(x<0||y<0||x>rect.width||y>rect.height){ cursor.style.display='none'; return; }
+      cursor.style.left=x+'px'; cursor.style.top=y+'px'; cursor.style.display='block';
+    });
+    videoCont.addEventListener('mouseleave',()=>{cursor.style.display='none';});
+    videoCont.addEventListener('contextmenu',async e=>{
+      e.preventDefault();
+      const rect=video.getBoundingClientRect();
+      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
+      if(x<0||y<0||x>rect.width||y>rect.height) return;
+      if(scenarioLoaded) return;
+      const scaleX=video.naturalWidth/rect.width||1;
+      const scaleY=video.naturalHeight/rect.height||1;
+      const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
+      try{
+        const r=await fetch('/move_manager',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:0,x:px,y:py})});
+        const d=await r.json();
+        if(d.status!=='ok') alert('Move failed: '+(d.message||''));
+      }catch(err){console.error(err);}
+    });
 
     /* -------- misc controls (unchanged endpoints) ------------------------ */
     tuneBtn.onclick = () => window.open('/tune','_blank');

@@ -347,6 +347,36 @@ def move_object_route():
     return jsonify({"status": "started"})
 
 
+@app.route("/move_manager", methods=["POST"])
+def move_manager_route():
+    data = request.get_json(silent=True) or {}
+    device_id = int(data.get("device_id", -1))
+    try:
+        x_px = int(data.get("x"))
+        y_px = int(data.get("y"))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "invalid"}), 400
+
+    with api.lock:
+        manager = api.plotclocks.get(device_id)
+        scenario_active = api._current_scenario is not None
+
+    if not isinstance(manager, ArenaManager) or scenario_active:
+        return jsonify({"status": "error", "message": "invalid"}), 400
+
+    if manager.calibration is None:
+        return jsonify({"status": "error", "message": "uncalibrated"}), 400
+
+    try:
+        x_mm, y_mm = manager.pixel_to_mm((x_px, y_px))
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    api.set_preview_target(device_id, (x_mm, y_mm))
+    return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
+
+
 @app.route("/preview_target", methods=["POST"])
 def preview_target_route():
     data = request.get_json(silent=True) or {}
