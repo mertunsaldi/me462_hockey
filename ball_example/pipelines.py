@@ -38,8 +38,8 @@ class BasePipeline:
     # ------------------------------------------------------------------
     def stop(self) -> None:
         self.running = False
-        if self.thread:
-            self.thread.join()
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=1.0)
 
     # ------------------------------------------------------------------
     def process_frame(self) -> Optional[np.ndarray]:
