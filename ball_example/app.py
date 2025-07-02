@@ -400,15 +400,14 @@ def move_manager_route():
 def select_object_route():
     data = request.get_json(silent=True) or {}
     obj = data.get("object")
-    with api.lock:
-        if not obj:
-            api.set_selected_object(None)
-        else:
-            try:
-                obj_type, obj_id = obj.split(":", 1)
-                api.set_selected_object((obj_type, obj_id))
-            except Exception:
-                return jsonify({"status": "error", "message": "invalid"}), 400
+    if not obj:
+        api.set_selected_object(None)
+    else:
+        try:
+            obj_type, obj_id = obj.split(":", 1)
+            api.set_selected_object((obj_type, obj_id))
+        except Exception:
+            return jsonify({"status": "error", "message": "invalid"}), 400
     return jsonify({"status": "ok"})
 
 
