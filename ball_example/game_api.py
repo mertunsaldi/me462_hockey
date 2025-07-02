@@ -333,15 +333,25 @@ class GameAPI:
             "scenario_name": scenario_name,
         }
 
-        marker_details = [
-            {
+        counts = {"Obstacle": 0, "PhysicalTarget": 0}
+        marker_details = []
+        for m in markers:
+            mtype = m.__class__.__name__
+            details = {
                 "id": m.id,
                 "center": m.center,
                 "corners": m.corners,
-                "type": m.__class__.__name__,
+                "type": mtype,
             }
-            for m in markers
-        ]
+            if mtype == "Obstacle":
+                counts["Obstacle"] += 1
+                details["index"] = counts["Obstacle"]
+                details["label"] = f"Obstacle {counts['Obstacle']}"
+            elif mtype == "PhysicalTarget":
+                counts["PhysicalTarget"] += 1
+                details["index"] = counts["PhysicalTarget"]
+                details["label"] = f"Target {counts['PhysicalTarget']}"
+            marker_details.append(details)
 
         gadget_details = []
         for g in self.plotclocks.values():

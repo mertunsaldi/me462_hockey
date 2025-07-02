@@ -11,7 +11,7 @@ if __package__ in (None, ""):
 
 from .game_api import GameAPI
 from .detectors import BallDetector
-from .models import ArucoWall, Arena, Obstacle
+from .models import ArucoWall, Arena, Obstacle, PhysicalTarget
 from .gadgets import ArenaManager, PlotClock
 from high_level import calibrate_clocks, draw_arena
 
@@ -332,7 +332,12 @@ def move_object_route():
             obj = next((b for b in api.balls if b.id == bid), None)
         elif obj_spec.startswith("obs:"):
             oid = int(obj_spec.split(":", 1)[1])
-            obj = next((m for m in api.arucos if isinstance(m, Obstacle) and m.id == oid), None)
+            obstacles = [m for m in api.arucos if isinstance(m, Obstacle)]
+            obj = obstacles[oid] if 0 <= oid < len(obstacles) else None
+        elif obj_spec.startswith("tgt:"):
+            tid = int(obj_spec.split(":", 1)[1])
+            targets = [m for m in api.arucos if isinstance(m, PhysicalTarget)]
+            obj = targets[tid] if 0 <= tid < len(targets) else None
         else:
             obj = None
 

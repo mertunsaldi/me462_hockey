@@ -244,7 +244,7 @@
       const key = JSON.stringify({
         g:(info.gadgets||[]).map(g=>[g.id,g.class,g.calibrated]),
         b:(info.ball_details||[]).map(b=>b.id),
-        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
+        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.index)
       });
       if(key!==lastClockKey){ lastClockKey=key; renderClocks(info); }
       updateActiveStyles(info);
@@ -293,7 +293,16 @@
             const o=document.createElement('option'); o.value='ball:'+ball.id; o.textContent='Ball '+ball.id.slice(0,4); objSel.appendChild(o);
           });
           (info.markers||[]).filter(m=>m.type==='Obstacle').forEach(m=>{
-            const o=document.createElement('option'); o.value='obs:'+m.id; o.textContent='Obs '+m.id; objSel.appendChild(o);
+            const o=document.createElement('option');
+            o.value='obs:'+ (m.index-1);
+            o.textContent=m.label||('Obs '+m.index);
+            objSel.appendChild(o);
+          });
+          (info.markers||[]).filter(m=>m.type==='PhysicalTarget').forEach(m=>{
+            const o=document.createElement('option');
+            o.value='tgt:'+ (m.index-1);
+            o.textContent=m.label||('Target '+m.index);
+            objSel.appendChild(o);
           });
           objSel.value=rec.obj||objSel.value;
           objSel.onchange=()=>{rec.obj=objSel.value;moveInputs[g.id]=rec;};
