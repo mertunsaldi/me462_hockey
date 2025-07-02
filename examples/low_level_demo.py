@@ -30,7 +30,7 @@ def main() -> None:
             with api.lock:
                 balls = list(api.balls)
                 markers = list(api.arucos)
-            annotated = render_overlay(frame, balls, markers)
+            annotated = render_overlay(frame, balls, markers, highlight=None)
             img = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
             im_pil = Image.fromarray(img)
             im_tk = ImageTk.PhotoImage(im_pil)

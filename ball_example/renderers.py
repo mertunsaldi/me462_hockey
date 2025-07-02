@@ -63,7 +63,8 @@ def render_overlay(
     markers: Optional[List[ArucoMarker]] = None,
     line_points: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None,
     extra_points: Optional[List[Tuple[int, int]]] = None,
-    extra_labels: Optional[List[str]] = None
+    extra_labels: Optional[List[str]] = None,
+    highlight: Optional[dict] = None,
 ) -> np.ndarray:
     """
     Draw detected balls, ArUco markers, a scenario line, and extra points.
@@ -87,6 +88,8 @@ def render_overlay(
         r = ball.radius
         orig_color = ball.color or (0, 255, 0)
         color = tuple(255 - c for c in orig_color)
+        if highlight and highlight.get("type") == "ball" and ball.id == highlight.get("id"):
+            color = (0, 0, 255)
         cv2.circle(annotated, (x, y), r, color, 2)
         cv2.circle(annotated, (x, y), 3, color, -1)
         vx, vy = map(float, ball.velocity)
@@ -110,6 +113,8 @@ def render_overlay(
             outline_color = (0, 255, 255)
             corner_color  = (255, 0, 255)
             center_color  = (0, 128, 255)
+            if highlight and highlight.get("type") == "obs" and str(m.id) == str(highlight.get("id")):
+                outline_color = (0, 0, 255)
             cx, cy = m.center
             if not isinstance(m, ArucoHitter):
                 cv2.polylines(annotated, [pts], True, outline_color, 2)
