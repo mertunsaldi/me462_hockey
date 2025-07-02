@@ -393,7 +393,6 @@
       const rect=video.getBoundingClientRect();
       const x=e.clientX-rect.left; const y=e.clientY-rect.top;
       if(x<0||y<0||x>rect.width||y>rect.height) return;
-      if(scenarioLoaded) return;
       const scaleX=video.naturalWidth/rect.width||1;
       const scaleY=video.naturalHeight/rect.height||1;
       const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
