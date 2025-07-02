@@ -369,7 +369,8 @@ def move_manager_route():
     if not isinstance(manager, ArenaManager):
         return jsonify({"status": "error", "message": "not connected"}), 400
     if scenario_loaded:
-        print("scenario loaded - will still move manager")
+        print("scenario loaded - rejecting move")
+        return jsonify({"status": "error", "message": "scenario loaded"}), 400
 
     if manager.calibration is None:
         return jsonify({"status": "error", "message": "uncalibrated"}), 400
@@ -381,9 +382,8 @@ def move_manager_route():
         return jsonify({"status": "error", "message": str(e)}), 400
     print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
 
-    cmd = f"p.setXY({x_mm:.2f}, {y_mm:.2f})"
-    print("sending", cmd)
-    manager.send_command(cmd)
+    print(f"sending updated manager move to ({x_mm:.2f}, {y_mm:.2f})")
+    manager.setXY_updated_manager(x_mm, y_mm)
     api.set_preview_target(device_id, (x_mm, y_mm))
     print("preview target set")
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})

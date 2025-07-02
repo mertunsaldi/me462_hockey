@@ -138,7 +138,11 @@ def test_move_manager_endpoint():
         data = resp.get_json()
         assert data["x_mm"] == 10
         assert data["y_mm"] == 20
-        assert mgr.master.sent[-1] == "P0.p.setXY(10.00, 20.00)"
+        cmd = mgr.master.sent[-1]
+        assert cmd.startswith("P0.p.setXY(")
+        nums = cmd[len("P0.p.setXY("):-1].split(",")
+        assert float(nums[0]) == 10
+        assert float(nums[1]) == 20
     finally:
         with api.lock:
             api.plotclocks.pop(0, None)
