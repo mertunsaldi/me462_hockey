@@ -156,6 +156,7 @@ def test_move_manager_reject_when_scenario_present():
     with api.lock:
         api.plotclocks[0] = mgr
         api._current_scenario = object()
+        api.scenario_enabled = True
 
     try:
         resp = client.post(
@@ -167,4 +168,35 @@ def test_move_manager_reject_when_scenario_present():
         with api.lock:
             api.plotclocks.pop(0, None)
             api._current_scenario = None
+            api.scenario_enabled = False
+
+
+def test_move_manager_allowed_when_scenario_loaded_but_not_running():
+    client = hockey_app.app.test_client()
+    api = hockey_app.api
+    mgr = ArenaManager(device_id=0, master=DummyMaster())
+    mgr.calibration = {
+        "u_x": np.array([1.0, 0.0]),
+        "u_y": np.array([0.0, 1.0]),
+        "origin_px": (0, 0),
+    }
+    with api.lock:
+        api.plotclocks[0] = mgr
+        api._current_scenario = object()
+        api.scenario_enabled = False
+
+    try:
+        resp = client.post(
+            "/move_manager",
+            json={"device_id": 0, "x": 7, "y": 9},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["x_mm"] == 7
+        assert data["y_mm"] == 9
+    finally:
+        with api.lock:
+            api.plotclocks.pop(0, None)
+            api._current_scenario = None
+            api.scenario_enabled = False
 

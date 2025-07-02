@@ -379,10 +379,13 @@
 
     /* -------- cursor & right-click move --------------------------------- */
     videoCont.addEventListener('mousemove',e=>{
-      const rect=video.getBoundingClientRect();
-      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
-      if(x<0||y<0||x>rect.width||y>rect.height){ cursor.style.display='none'; return; }
-      cursor.style.left=x+'px'; cursor.style.top=y+'px'; cursor.style.display='block';
+      const vRect=video.getBoundingClientRect();
+      const cRect=videoCont.getBoundingClientRect();
+      const inX=e.clientX-vRect.left; const inY=e.clientY-vRect.top;
+      if(inX<0||inY<0||inX>vRect.width||inY>vRect.height){ cursor.style.display='none'; return; }
+      cursor.style.left=(e.clientX-cRect.left)+'px';
+      cursor.style.top=(e.clientY-cRect.top)+'px';
+      cursor.style.display='block';
     });
     videoCont.addEventListener('mouseleave',()=>{cursor.style.display='none';});
     videoCont.addEventListener('contextmenu',async e=>{
