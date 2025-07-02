@@ -807,8 +807,8 @@ class MoveBallHitRandom(Scenario):
             if len(balls) != 1:
                 return
             ball = balls[0]
-            cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) / 2
-            cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) / 2
+            cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) * 9 / 16
+            cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) * 9 / 16
             cx_px, cy_px = self.hitter.mm_to_pixel((cx, cy))
             cx_mm, cy_mm = self.manager.find_mm(int(cx_px), int(cy_px))
             self.move_sc = MoveObject(self.manager, ball, (cx_mm, cy_mm))
