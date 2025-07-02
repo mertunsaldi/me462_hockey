@@ -301,7 +301,7 @@
           (info.markers||[]).filter(m=>m.type==='PhysicalTarget').forEach(m=>{
             const o=document.createElement('option');
             o.value='tgt:'+ (m.index-1);
-            o.textContent=m.label||('Target '+m.index);
+            o.textContent=m.label||('P. Target '+m.index);
             objSel.appendChild(o);
           });
           objSel.value=rec.obj||objSel.value;

@@ -3,7 +3,7 @@ import numpy as np
 import time
 import random
 from typing import List, Optional, Tuple, Union, Dict, Any
-from .models import Ball, Obstacle, ArucoMarker, ArucoHitter
+from .models import Ball, Obstacle, ArucoMarker, ArucoHitter, PhysicalTarget
 from .gadgets import PlotClock, ArenaManager
 
 
@@ -778,8 +778,18 @@ class MoveBallHitRandom(Scenario):
             self.hitter.y_range[0],
         )
 
-    def _start_hit(self) -> None:
-        self._target_mm = self._random_target_mm()
+    def _start_hit(self, detections) -> None:
+        tgt = next((d for d in detections if isinstance(d, PhysicalTarget)), None)
+        if tgt and self.hitter.calibration:
+            try:
+                self._target_mm = self.hitter.find_mm(*tgt.center)
+            except RuntimeError:
+                self._target_mm = None
+        else:
+            self._target_mm = None
+        if self._target_mm is None:
+            self._target_mm = self._random_target_mm()
+
         self.hit_sc = SingleHitStandingBallHitter(self.hitter, self._target_mm)
         self.hit_sc.on_start()
         self._preview_until = time.time() + self.PREVIEW_TIME
@@ -823,7 +833,7 @@ class MoveBallHitRandom(Scenario):
                 if self._stable_start is None:
                     self._stable_start = time.time()
                 elif time.time() - self._stable_start >= self.STABLE_TIME:
-                    self._start_hit()
+                    self._start_hit(detections)
                     print("[MoveBallHitRandom] preparing hit")
                     self._step = 3
             else:

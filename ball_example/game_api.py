@@ -350,7 +350,7 @@ class GameAPI:
             elif mtype == "PhysicalTarget":
                 counts["PhysicalTarget"] += 1
                 details["index"] = counts["PhysicalTarget"]
-                details["label"] = f"Target {counts['PhysicalTarget']}"
+                details["label"] = f"P. Target {counts['PhysicalTarget']}"
             marker_details.append(details)
 
         gadget_details = []
