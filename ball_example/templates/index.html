@@ -186,6 +186,9 @@
     const videoCont  = qs('#video-container');
     const cursor     = qs('#cursor');
     let scenarioLoaded = false;
+    const calibData = {};
+    let debugInfo = {balls:[], obstacles:[]};
+    let selectedObj = null;
 
     /* command completions */
     const servoCmds=['getAngle()','setAngle(rad)','calibrateRotation(rad)'];
@@ -203,6 +206,14 @@
         const r = await fetch('/debug_data');
         if(!r.ok) return;
         const d = await r.json();
+        debugInfo.balls = d.ball_details||[];
+        debugInfo.obstacles = (d.markers||[]).filter(m=>m.type==='Obstacle');
+        Object.keys(calibData).forEach(k=>delete calibData[k]);
+        (d.gadgets||[]).forEach(g=>{
+          if(g.class==='ArenaManager' && g.calibrated && g.u_x){
+            calibData[g.id]={u_x:g.u_x,u_y:g.u_y,origin_px:g.origin_px};
+          }
+        });
 
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '['+d.speeds.join(', ')+']';
@@ -278,8 +289,10 @@
 
         /* coord inputs */
         const coords=document.createElement('div'); coords.className='coords';
-        const xInput=document.createElement('input'); xInput.type='number'; xInput.placeholder='x';
-        const yInput=document.createElement('input'); yInput.type='number'; yInput.placeholder='y';
+        const xInput=document.createElement('input');
+        xInput.type='number'; xInput.placeholder='x'; xInput.className='coord-x';
+        const yInput=document.createElement('input');
+        yInput.type='number'; yInput.placeholder='y'; yInput.className='coord-y';
         coords.appendChild(xInput); coords.appendChild(yInput);
         card.appendChild(coords);
 
@@ -377,7 +390,16 @@
     cmdBox.addEventListener('input',updateCmdList);
     cmdBox.addEventListener('paste',()=>setTimeout(updateCmdList,0));
 
-    /* -------- cursor & right-click move --------------------------------- */
+    function pxToMm(x,y,cal){
+      const v0=x-cal.origin_px[0], v1=y-cal.origin_px[1];
+      const det=cal.u_x[0]*cal.u_y[1]-cal.u_x[1]*cal.u_y[0];
+      if(!det) return [0,0];
+      const mmx=(v0*cal.u_y[1]-v1*cal.u_y[0])/det;
+      const mmy=(-v0*cal.u_x[1]+v1*cal.u_x[0])/det;
+      return [mmx,mmy];
+    }
+
+    /* -------- cursor & click interactions -------------------------------- */
     videoCont.addEventListener('mousemove',e=>{
       const vRect=video.getBoundingClientRect();
       const cRect=videoCont.getBoundingClientRect();
@@ -388,6 +410,31 @@
       cursor.style.display='block';
     });
     videoCont.addEventListener('mouseleave',()=>{cursor.style.display='none';});
+
+    videoCont.addEventListener('click',e=>{
+      const rect=video.getBoundingClientRect();
+      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
+      if(x<0||y<0||x>rect.width||y>rect.height) return;
+      const scaleX=video.naturalWidth/rect.width||1;
+      const scaleY=video.naturalHeight/rect.height||1;
+      const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
+      const objs=[];
+      debugInfo.balls.forEach(b=>objs.push({type:'ball',id:b.id,x:b.center[0],y:b.center[1]}));
+      debugInfo.obstacles.forEach(o=>objs.push({type:'obs',id:o.id,x:o.center[0],y:o.center[1]}));
+      let best=null,bestDist=25;
+      objs.forEach(o=>{const d=Math.hypot(o.x-px,o.y-py); if(d<bestDist){bestDist=d; best=o;}});
+      if(best){
+        selectedObj=best;
+        const card=clockList.querySelector('.clock-card[data-id="0"]');
+        if(card){
+          const objSel=card.querySelector('select');
+          if(objSel){ objSel.value=best.type+':'+best.id; moveInputs[0]=moveInputs[0]||{}; moveInputs[0].obj=objSel.value; }
+        }
+        const cal=calibData[0];
+        if(cal){ const mm=pxToMm(best.x,best.y,cal); previewTarget(0,mm[0],mm[1]); }
+      } else selectedObj=null;
+    });
+
     videoCont.addEventListener('contextmenu',async e=>{
       e.preventDefault();
       const rect=video.getBoundingClientRect();
@@ -396,6 +443,23 @@
       const scaleX=video.naturalWidth/rect.width||1;
       const scaleY=video.naturalHeight/rect.height||1;
       const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
+      if(selectedObj){
+        const card=clockList.querySelector('.clock-card[data-id="0"]');
+        if(card){
+          const xInput=card.querySelector('.coord-x');
+          const yInput=card.querySelector('.coord-y');
+          const cal=calibData[0];
+          if(xInput && yInput && cal){
+            const mm=pxToMm(px,py,cal);
+            xInput.value=mm[0].toFixed(2);
+            yInput.value=mm[1].toFixed(2);
+            moveInputs[0]=moveInputs[0]||{};
+            moveInputs[0].x=xInput.value; moveInputs[0].y=yInput.value;
+            previewTarget(0,xInput.value,yInput.value);
+          }
+        }
+        return;
+      }
       try{
         const r=await fetch('/move_manager',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:0,x:px,y:py})});
         const d=await r.json();
