@@ -386,7 +386,11 @@ def move_manager_route():
     print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
 
     print(f"sending manager move to ({x_mm:.2f}, {y_mm:.2f})")
-    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    # use feedback-enhanced move if available
+    if hasattr(manager, "setXY_updated_manager"):
+        manager.setXY_updated_manager(x_mm, y_mm)
+    else:
+        manager.send_command(f"p.setXY({x_mm}, {y_mm})")
     api.set_preview_target(device_id, (x_mm, y_mm))
     print("preview target set")
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
