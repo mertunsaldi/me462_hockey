@@ -651,7 +651,7 @@ class MoveObject(Scenario):
 
         # wait, then grab the object
         if self._step == 1 and now - self._last_time >= self.WAIT_TIME:
-            self.manager.grip_smooth()
+            self.manager.grip()
             self._last_time = now
             self._step = 2
             return
