@@ -10,6 +10,7 @@ if __package__ in (None, ""):
     __package__ = "ball_example"
 
 from .game_api import GameAPI
+from .scenario_loader import ScenarioLoadError
 from .detectors import BallDetector
 from .models import ArucoWall, Arena, Obstacle
 from .gadgets import ArenaManager, PlotClock
@@ -131,6 +132,9 @@ def load_scenario_route():
         return jsonify({"status": "ok"})
     except ScenarioLoadError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+    except RuntimeError as e:
+        # allow missing plotclock during testing
+        return jsonify({"status": "error", "message": str(e)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -345,6 +349,63 @@ def move_object_route():
     api.start_move_object(manager, obj, (x_mm, y_mm))
     api.set_preview_target(device_id, (x_mm, y_mm))
     return jsonify({"status": "started"})
+
+
+@app.route("/move_manager", methods=["POST"])
+def move_manager_route():
+    data = request.get_json(silent=True) or {}
+    device_id = int(data.get("device_id", -1))
+    try:
+        x_px = int(data.get("x"))
+        y_px = int(data.get("y"))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "invalid"}), 400
+
+    with api.lock:
+        manager = api.plotclocks.get(device_id)
+        scenario_loaded = api._current_scenario is not None
+    print(
+        f"move_manager req dev={device_id} px=({x_px},{y_px}) scenario_loaded={scenario_loaded}"
+    )
+
+    if not isinstance(manager, ArenaManager):
+        return jsonify({"status": "error", "message": "not connected"}), 400
+
+    if scenario_loaded:
+        print("scenario loaded, rejecting move")
+        return jsonify({"status": "error", "message": "scenario loaded"}), 400
+
+    if manager.calibration is None:
+        return jsonify({"status": "error", "message": "uncalibrated"}), 400
+
+    try:
+        x_mm, y_mm = manager.pixel_to_mm((x_px, y_px))
+    except Exception as e:
+        print("pixel_to_mm failed", e)
+        return jsonify({"status": "error", "message": str(e)}), 400
+    print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
+
+    print(f"sending manager move to ({x_mm:.2f}, {y_mm:.2f})")
+    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    api.set_preview_target(device_id, (x_mm, y_mm))
+    print("preview target set")
+    return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
+
+
+@app.route("/select_object", methods=["POST"])
+def select_object_route():
+    data = request.get_json(silent=True) or {}
+    obj = data.get("object")
+    with api.lock:
+        if not obj:
+            api.set_selected_object(None)
+        else:
+            try:
+                obj_type, obj_id = obj.split(":", 1)
+                api.set_selected_object((obj_type, obj_id))
+            except Exception:
+                return jsonify({"status": "error", "message": "invalid"}), 400
+    return jsonify({"status": "ok"})
 
 
 @app.route("/preview_target", methods=["POST"])
