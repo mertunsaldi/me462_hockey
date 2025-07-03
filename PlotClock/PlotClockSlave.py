@@ -245,7 +245,7 @@ last_toggle_time = utime.ticks_ms()
 
 # Home then move to idle position
 plotClock.goHome()
-plotClock.gotoXY(0, 60)
+plotClock.gotoXY(0, 110)
 uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
 
 while True:

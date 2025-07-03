@@ -137,7 +137,7 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     calibration_marker_cls = ArucoHitter
     # Default idle location within the workspace
-    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 60.0)
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 110.0)
 
     def __init__(
         self,
@@ -499,11 +499,11 @@ class ArenaManager(PlotClock):
         """Open the manager's gripper."""
         self.send_command("p.release()")
 
-    def grip_smooth(self, end: int = 50, step: int = 1, delay: float = 0.02) -> None:
+    def grip_smooth(self, end: int = 50, step: int = 5, delay: float = 0.01) -> None:
         """Smoothly close the gripper to ``end`` angle."""
         self.send_command(f"p.grip_smooth({end},{step},{delay})")
 
-    def release_smooth(self, end: int = 180, step: int = 1, delay: float = 0.02) -> None:
+    def release_smooth(self, end: int = 180, step: int = 2, delay: float = 0.01) -> None:
         """Smoothly open the gripper to ``end`` angle."""
         self.send_command(f"p.release_smooth({end},{step},{delay})")
 
@@ -615,7 +615,7 @@ class ArenaManager(PlotClock):
             p1 = np.array(servos[0].center, dtype=float)
             p2 = np.array(servos[1].center, dtype=float)
             mid = (p1 + p2) / 2.0
-            dx = -abs(p2 - p1)
+            dx = abs(p2 - p1)
             px_dist = float(np.linalg.norm(dx))
             if px_dist < 1e-6:
                 return None

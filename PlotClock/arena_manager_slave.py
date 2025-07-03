@@ -192,14 +192,14 @@ class PlotClock:
     def release(self):
         self._set_gripper_angle(180)
 
-    def grip_smooth(self, end_angle=50, step=1, delay=0.02):
+    def grip_smooth(self, end_angle=50, step=5, delay=0.01):
         if self.gripper_servo is None:
             return
         for angle in range(180, end_angle - 1, -step):
             self._set_gripper_angle(angle)
             utime.sleep(delay)
 
-    def release_smooth(self, end_angle=180, step=1, delay=0.02):
+    def release_smooth(self, end_angle=180, step=2, delay=0.01):
         if self.gripper_servo is None:
             return
         for angle in range(50, end_angle + 1, step):
