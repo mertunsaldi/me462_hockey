@@ -379,10 +379,6 @@
         });
         if(!g.calibrated) card.querySelectorAll('.btn').forEach(b=>b.disabled=true);
       }
-      if(selectedObj && !Object.values(active).includes('move_object')){
-        selectedObj=null;
-        fetch('/select_object',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({object:null})});
-      }
     }
 
     /* -------- autocomplete ----------------------------------------------- */
