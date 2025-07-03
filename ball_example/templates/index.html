@@ -455,7 +455,8 @@
     }
 
     /* enter -> send raw cmd */
-    cmdBox.addEventListener('keydown',async e=>{
+    /* use keyup to ensure datalist selection is applied */
+    cmdBox.addEventListener('keyup',async e=>{
       if(e.key!=='Enter') return;
       const cmd=cmdBox.value.trim(); if(!cmd) return;
       try{
