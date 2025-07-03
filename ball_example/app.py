@@ -244,8 +244,8 @@ def connect_pico():
                 last_count = len(detected_clocks)
                 stable_start = time.time()
 
-        # if both a manager (P0) and a hitter (P1) are detected, remember that
-        # a default scenario could be created but do not load it automatically
+        # if both a manager (P0) and a hitter (P1) are detected, prepare the
+        # built-in default scenario so it can be started via the UI
         manager = next(
             (c for c in detected_clocks if isinstance(c, ArenaManager) and c.device_id == 0),
             None,
@@ -256,6 +256,7 @@ def connect_pico():
         )
         if manager and hitter:
             api.default_scenario = "MoveBallHitRandom"
+            api.load_default_scenario()
         else:
             api.default_scenario = None
 
