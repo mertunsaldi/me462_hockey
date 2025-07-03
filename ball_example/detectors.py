@@ -109,6 +109,7 @@ class BallDetector:
         frame: np.ndarray,
         *,
         mask: Optional[np.ndarray] = None,
+        markers: Optional[List[ArucoMarker]] = None,
         dp: float       = 1.2,
         min_dist: float = 70,
         param1: float   = 70,
@@ -154,6 +155,19 @@ class BallDetector:
         max_radius_s = int(max_radius * scale)
 
         balls: List[Ball] = []
+        obstacles: List[Obstacle] = []
+        if markers:
+            obstacles = [m for m in markers if isinstance(m, Obstacle)]
+
+        def overlaps_obstacle(cx: int, cy: int, r: int) -> bool:
+            if not obstacles:
+                return False
+            r2 = r * r
+            for obs in obstacles:
+                for px, py in obs.corners:
+                    if (px - cx) ** 2 + (py - cy) ** 2 <= r2:
+                        return True
+            return False
 
         # 1) Static Hough (unchanged) …
         circles = cv2.HoughCircles(
@@ -180,6 +194,8 @@ class BallDetector:
                     r_o = int(r / scale)
                 else:
                     x_o, y_o, r_o = x, y, r
+                if overlaps_obstacle(x_o, y_o, r_o):
+                    continue
                 color = (
                     tuple(int(c) for c in orig_frame[y_o, x_o])
                     if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
@@ -246,7 +262,9 @@ class BallDetector:
                 r_o = int(r / scale)
             else:
                 x_o, y_o, r_o = x, y, r
-            
+            if overlaps_obstacle(x_o, y_o, r_o):
+                continue
+
             color = (
                 tuple(int(c) for c in orig_frame[y_o, x_o])
                 if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
@@ -286,6 +304,8 @@ class BallDetector:
                     r_o = int(r / scale)
                 else:
                     x_o, y_o, r_o = x, y, r
+                if overlaps_obstacle(x_o, y_o, r_o):
+                    continue
                 color = (
                     tuple(int(c) for c in orig_frame[y_o, x_o])
                     if 0 <= x_o < orig_frame.shape[1] and 0 <= y_o < orig_frame.shape[0]
@@ -310,25 +330,4 @@ def compute_color_mask(frame: np.ndarray, scale: float = 0.5) -> np.ndarray:
     return color_clean
 
 
-def filter_obstacle_overlaps(balls: List[Ball], markers: List[ArucoMarker]) -> List[Ball]:
-    """Return balls that do not overlap any obstacle marker."""
-    obstacles = [m for m in markers if isinstance(m, Obstacle)]
-    if not obstacles:
-        return balls
-    filtered: List[Ball] = []
-    for b in balls:
-        bx, by = b.center
-        r2 = b.radius * b.radius
-        reject = False
-        for obs in obstacles:
-            for px, py in obs.corners:
-                if (px - bx) ** 2 + (py - by) ** 2 <= r2:
-                    reject = True
-                    break
-            if reject:
-                break
-        if not reject:
-            filtered.append(b)
-    return filtered
-        
        

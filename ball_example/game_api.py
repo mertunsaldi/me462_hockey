@@ -18,7 +18,7 @@ import numpy as np
 
 from .camera import Camera
 from .trackers import BallTracker, DETECTION_SCALE
-from .detectors import ArucoDetector, BallDetector, filter_obstacle_overlaps
+from .detectors import ArucoDetector, BallDetector
 from .pipelines import RawImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
 from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Obstacle
@@ -101,9 +101,8 @@ class GameAPI:
 
     # ------------------------------------------------------------------
     def _process_annotated(self, frame: np.ndarray) -> np.ndarray:
-        balls = self.tracker_mgr.update(frame, mask=None)
         markers = ArucoDetector.detect(frame)
-        balls = filter_obstacle_overlaps(balls, markers)
+        balls = self.tracker_mgr.update(frame, mask=None, markers=markers)
 
         with self.lock:
             self.balls = balls

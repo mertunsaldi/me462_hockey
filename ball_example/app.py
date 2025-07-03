@@ -11,7 +11,7 @@ if __package__ in (None, ""):
 
 from .game_api import GameAPI
 from .scenario_loader import ScenarioLoadError
-from .detectors import BallDetector, compute_color_mask
+from .detectors import BallDetector, compute_color_mask, ArucoDetector
 from .trackers import DETECTION_SCALE
 from .models import ArucoWall, Arena, Obstacle, PhysicalTarget
 from .gadgets import ArenaManager, PlotClock
@@ -472,8 +472,9 @@ def manual_params_route():
         _apply_params(_manual_params)
         frame = api.raw_pipe.get_raw_frame()
         mask = compute_color_mask(frame, scale=DETECTION_SCALE) if frame is not None else None
+        markers = ArucoDetector.detect(frame) if frame is not None else []
         if frame is not None:
-            api.tracker_mgr.force_redetect(frame, mask=mask)
+            api.tracker_mgr.force_redetect(frame, mask=mask, markers=markers)
     return jsonify({"status": "ok"})
 
 
@@ -489,8 +490,9 @@ def manual_mode_route():
         _reset_defaults()
     frame = api.raw_pipe.get_raw_frame()
     mask = compute_color_mask(frame, scale=DETECTION_SCALE) if frame is not None else None
+    markers = ArucoDetector.detect(frame) if frame is not None else []
     if frame is not None:
-        api.tracker_mgr.force_redetect(frame, mask=mask)
+        api.tracker_mgr.force_redetect(frame, mask=mask, markers=markers)
     return jsonify({"status": "ok", "manual": manual_mode})
 
 
