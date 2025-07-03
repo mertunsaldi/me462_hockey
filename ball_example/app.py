@@ -386,7 +386,8 @@ def move_manager_route():
     print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
 
     print(f"sending manager move to ({x_mm:.2f}, {y_mm:.2f})")
-    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    # use feedback-enhanced move for arena manager
+    manager.setXY_updated_manager(x_mm, y_mm)
     api.set_preview_target(device_id, (x_mm, y_mm))
     print("preview target set")
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
@@ -396,15 +397,14 @@ def move_manager_route():
 def select_object_route():
     data = request.get_json(silent=True) or {}
     obj = data.get("object")
-    with api.lock:
-        if not obj:
-            api.set_selected_object(None)
-        else:
-            try:
-                obj_type, obj_id = obj.split(":", 1)
-                api.set_selected_object((obj_type, obj_id))
-            except Exception:
-                return jsonify({"status": "error", "message": "invalid"}), 400
+    if not obj:
+        api.set_selected_object(None)
+    else:
+        try:
+            obj_type, obj_id = obj.split(":", 1)
+            api.set_selected_object((obj_type, obj_id))
+        except Exception:
+            return jsonify({"status": "error", "message": "invalid"}), 400
     return jsonify({"status": "ok"})
 
 

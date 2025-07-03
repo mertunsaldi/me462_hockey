@@ -168,6 +168,8 @@ class GameAPI:
         for dev_id in finished_ids:
             self.stop_clock_mode(dev_id)
             self.clear_preview_target(dev_id)
+        if finished_ids and self.selected_obj is not None:
+            self.set_selected_object(None)
 
         with self.lock:
             preview = list(self.preview_targets.items())
