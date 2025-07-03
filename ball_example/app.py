@@ -18,17 +18,17 @@ from high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-import logging
+# import logging
 
-log = logging.getLogger("werkzeug")
-log.setLevel(logging.ERROR)
+# log = logging.getLogger("werkzeug")
+# log.setLevel(logging.ERROR)
 
 # Core processing API
 POLY_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "PlotClock", "calibration_poly.csv")
 )
 api = GameAPI(coeffs_path=POLY_PATH)
-api.set_cam_source(4, width=1280, height=720, fourcc="MJPG")
+api.set_cam_source(2, width=1280, height=720, fourcc="MJPG")
 
 if hasattr(app, "before_first_request"):
     @app.before_first_request
@@ -386,7 +386,11 @@ def move_manager_route():
     print(f"converted to mm=({x_mm:.2f},{y_mm:.2f})")
 
     print(f"sending manager move to ({x_mm:.2f}, {y_mm:.2f})")
-    manager.send_command(f"p.setXY({x_mm}, {y_mm})")
+    # use feedback-enhanced move if available
+    if hasattr(manager, "setXY_updated_manager"):
+        manager.setXY_updated_manager(x_mm, y_mm)
+    else:
+        manager.send_command(f"p.setXY({x_mm}, {y_mm})")
     api.set_preview_target(device_id, (x_mm, y_mm))
     print("preview target set")
     return jsonify({"status": "ok", "x_mm": x_mm, "y_mm": y_mm})
@@ -396,15 +400,14 @@ def move_manager_route():
 def select_object_route():
     data = request.get_json(silent=True) or {}
     obj = data.get("object")
-    with api.lock:
-        if not obj:
-            api.set_selected_object(None)
-        else:
-            try:
-                obj_type, obj_id = obj.split(":", 1)
-                api.set_selected_object((obj_type, obj_id))
-            except Exception:
-                return jsonify({"status": "error", "message": "invalid"}), 400
+    if not obj:
+        api.set_selected_object(None)
+    else:
+        try:
+            obj_type, obj_id = obj.split(":", 1)
+            api.set_selected_object((obj_type, obj_id))
+        except Exception:
+            return jsonify({"status": "error", "message": "invalid"}), 400
     return jsonify({"status": "ok"})
 
 
