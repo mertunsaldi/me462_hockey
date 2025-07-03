@@ -195,7 +195,7 @@ class PlotClock:
     def grip_smooth(self, end_angle=50, step=5, delay=0.01):
         if self.gripper_servo is None:
             return
-        for angle in range(180, end_angle - 1, -step):
+        for angle in range(180, end_angle - 3, -step):
             self._set_gripper_angle(angle)
             utime.sleep(delay)
 
@@ -225,11 +225,11 @@ uart = machine.UART(0, baudrate=115200, tx=machine.Pin(0), rx=machine.Pin(1))
 #servoRight = Servo(3,1000,1025)
 #plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
 
-servoLeft = Servo(4,980,1030)
-servoRight = Servo(3,960,915)
+servoLeft = Servo(5,980,1030)
+servoRight = Servo(2,960,915)
 plotClock = PlotClock(servoLeft, servoRight, 267,328,148,98,20)
 
-gripper_servo = machine.PWM(machine.Pin(5))
+gripper_servo = machine.PWM(machine.Pin(7))
 gripper_servo.freq(50)
 plotClock.gripper_servo = gripper_servo
 plotClock.release()
@@ -279,8 +279,11 @@ led_on = False
 interval = 500  # milisaniye
 last_toggle_time = utime.ticks_ms()
 
-# Move to a convenient idle location after boot
 plotClock.gotoXY(0, 250)
+# plotClock.release_smooth()
+# wait_ms(4000)
+# plotClock.grip_smooth()
+
 
 uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
 
@@ -294,6 +297,3 @@ while True:
         led_on = not led_on
         led.value(led_on)
         last_toggle_time = current_time
-
-
-

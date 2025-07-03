@@ -2,8 +2,6 @@ import machine
 import math
 import utime
 
-
-
 utime.sleep_ms(1000	)
 
 DEVICE_ID = "P1"
@@ -30,11 +28,12 @@ class Servo:
     def calibrateRotation(self,factor): 
         self.factor = factor
         self.setAngle(0)
-        wait_ms(2000)
+        wait_ms(3000)
         self.setAngle(math.pi/2)
-        wait_ms(2000)
+        wait_ms(3000)
         self.setAngle(math.pi)
-        wait_ms(2000)
+        wait_ms(3000)
+
 
 class PlotClock:
     def __init__(self,servoLeft,servoRight,L1,L2,L3,L4,hitDia,servoMarginAngle = 2.5/180*math.pi):
@@ -89,16 +88,13 @@ class PlotClock:
 
     def getStartAngle(self):
         return self.startAngle
-
+    
     def getL1(self):
         return self.L1
-
     def getL2(self):
         return self.L2
-
     def getL3(self):
         return self.L3
-
     def getL4(self):
         return self.L4
     
@@ -106,6 +102,7 @@ class PlotClock:
         self.servoLeft.startPose = leftStartPose
         self.servoRight.startPose = rightStartPose
         self.goHome()
+    
 
     def goHome(self):
 
@@ -190,13 +187,14 @@ def wait_ms(ms):
 uart = machine.UART(0, baudrate=115200, tx=machine.Pin(0), rx=machine.Pin(1))
 
 
-#servoLeft = Servo(4,975,1000)
-#servoRight = Servo(3,1000,1025)
-#plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
+servoLeft = Servo(5,975,990)
+servoRight = Servo(2,1000,1005)
+plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
 
-servoLeft = Servo(4,950,1040)
-servoRight = Servo(3,950,930)
-plotClock = PlotClock(servoLeft, servoRight,270,328,150,98,20)
+
+#servoLeft = Servo(4,950,1040)
+#servoRight = Servo(3,950,930)
+#plotClock = PlotClock(servoLeft, servoRight,270,328,150,98,20)
 
 device_objects = {
     'p': plotClock,
@@ -243,14 +241,21 @@ led_on = False
 interval = 500  # milisaniye
 last_toggle_time = utime.ticks_ms()
 
-# Home then move to idle position
-plotClock.goHome()
-plotClock.gotoXY(0, 110)
+
+plotClock.gotoXY(0,60)
+# wait_ms(1000)
+# plotClock.goHome()
+# wait_ms(1000)
+# plotClock.gotoXY(0,100)
+
+
 uart.write(f"{DEVICE_ID}:READY\n".encode())  # Cihaz hazır mesajı
 
 while True:
     buffer = readCommand(buffer)
     plotClock.update()
+    #plotClock.goHome()
+    
 
     current_time = utime.ticks_ms()
     if utime.ticks_diff(current_time, last_toggle_time) >= interval:
