@@ -369,17 +369,17 @@ def move_manager_route():
 
     with api.lock:
         manager = api.plotclocks.get(device_id)
-        scenario_loaded = api._current_scenario is not None
+        scenario_running = api._current_scenario is not None and api.scenario_enabled
     print(
-        f"move_manager req dev={device_id} px=({x_px},{y_px}) scenario_loaded={scenario_loaded}"
+        f"move_manager req dev={device_id} px=({x_px},{y_px}) scenario_loaded={scenario_running}"
     )
 
     if not isinstance(manager, ArenaManager):
         return jsonify({"status": "error", "message": "not connected"}), 400
 
-    if scenario_loaded:
-        print("scenario loaded, rejecting move")
-        return jsonify({"status": "error", "message": "scenario loaded"}), 400
+    if scenario_running:
+        print("scenario is running, rejecting move")
+        return jsonify({"status": "error", "message": "scenario running"}), 400
 
     if manager.calibration is None:
         return jsonify({"status": "error", "message": "uncalibrated"}), 400
