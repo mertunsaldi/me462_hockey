@@ -181,6 +181,22 @@ def generate_processed_frames():
             b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
         )
 
+def generate_ball_frames():
+    while True:
+        frame = api.raw_pipe.get_raw_frame()
+        if frame is None:
+            time.sleep(0.01)
+            continue
+        with api.lock:
+            balls = list(api.balls)
+        annotated = render_overlay(frame, balls, markers=None)
+        ok, buf = cv2.imencode(".jpg", annotated)
+        if not ok:
+            continue
+        yield (
+            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
+        )
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -196,6 +212,13 @@ def video_feed():
 def processed_feed():
     return Response(
         generate_processed_frames(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+@app.route("/balls_feed")
+def balls_feed():
+    return Response(
+        generate_ball_frames(),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -495,7 +518,9 @@ def manual_params_route():
         frame = api.raw_pipe.get_raw_frame()
         mask = api.mask_pipe.get_masked_frame()
         if frame is not None:
-            api.tracker_mgr.force_redetect(frame, mask=mask)
+            markers = ArucoDetector.detect(frame)
+            ignore = [m for m in markers if isinstance(m, (Obstacle, PhysicalTarget))]
+            api.tracker_mgr.force_redetect(frame, mask=mask, ignore_markers=ignore)
     return jsonify({"status": "ok"})
 
 
@@ -512,7 +537,9 @@ def manual_mode_route():
     frame = api.raw_pipe.get_raw_frame()
     mask = api.mask_pipe.get_masked_frame()
     if frame is not None:
-        api.tracker_mgr.force_redetect(frame, mask=mask)
+        markers = ArucoDetector.detect(frame)
+        ignore = [m for m in markers if isinstance(m, (Obstacle, PhysicalTarget))]
+        api.tracker_mgr.force_redetect(frame, mask=mask, ignore_markers=ignore)
     return jsonify({"status": "ok", "manual": manual_mode})
 
 

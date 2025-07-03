@@ -21,7 +21,14 @@ from .trackers import BallTracker, DETECTION_SCALE
 from .detectors import ArucoDetector, BallDetector
 from .pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
+from .models import (
+    Ball,
+    ArucoMarker,
+    ArucoHitter,
+    ArucoManager,
+    Obstacle,
+    PhysicalTarget,
+)
 from .gadgets import PlotClock, ArenaManager
 from .master_pico import MasterPico
 from .scenarios import *
@@ -106,8 +113,9 @@ class GameAPI:
     # ------------------------------------------------------------------
     def _process_annotated(self, frame: np.ndarray) -> np.ndarray:
         mask = self.mask_pipe.get_masked_frame()
-        balls = self.tracker_mgr.update(frame, mask=mask)
         markers = ArucoDetector.detect(frame)
+        ignore = [m for m in markers if isinstance(m, (Obstacle, PhysicalTarget))]
+        balls = self.tracker_mgr.update(frame, mask=mask, ignore_markers=ignore)
 
         with self.lock:
             self.balls = balls

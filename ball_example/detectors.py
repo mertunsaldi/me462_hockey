@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 from typing import List, Optional
 from .models import (
     Ball,
@@ -8,7 +9,7 @@ from .models import (
     Obstacle,
     ArucoManager,
     ArucoWall,
-    PhysicalTarget
+    PhysicalTarget,
 )
 
 # Global background subtractor for motion detection
@@ -116,12 +117,14 @@ class BallDetector:
         min_radius: int | None = None,
         max_radius: int | None = None,
         scale: float    = 0.5,
+        ignore_markers: Optional[List[Obstacle]] = None,
     ) -> List[Ball]:
         """Detect balls in ``frame``.
 
         ``scale`` allows the expensive processing to run on a smaller
         version of the image.  The returned ball coordinates are scaled
-        back to the original resolution.
+        back to the original resolution.  If ``ignore_markers`` is
+        provided, any ball overlapping those markers will be discarded.
         """
 
         if min_radius is None:
@@ -292,6 +295,20 @@ class BallDetector:
                     else (0, 255, 0)
                 )
                 balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
+
+        if ignore_markers:
+            def _overlaps(ball: Ball, marker: Obstacle) -> bool:
+                cx, cy = ball.center
+                r = ball.radius
+                xs = [pt[0] for pt in marker.corners]
+                ys = [pt[1] for pt in marker.corners]
+                min_x, max_x = min(xs), max(xs)
+                min_y, max_y = min(ys), max(ys)
+                dx = max(min_x - cx, 0, cx - max_x)
+                dy = max(min_y - cy, 0, cy - max_y)
+                return math.hypot(dx, dy) <= r
+
+            balls = [b for b in balls if not any(_overlaps(b, m) for m in ignore_markers)]
 
         return balls
 
