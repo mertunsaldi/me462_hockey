@@ -21,7 +21,14 @@ from .trackers import BallTracker, DETECTION_SCALE
 from .detectors import ArucoDetector, BallDetector
 from .pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
+from .models import (
+    Ball,
+    ArucoMarker,
+    ArucoHitter,
+    ArucoManager,
+    Obstacle,
+    PhysicalTarget,
+)
 from .gadgets import PlotClock, ArenaManager
 from .master_pico import MasterPico
 from .scenarios import *

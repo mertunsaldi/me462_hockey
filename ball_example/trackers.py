@@ -3,7 +3,7 @@ import math
 import threading
 import numpy as np
 from typing import Dict, List, Tuple, Optional
-from .models import Ball
+from .models import Ball, Obstacle
 from .detectors import BallDetector
 
 # ---------- Tunable thresholds ----------
@@ -79,7 +79,7 @@ class BallTracker:
         self,
         frame: np.ndarray,
         mask: Optional[np.ndarray] = None,
-        ignore_markers: Optional[List[ArucoMarker]] = None,
+        ignore_markers: Optional[List[Obstacle]] = None,
     ):
         """Clear all state and redetect balls using current parameters."""
         with self.lock:
@@ -107,7 +107,7 @@ class BallTracker:
         self,
         frame: np.ndarray,
         mask: Optional[np.ndarray] = None,
-        ignore_markers: Optional[List[ArucoMarker]] = None,
+        ignore_markers: Optional[List[Obstacle]] = None,
     ) -> List[Ball]:
         with self.lock:
             self.frame_count += 1

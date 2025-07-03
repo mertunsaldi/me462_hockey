@@ -9,7 +9,7 @@ from .models import (
     Obstacle,
     ArucoManager,
     ArucoWall,
-    PhysicalTarget
+    PhysicalTarget,
 )
 
 # Global background subtractor for motion detection
@@ -117,7 +117,7 @@ class BallDetector:
         min_radius: int | None = None,
         max_radius: int | None = None,
         scale: float    = 0.5,
-        ignore_markers: Optional[List[ArucoMarker]] = None,
+        ignore_markers: Optional[List[Obstacle]] = None,
     ) -> List[Ball]:
         """Detect balls in ``frame``.
 
@@ -297,7 +297,7 @@ class BallDetector:
                 balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         if ignore_markers:
-            def _overlaps(ball: Ball, marker: ArucoMarker) -> bool:
+            def _overlaps(ball: Ball, marker: Obstacle) -> bool:
                 cx, cy = ball.center
                 r = ball.radius
                 xs = [pt[0] for pt in marker.corners]
