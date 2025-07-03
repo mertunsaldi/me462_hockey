@@ -137,7 +137,7 @@ class PlotClock(Gadgets):
     # ──────────────────────────────────────────────────────────
     calibration_marker_cls = ArucoHitter
     # Default idle location within the workspace
-    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 110.0)
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 60.0)
 
     def __init__(
         self,
