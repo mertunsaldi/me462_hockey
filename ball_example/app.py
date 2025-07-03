@@ -11,7 +11,8 @@ if __package__ in (None, ""):
 
 from .game_api import GameAPI
 from .scenario_loader import ScenarioLoadError
-from .detectors import BallDetector
+from .detectors import BallDetector, compute_color_mask
+from .trackers import DETECTION_SCALE
 from .models import ArucoWall, Arena, Obstacle, PhysicalTarget
 from .gadgets import ArenaManager, PlotClock
 from high_level import calibrate_clocks, draw_arena
@@ -165,21 +166,6 @@ def generate_frames():
         )
 
 
-def generate_processed_frames():
-    while True:
-        mask = api.get_processed_frame()
-        if mask is None:
-            time.sleep(0.01)
-            continue
-        mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-
-        ok, buf = cv2.imencode(".jpg", mask_bgr)
-        if not ok:
-            continue
-
-        yield (
-            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
-        )
 
 @app.route("/")
 def index():
@@ -191,14 +177,6 @@ def video_feed():
     return Response(
         generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
     )
-
-@app.route("/processed_feed")
-def processed_feed():
-    return Response(
-        generate_processed_frames(),
-        mimetype="multipart/x-mixed-replace; boundary=frame",
-    )
-
 
 
 @app.route("/debug_data")
@@ -493,7 +471,7 @@ def manual_params_route():
     if manual_mode:
         _apply_params(_manual_params)
         frame = api.raw_pipe.get_raw_frame()
-        mask = api.mask_pipe.get_masked_frame()
+        mask = compute_color_mask(frame, scale=DETECTION_SCALE) if frame is not None else None
         if frame is not None:
             api.tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok"})
@@ -510,7 +488,7 @@ def manual_mode_route():
     else:
         _reset_defaults()
     frame = api.raw_pipe.get_raw_frame()
-    mask = api.mask_pipe.get_masked_frame()
+    mask = compute_color_mask(frame, scale=DETECTION_SCALE) if frame is not None else None
     if frame is not None:
         api.tracker_mgr.force_redetect(frame, mask=mask)
     return jsonify({"status": "ok", "manual": manual_mode})
@@ -524,5 +502,4 @@ if __name__ == "__main__":
         if api.annotated_pipe:
             api.annotated_pipe.stop()
         api.raw_pipe.stop()
-        api.mask_pipe.stop()
         api.camera.stop()

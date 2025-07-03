@@ -19,9 +19,9 @@ import numpy as np
 from .camera import Camera
 from .trackers import BallTracker, DETECTION_SCALE
 from .detectors import ArucoDetector, BallDetector
-from .pipelines import RawImagePipeline, MaskedImagePipeline, AnnotatedImagePipeline
+from .pipelines import RawImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
-from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager
+from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Obstacle
 from .gadgets import PlotClock, ArenaManager
 from .master_pico import MasterPico
 from .scenarios import *
@@ -37,7 +37,6 @@ class GameAPI:
         self.frame_size = self.camera.get_resolution()
         self.tracker_mgr = BallTracker()
         self.raw_pipe = RawImagePipeline(self.camera)
-        self.mask_pipe = MaskedImagePipeline(self.raw_pipe, scale=DETECTION_SCALE)
         self.annotated_pipe: Optional[AnnotatedImagePipeline] = None
 
         self.balls: List[Ball] = []
@@ -77,13 +76,11 @@ class GameAPI:
         if self.annotated_pipe:
             self.annotated_pipe.stop()
         self.raw_pipe.stop()
-        self.mask_pipe.stop()
         self.camera.stop()
 
         self.camera = Camera(src=src, width=width, height=height, fourcc=fourcc)
         self.frame_size = self.camera.get_resolution()
         self.raw_pipe = RawImagePipeline(self.camera)
-        self.mask_pipe = MaskedImagePipeline(self.raw_pipe, scale=DETECTION_SCALE)
         self.annotated_pipe = AnnotatedImagePipeline(self.raw_pipe, self._process_annotated)
         self._cam_started = False
 
@@ -95,7 +92,6 @@ class GameAPI:
         if not self._cam_started and not self.camera.running:
             self.camera.start()
             self.raw_pipe.start()
-            self.mask_pipe.start()
             if self.annotated_pipe is None:
                 self.annotated_pipe = AnnotatedImagePipeline(
                     self.raw_pipe, self._process_annotated
@@ -104,10 +100,32 @@ class GameAPI:
             self._cam_started = True
 
     # ------------------------------------------------------------------
+    def _filter_obstacle_overlaps(self, balls: List[Ball], markers: List[ArucoMarker]) -> List[Ball]:
+        """Remove balls that overlap any obstacle marker."""
+        obstacles = [m for m in markers if isinstance(m, Obstacle)]
+        if not obstacles:
+            return balls
+        filtered: List[Ball] = []
+        for b in balls:
+            bx, by = b.center
+            r2 = b.radius * b.radius
+            reject = False
+            for obs in obstacles:
+                for px, py in obs.corners:
+                    if (px - bx) ** 2 + (py - by) ** 2 <= r2:
+                        reject = True
+                        break
+                if reject:
+                    break
+            if not reject:
+                filtered.append(b)
+        return filtered
+
+    # ------------------------------------------------------------------
     def _process_annotated(self, frame: np.ndarray) -> np.ndarray:
-        mask = self.mask_pipe.get_masked_frame()
-        balls = self.tracker_mgr.update(frame, mask=mask)
+        balls = self.tracker_mgr.update(frame, mask=None)
         markers = ArucoDetector.detect(frame)
+        balls = self._filter_obstacle_overlaps(balls, markers)
 
         with self.lock:
             self.balls = balls
@@ -197,9 +215,6 @@ class GameAPI:
         if self.annotated_pipe is None:
             return None
         return self.annotated_pipe.get_annotated_frame()
-
-    def get_processed_frame(self) -> Optional[np.ndarray]:
-        return self.mask_pipe.get_masked_frame()
 
     # ------------------------------------------------------------------
     def connect_pico(self) -> None:
