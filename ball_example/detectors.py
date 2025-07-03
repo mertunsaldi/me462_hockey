@@ -155,9 +155,15 @@ class BallDetector:
         max_radius_s = int(max_radius * scale)
 
         balls: List[Ball] = []
-        obstacles: List[Obstacle] = []
+        # Both obstacle markers and physical targets are ignored when
+        # they fall inside a detected circle.
+        obstacles: List[Obstacle | PhysicalTarget] = []
         if markers:
-            obstacles = [m for m in markers if isinstance(m, Obstacle)]
+            obstacles = [
+                m
+                for m in markers
+                if isinstance(m, (Obstacle, PhysicalTarget))
+            ]
 
         def overlaps_obstacle(cx: int, cy: int, r: int) -> bool:
             if not obstacles:
