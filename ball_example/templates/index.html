@@ -455,18 +455,21 @@
     }
 
     /* enter -> send raw cmd */
-    /* use keyup to ensure datalist selection is applied */
-    cmdBox.addEventListener('keyup',async e=>{
-      if(e.key!=='Enter') return;
-      const cmd=cmdBox.value.trim(); if(!cmd) return;
-      try{
-        const r=await fetch('/send_cmd',{
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
-        });
-        const d=await r.json();
-        if(d.status!=='ok') alert('Pico error: '+d.message);
-        else cmdBox.value='';
-      }catch(err){alert('Send error: '+err);}
+    cmdBox.addEventListener('keydown', e => {
+      if(e.key !== 'Enter') return;
+      /* defer so datalist selection is applied */
+      setTimeout(async () => {
+        const cmd = cmdBox.value.trim();
+        if(!cmd) return;
+        try{
+          const r = await fetch('/send_cmd',{
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
+          });
+          const d=await r.json();
+          if(d.status!=='ok') alert('Pico error: '+d.message);
+          else cmdBox.value='';
+        }catch(err){alert('Send error: '+err);}
+      },0);
     });
   </script>
 </body>
