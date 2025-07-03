@@ -187,8 +187,8 @@ def wait_ms(ms):
 uart = machine.UART(0, baudrate=115200, tx=machine.Pin(0), rx=machine.Pin(1))
 
 
-servoLeft = Servo(4,975,990)
-servoRight = Servo(3,1000,1005)
+servoLeft = Servo(5,975,990)
+servoRight = Servo(2,1000,1005)
 plotClock = PlotClock(servoLeft, servoRight,65,95,25,30,20)
 
 
