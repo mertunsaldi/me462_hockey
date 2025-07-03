@@ -9,13 +9,13 @@ if __package__ in (None, ""):
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     __package__ = "ball_example"
 
-from .game_api import GameAPI
-from .scenario_loader import ScenarioLoadError
-from .detectors import BallDetector, compute_color_mask, ArucoDetector
-from .trackers import DETECTION_SCALE
-from .models import ArucoWall, Arena, Obstacle, PhysicalTarget
-from .gadgets import ArenaManager, PlotClock
-from high_level import calibrate_clocks, draw_arena
+from ball_example.game_api import GameAPI
+from ball_example.scenario_loader import ScenarioLoadError
+from ball_example.detectors import BallDetector, compute_color_mask, ArucoDetector
+from ball_example.trackers import DETECTION_SCALE
+from ball_example.models import ArucoWall, Arena, Obstacle, PhysicalTarget
+from ball_example.gadgets import ArenaManager, PlotClock
+from ball_example.high_level import calibrate_clocks, draw_arena
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
