@@ -83,6 +83,11 @@ def test_processed_feed_route():
     r = client.get("/processed_feed")
     assert r.status_code == 200
 
+def test_balls_feed_route():
+    client = hockey_app.app.test_client()
+    r = client.get("/balls_feed")
+    assert r.status_code == 200
+
 
 def test_debug_endpoint():
     client = hockey_app.app.test_client()

@@ -14,7 +14,7 @@ python ball_example/app.py
 
 By default the server listens on `{your_ip}:8000` and begins processing frames from camera index 0. The web interface served at `/` shows the live video with all detections overlaid. Also, `{your_ip}:8000/debug` shows information about detections and object properties.
 
-Note: `{your_ip}:8000/tune` shows a masked frame, which does NOT represent the one used for detecting balls.
+Note: `{your_ip}:8000/tune` now displays only the detected balls overlaid on the raw feed.
 
 The server exposes several endpoints used by the JavaScript front end (see `templates/` and `static/`). The most important ones are:
 

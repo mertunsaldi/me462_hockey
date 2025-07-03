@@ -75,7 +75,12 @@ class BallTracker:
             self.missing[bid] = 0
 
 
-    def force_redetect(self, frame: np.ndarray, mask: Optional[np.ndarray] = None):
+    def force_redetect(
+        self,
+        frame: np.ndarray,
+        mask: Optional[np.ndarray] = None,
+        ignore_markers: Optional[List[ArucoMarker]] = None,
+    ):
         """Clear all state and redetect balls using current parameters."""
         with self.lock:
             self.trackers.clear()
@@ -83,7 +88,12 @@ class BallTracker:
             self.missing.clear()
             self.balls.clear()
             self.next_id = 0
-            for d in BallDetector.detect(frame, mask=mask, scale=DETECTION_SCALE):
+            for d in BallDetector.detect(
+                frame,
+                mask=mask,
+                scale=DETECTION_SCALE,
+                ignore_markers=ignore_markers,
+            ):
                 bid = f"ball_{self.next_id}"
                 self.next_id += 1
                 d.id = bid
@@ -93,13 +103,23 @@ class BallTracker:
 
 
     # ---------------- main update ----------------
-    def update(self, frame: np.ndarray, mask: Optional[np.ndarray] = None) -> List[Ball]:
+    def update(
+        self,
+        frame: np.ndarray,
+        mask: Optional[np.ndarray] = None,
+        ignore_markers: Optional[List[ArucoMarker]] = None,
+    ) -> List[Ball]:
         with self.lock:
             self.frame_count += 1
 
             # ------- if nothing tracked, detect now -------
             if not self.balls:
-                for d in BallDetector.detect(frame, mask=mask, scale=DETECTION_SCALE):
+                for d in BallDetector.detect(
+                    frame,
+                    mask=mask,
+                    scale=DETECTION_SCALE,
+                    ignore_markers=ignore_markers,
+                ):
                     bid = f"ball_{self.next_id}"
                     self.next_id += 1
                     d.id = bid
@@ -151,7 +171,12 @@ class BallTracker:
             self.balls = updates
 
             # ------- quick‑add new balls every frame ------
-            for d in BallDetector.detect(frame, mask=mask, scale=DETECTION_SCALE):
+            for d in BallDetector.detect(
+                frame,
+                mask=mask,
+                scale=DETECTION_SCALE,
+                ignore_markers=ignore_markers,
+            ):
                 # skip if near existing ball
                 if any(math.hypot(d.center[0] - b.center[0], d.center[1] - b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                     continue
@@ -176,7 +201,12 @@ class BallTracker:
             if self.frame_count >= REINIT_INTERVAL:
                 self.frame_count = 0
                 # run detection and merge with existing state (simple add if distinct)
-                for d in BallDetector.detect(frame, mask=mask, scale=DETECTION_SCALE):
+                for d in BallDetector.detect(
+                    frame,
+                    mask=mask,
+                    scale=DETECTION_SCALE,
+                    ignore_markers=ignore_markers,
+                ):
                     if any(math.hypot(d.center[0] - b.center[0], d.center[1] - b.center[1]) < SPATIAL_THRESHOLD for b in self.balls.values()):
                         continue
                     bid = f"ball_{self.next_id}"
