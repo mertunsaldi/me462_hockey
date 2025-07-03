@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 from typing import List, Optional
 from .models import (
     Ball,
@@ -123,8 +124,7 @@ class BallDetector:
         ``scale`` allows the expensive processing to run on a smaller
         version of the image.  The returned ball coordinates are scaled
         back to the original resolution.  If ``ignore_markers`` is
-        provided, any ball fully enclosing those marker corners will be
-        discarded.
+        provided, any ball overlapping those markers will be discarded.
         """
 
         if min_radius is None:
@@ -297,12 +297,18 @@ class BallDetector:
                 balls.append(Ball(center=(x_o, y_o), radius=r_o, color=color))
 
         if ignore_markers:
-            def _encloses(ball: Ball, marker: ArucoMarker) -> bool:
+            def _overlaps(ball: Ball, marker: ArucoMarker) -> bool:
                 cx, cy = ball.center
                 r = ball.radius
-                return all(np.hypot(cx - x, cy - y) <= r for x, y in marker.corners)
+                xs = [pt[0] for pt in marker.corners]
+                ys = [pt[1] for pt in marker.corners]
+                min_x, max_x = min(xs), max(xs)
+                min_y, max_y = min(ys), max(ys)
+                dx = max(min_x - cx, 0, cx - max_x)
+                dy = max(min_y - cy, 0, cy - max_y)
+                return math.hypot(dx, dy) <= r
 
-            balls = [b for b in balls if not any(_encloses(b, m) for m in ignore_markers)]
+            balls = [b for b in balls if not any(_overlaps(b, m) for m in ignore_markers)]
 
         return balls
 
