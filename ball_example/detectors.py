@@ -308,5 +308,27 @@ def compute_color_mask(frame: np.ndarray, scale: float = 0.5) -> np.ndarray:
     color_clean = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel, iterations=1)
 
     return color_clean
+
+
+def filter_obstacle_overlaps(balls: List[Ball], markers: List[ArucoMarker]) -> List[Ball]:
+    """Return balls that do not overlap any obstacle marker."""
+    obstacles = [m for m in markers if isinstance(m, Obstacle)]
+    if not obstacles:
+        return balls
+    filtered: List[Ball] = []
+    for b in balls:
+        bx, by = b.center
+        r2 = b.radius * b.radius
+        reject = False
+        for obs in obstacles:
+            for px, py in obs.corners:
+                if (px - bx) ** 2 + (py - by) ** 2 <= r2:
+                    reject = True
+                    break
+            if reject:
+                break
+        if not reject:
+            filtered.append(b)
+    return filtered
         
-        
+       

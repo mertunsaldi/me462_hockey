@@ -18,7 +18,7 @@ import numpy as np
 
 from .camera import Camera
 from .trackers import BallTracker, DETECTION_SCALE
-from .detectors import ArucoDetector, BallDetector
+from .detectors import ArucoDetector, BallDetector, filter_obstacle_overlaps
 from .pipelines import RawImagePipeline, AnnotatedImagePipeline
 from .renderers import render_overlay, draw_line
 from .models import Ball, ArucoMarker, ArucoHitter, ArucoManager, Obstacle
@@ -100,32 +100,10 @@ class GameAPI:
             self._cam_started = True
 
     # ------------------------------------------------------------------
-    def _filter_obstacle_overlaps(self, balls: List[Ball], markers: List[ArucoMarker]) -> List[Ball]:
-        """Remove balls that overlap any obstacle marker."""
-        obstacles = [m for m in markers if isinstance(m, Obstacle)]
-        if not obstacles:
-            return balls
-        filtered: List[Ball] = []
-        for b in balls:
-            bx, by = b.center
-            r2 = b.radius * b.radius
-            reject = False
-            for obs in obstacles:
-                for px, py in obs.corners:
-                    if (px - bx) ** 2 + (py - by) ** 2 <= r2:
-                        reject = True
-                        break
-                if reject:
-                    break
-            if not reject:
-                filtered.append(b)
-        return filtered
-
-    # ------------------------------------------------------------------
     def _process_annotated(self, frame: np.ndarray) -> np.ndarray:
         balls = self.tracker_mgr.update(frame, mask=None)
         markers = ArucoDetector.detect(frame)
-        balls = self._filter_obstacle_overlaps(balls, markers)
+        balls = filter_obstacle_overlaps(balls, markers)
 
         with self.lock:
             self.balls = balls
