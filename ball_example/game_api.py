@@ -268,9 +268,11 @@ class GameAPI:
 
     def stop_clock_mode(self, device_id: int) -> None:
         sc = self.clock_scenarios.pop(device_id, None)
+        mode = self.clock_modes.pop(device_id, None)
         if sc:
             sc.on_stop()
-        self.clock_modes.pop(device_id, None)
+        if mode == "move_object":
+            self.set_selected_object(None)
 
     def start_move_object(
         self,

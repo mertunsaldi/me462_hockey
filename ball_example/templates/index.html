@@ -241,6 +241,12 @@
         }else scSpan.textContent='None';
         defSpan.textContent=d.default_scenario||'None';
 
+        if(d.selected_obj){
+          selectedObj={type:d.selected_obj[0],id:d.selected_obj[1]};
+        }else{
+          selectedObj=null;
+        }
+
         maybeRenderClocks(d);
 
         if(!d.scenario_loaded){
