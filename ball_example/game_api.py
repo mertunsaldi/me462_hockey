@@ -232,7 +232,33 @@ class GameAPI:
         self._current_scenario = load_scenario(path, first_clock, self.frame_size)
         self.scenario_enabled = False
 
+    def load_default_scenario(self) -> None:
+        """Load the built-in default scenario if possible."""
+        if self.default_scenario == "MoveBallHitRandom":
+            manager = next(
+                (
+                    c
+                    for c in self.plotclocks.values()
+                    if isinstance(c, ArenaManager) and c.device_id == 0
+                ),
+                None,
+            )
+            hitter = next(
+                (
+                    c
+                    for c in self.plotclocks.values()
+                    if isinstance(c, PlotClock) and c.device_id == 1
+                ),
+                None,
+            )
+            if manager and hitter:
+                self._current_scenario = MoveBallHitRandom(manager, hitter)
+                self.scenario_enabled = False
+                return
+
     def start_scenario(self) -> None:
+        if self._current_scenario is None:
+            self.load_default_scenario()
         if self._current_scenario is None:
             raise RuntimeError("no scenario loaded")
         if not self.scenario_enabled:
