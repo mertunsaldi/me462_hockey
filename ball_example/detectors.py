@@ -100,7 +100,7 @@ class BallDetector:
 
     # Default ball size limits
     MIN_RADIUS = 17
-    MAX_RADIUS = 50
+    MAX_RADIUS = 26
 
     # ────────────────────────────────────────────────────
 

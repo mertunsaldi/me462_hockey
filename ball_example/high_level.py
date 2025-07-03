@@ -75,6 +75,15 @@ def calibrate_clocks(
             break
         time.sleep(0.05)
 
+    # Move each clock to its idle waiting position after calibration
+    for c in clocks:
+        if c.calibration:
+            wx, wy = c.wait_position_mm()
+            if isinstance(c, ArenaManager):
+                c.setXY_updated_manager(wx, wy)
+            else:
+                c.send_command(f"p.setXY({wx}, {wy})")
+
 
 def draw_arena(frame, arena: Arena | List[ArucoWall]) -> None:
     """Draw an arena based on ArucoWall markers onto ``frame``."""

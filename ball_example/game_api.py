@@ -55,7 +55,11 @@ class GameAPI:
         self.clock_scenarios: Dict[int, Scenario] = {}
         self.clock_modes: Dict[int, str] = {}
         self.preview_targets: Dict[int, Tuple[float, float]] = {}
+        self.selected_obj: Optional[Tuple[str, str]] = None
         self._cam_started = False
+        # scenario that could be loaded automatically after detection but is not
+        # active by default
+        self.default_scenario: Optional[str] = None
 
     # ------------------------------------------------------------------
     def set_cam_source(
@@ -180,6 +184,7 @@ class GameAPI:
             line_points=None,
             extra_points=extra_pts if extra_pts else None,
             extra_labels=extra_labels if extra_labels else None,
+            highlight={"type": self.selected_obj[0], "id": self.selected_obj[1]} if self.selected_obj else None,
         )
 
         for p1, p2 in scenario_lines:
@@ -227,7 +232,33 @@ class GameAPI:
         self._current_scenario = load_scenario(path, first_clock, self.frame_size)
         self.scenario_enabled = False
 
+    def load_default_scenario(self) -> None:
+        """Load the built-in default scenario if possible."""
+        if self.default_scenario == "MoveBallHitRandom":
+            manager = next(
+                (
+                    c
+                    for c in self.plotclocks.values()
+                    if isinstance(c, ArenaManager) and c.device_id == 0
+                ),
+                None,
+            )
+            hitter = next(
+                (
+                    c
+                    for c in self.plotclocks.values()
+                    if isinstance(c, PlotClock) and c.device_id == 1
+                ),
+                None,
+            )
+            if manager and hitter:
+                self._current_scenario = MoveBallHitRandom(manager, hitter)
+                self.scenario_enabled = False
+                return
+
     def start_scenario(self) -> None:
+        if self._current_scenario is None:
+            self.load_default_scenario()
         if self._current_scenario is None:
             raise RuntimeError("no scenario loaded")
         if not self.scenario_enabled:
@@ -263,9 +294,11 @@ class GameAPI:
 
     def stop_clock_mode(self, device_id: int) -> None:
         sc = self.clock_scenarios.pop(device_id, None)
+        mode = self.clock_modes.pop(device_id, None)
         if sc:
             sc.on_stop()
-        self.clock_modes.pop(device_id, None)
+        if mode == "move_object":
+            self.set_selected_object(None)
 
     def start_move_object(
         self,
@@ -285,6 +318,10 @@ class GameAPI:
     def clear_preview_target(self, device_id: int) -> None:
         with self.lock:
             self.preview_targets.pop(device_id, None)
+
+    def set_selected_object(self, obj: Optional[Tuple[str, str]]) -> None:
+        with self.lock:
+            self.selected_obj = obj
 
     def process_message(self, message: Dict[str, Any]) -> None:
         dev_id = message.get("device_id")
@@ -331,17 +368,29 @@ class GameAPI:
             "scenario_running": self._current_scenario is not None
             and self.scenario_enabled,
             "scenario_name": scenario_name,
+            "selected_obj": self.selected_obj,
+            "default_scenario": self.default_scenario,
         }
 
-        marker_details = [
-            {
+        counts = {"Obstacle": 0, "PhysicalTarget": 0}
+        marker_details = []
+        for m in markers:
+            mtype = m.__class__.__name__
+            details = {
                 "id": m.id,
                 "center": m.center,
                 "corners": m.corners,
-                "type": m.__class__.__name__,
+                "type": mtype,
             }
-            for m in markers
-        ]
+            if mtype == "Obstacle":
+                counts["Obstacle"] += 1
+                details["index"] = counts["Obstacle"]
+                details["label"] = f"Obstacle {counts['Obstacle']}"
+            elif mtype == "PhysicalTarget":
+                counts["PhysicalTarget"] += 1
+                details["index"] = counts["PhysicalTarget"]
+                details["label"] = f"P. Target {counts['PhysicalTarget']}"
+            marker_details.append(details)
 
         gadget_details = []
         for g in self.plotclocks.values():

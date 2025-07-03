@@ -72,9 +72,14 @@
     /* ─── Video left side ───────────────────────────────────────────── */
     #video-container{
       flex:1; display:flex; justify-content:center; align-items:center; max-width:80%;
+      position:relative; /* overlay cursor */
       /* leave some room on the right for sidebar */
     }
     #video{width:100%; height:auto; display:block;}
+    #cursor{
+      position:absolute; width:20px; height:20px; margin-left:-10px; margin-top:-10px;
+      pointer-events:none; border:1px solid #fff; border-radius:50%; display:none;
+    }
 
     /* ─── Status box & log (stay top-left / top-right) ──────────────── */
     #status,#pico-log{
@@ -152,11 +157,13 @@
     <div>Speeds: <span id="speeds">[]</span></div>
     <div>IDs: <span id="ball_ids"></span></div>
     <div>Scenario: <span id="scenario_status">None</span></div>
+    <div>Default Scenario: <span id="default_scenario">None</span></div>
   </div>
 
   <!-- ─── Video feed (left) ───────────────────────────────────────── -->
   <div id="video-container">
     <img id="video" src="{{ url_for('video_feed') }}" alt="Video Stream">
+    <div id="cursor"></div>
   </div>
 
   <!-- ───────────────────── SCRIPT ─────────────────────────────────── -->
@@ -176,6 +183,14 @@
     const clockList  = qs('#clock-list');
     let clockIds     = [];
     const moveInputs = {};
+    const video      = qs('#video');
+    const videoCont  = qs('#video-container');
+    const cursor     = qs('#cursor');
+    let scenarioLoaded = false;
+    let scenarioRunning = false;
+    const calibData = {};
+    let debugInfo = {balls:[], obstacles:[]};
+    let selectedObj = null;
 
     /* command completions */
     const servoCmds=['getAngle()','setAngle(rad)','calibrateRotation(rad)'];
@@ -184,7 +199,10 @@
       'getXY()','getMaxX()','getMinY()','getStartAngle()',
       'startPoseCalibration()','goHome()','checkTarget()',
       'gotoXY()','setXY()','setXYrel()',
-      'getL1()','getL2()','getL3()','getL4()'
+      'getL1()','getL2()','getL3()','getL4()',
+      'grip()','release()',
+      'grip_smooth(end=50,step=5,delay=0.01)',
+      'release_smooth(end=180,step=2,delay=0.01)'
     ];
 
     /* -------- live stats ------------------------------------------------- */
@@ -193,6 +211,14 @@
         const r = await fetch('/debug_data');
         if(!r.ok) return;
         const d = await r.json();
+        debugInfo.balls = d.ball_details||[];
+        debugInfo.obstacles = (d.markers||[]).filter(m=>m.type==='Obstacle');
+        Object.keys(calibData).forEach(k=>delete calibData[k]);
+        (d.gadgets||[]).forEach(g=>{
+          if(g.class==='ArenaManager' && g.calibrated && g.u_x){
+            calibData[g.id]={u_x:g.u_x,u_y:g.u_y,origin_px:g.origin_px};
+          }
+        });
 
         qs('#num_balls').textContent = d.num_balls;
         qs('#speeds').textContent    = '['+d.speeds.join(', ')+']';
@@ -210,9 +236,19 @@
 
         /* scenario state */
         const scSpan=qs('#scenario_status');
+        const defSpan=qs('#default_scenario');
+        scenarioLoaded = !!d.scenario_loaded;
+        scenarioRunning = !!d.scenario_running;
         if(d.scenario_loaded){
           scSpan.textContent=d.scenario_name+(d.scenario_running?' (running)':' (ready)');
         }else scSpan.textContent='None';
+        defSpan.textContent=d.default_scenario||'None';
+
+        if(d.selected_obj){
+          selectedObj={type:d.selected_obj[0],id:d.selected_obj[1]};
+        }else{
+          selectedObj=null;
+        }
 
         maybeRenderClocks(d);
 
@@ -244,7 +280,7 @@
       const key = JSON.stringify({
         g:(info.gadgets||[]).map(g=>[g.id,g.class,g.calibrated]),
         b:(info.ball_details||[]).map(b=>b.id),
-        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.id)
+        o:(info.markers||[]).filter(m=>m.type==='Obstacle').map(m=>m.index)
       });
       if(key!==lastClockKey){ lastClockKey=key; renderClocks(info); }
       updateActiveStyles(info);
@@ -267,8 +303,10 @@
 
         /* coord inputs */
         const coords=document.createElement('div'); coords.className='coords';
-        const xInput=document.createElement('input'); xInput.type='number'; xInput.placeholder='x';
-        const yInput=document.createElement('input'); yInput.type='number'; yInput.placeholder='y';
+        const xInput=document.createElement('input');
+        xInput.type='number'; xInput.placeholder='x'; xInput.className='coord-x';
+        const yInput=document.createElement('input');
+        yInput.type='number'; yInput.placeholder='y'; yInput.className='coord-y';
         coords.appendChild(xInput); coords.appendChild(yInput);
         card.appendChild(coords);
 
@@ -293,7 +331,16 @@
             const o=document.createElement('option'); o.value='ball:'+ball.id; o.textContent='Ball '+ball.id.slice(0,4); objSel.appendChild(o);
           });
           (info.markers||[]).filter(m=>m.type==='Obstacle').forEach(m=>{
-            const o=document.createElement('option'); o.value='obs:'+m.id; o.textContent='Obs '+m.id; objSel.appendChild(o);
+            const o=document.createElement('option');
+            o.value='obs:'+ (m.index-1);
+            o.textContent=m.label||('Obs '+m.index);
+            objSel.appendChild(o);
+          });
+          (info.markers||[]).filter(m=>m.type==='PhysicalTarget').forEach(m=>{
+            const o=document.createElement('option');
+            o.value='tgt:'+ (m.index-1);
+            o.textContent=m.label||('P. Target '+m.index);
+            objSel.appendChild(o);
           });
           objSel.value=rec.obj||objSel.value;
           objSel.onchange=()=>{rec.obj=objSel.value;moveInputs[g.id]=rec;};
@@ -365,6 +412,85 @@
     }
     cmdBox.addEventListener('input',updateCmdList);
     cmdBox.addEventListener('paste',()=>setTimeout(updateCmdList,0));
+
+    function pxToMm(x,y,cal){
+      const v0=x-cal.origin_px[0], v1=y-cal.origin_px[1];
+      const det=cal.u_x[0]*cal.u_y[1]-cal.u_x[1]*cal.u_y[0];
+      if(!det) return [0,0];
+      const mmx=(v0*cal.u_y[1]-v1*cal.u_y[0])/det;
+      const mmy=(-v0*cal.u_x[1]+v1*cal.u_x[0])/det;
+      return [mmx,mmy];
+    }
+
+    /* -------- cursor & click interactions -------------------------------- */
+    videoCont.addEventListener('mousemove',e=>{
+      const vRect=video.getBoundingClientRect();
+      const cRect=videoCont.getBoundingClientRect();
+      const inX=e.clientX-vRect.left; const inY=e.clientY-vRect.top;
+      if(inX<0||inY<0||inX>vRect.width||inY>vRect.height){ cursor.style.display='none'; return; }
+      cursor.style.left=(e.clientX-cRect.left)+'px';
+      cursor.style.top=(e.clientY-cRect.top)+'px';
+      cursor.style.display='block';
+    });
+    videoCont.addEventListener('mouseleave',()=>{cursor.style.display='none';});
+
+    videoCont.addEventListener('click',e=>{
+      const rect=video.getBoundingClientRect();
+      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
+      if(x<0||y<0||x>rect.width||y>rect.height) return;
+      const scaleX=video.naturalWidth/rect.width||1;
+      const scaleY=video.naturalHeight/rect.height||1;
+      const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
+      const objs=[];
+      debugInfo.balls.forEach(b=>objs.push({type:'ball',id:b.id,x:b.center[0],y:b.center[1]}));
+      debugInfo.obstacles.forEach(o=>objs.push({type:'obs',id:o.id,x:o.center[0],y:o.center[1]}));
+      let best=null,bestDist=25;
+      objs.forEach(o=>{const d=Math.hypot(o.x-px,o.y-py); if(d<bestDist){bestDist=d; best=o;}});
+      if(best){
+        selectedObj=best;
+        fetch('/select_object',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({object:best.type+':'+best.id})});
+        const card=clockList.querySelector('.clock-card[data-id="0"]');
+        if(card){
+          const objSel=card.querySelector('select');
+          if(objSel){ objSel.value=best.type+':'+best.id; moveInputs[0]=moveInputs[0]||{}; moveInputs[0].obj=objSel.value; }
+        }
+        const cal=calibData[0];
+        if(cal){ const mm=pxToMm(best.x,best.y,cal); previewTarget(0,mm[0],mm[1]); }
+      } else {
+        selectedObj=null;
+        fetch('/select_object',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({object:null})});
+      }
+    });
+
+    videoCont.addEventListener('contextmenu',async e=>{
+      e.preventDefault();
+      if(scenarioRunning) return;
+      const rect=video.getBoundingClientRect();
+      const x=e.clientX-rect.left; const y=e.clientY-rect.top;
+      if(x<0||y<0||x>rect.width||y>rect.height) return;
+      const scaleX=video.naturalWidth/rect.width||1;
+      const scaleY=video.naturalHeight/rect.height||1;
+      const px=Math.round(x*scaleX); const py=Math.round(y*scaleY);
+      if(selectedObj){
+        const cal=calibData[0];
+        if(cal){
+          const mm=pxToMm(px,py,cal);
+          previewTarget(0,mm[0],mm[1]);
+          try{
+            await fetch('/move_object',{
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({device_id:0,object:selectedObj.type+':'+selectedObj.id,x:mm[0],y:mm[1]})
+            });
+          }catch(err){console.error(err);}
+        }
+        return;
+      }
+      try{
+        const r=await fetch('/move_manager',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:0,x:px,y:py})});
+        const d=await r.json();
+        if(d.status!=='ok') alert('Move failed: '+(d.message||''));
+      }catch(err){console.error(err);}
+    });
 
     /* -------- misc controls (unchanged endpoints) ------------------------ */
     tuneBtn.onclick = () => window.open('/tune','_blank');
@@ -443,17 +569,21 @@
     }
 
     /* enter -> send raw cmd */
-    cmdBox.addEventListener('keydown',async e=>{
-      if(e.key!=='Enter') return;
-      const cmd=cmdBox.value.trim(); if(!cmd) return;
-      try{
-        const r=await fetch('/send_cmd',{
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
-        });
-        const d=await r.json();
-        if(d.status!=='ok') alert('Pico error: '+d.message);
-        else cmdBox.value='';
-      }catch(err){alert('Send error: '+err);}
+    cmdBox.addEventListener('keydown', e => {
+      if(e.key !== 'Enter') return;
+      /* defer so datalist selection is applied */
+      setTimeout(async () => {
+        const cmd = cmdBox.value.trim();
+        if(!cmd) return;
+        try{
+          const r = await fetch('/send_cmd',{
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})
+          });
+          const d=await r.json();
+          if(d.status!=='ok') alert('Pico error: '+d.message);
+          else cmdBox.value='';
+        }catch(err){alert('Send error: '+err);}
+      },0);
     });
   </script>
 </body>

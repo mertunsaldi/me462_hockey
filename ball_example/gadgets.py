@@ -136,6 +136,8 @@ class PlotClock(Gadgets):
     # Construction / serial helpers
     # ──────────────────────────────────────────────────────────
     calibration_marker_cls = ArucoHitter
+    # Default idle location within the workspace
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 60.0)
 
     def __init__(
         self,
@@ -398,6 +400,8 @@ class PlotClock(Gadgets):
 
     def wait_position_mm(self) -> Tuple[float, float]:
         """Return a safe waiting (x,y) inside the workspace."""
+        if self.WAIT_POS_MM is not None:
+            return self.WAIT_POS_MM
         return (0.0, self.min_y + self.cal_margin_mm)
 
     def draw_working_area(
@@ -484,6 +488,7 @@ class ArenaManager(PlotClock):
     """
 
     calibration_marker_cls = ArucoManager
+    WAIT_POS_MM: Tuple[float, float] | None = (0.0, 250.0)
     SERVO_MM_DIST: float = 148.0
 
     def grip(self) -> None:
@@ -493,6 +498,14 @@ class ArenaManager(PlotClock):
     def release(self) -> None:
         """Open the manager's gripper."""
         self.send_command("p.release()")
+
+    def grip_smooth(self, end: int = 50, step: int = 5, delay: float = 0.01) -> None:
+        """Smoothly close the gripper to ``end`` angle."""
+        self.send_command(f"p.grip_smooth({end},{step},{delay})")
+
+    def release_smooth(self, end: int = 180, step: int = 2, delay: float = 0.01) -> None:
+        """Smoothly open the gripper to ``end`` angle."""
+        self.send_command(f"p.release_smooth({end},{step},{delay})")
 
     def __init__(self, *args, arena: Optional[Arena] = None, coeffs_path: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -602,7 +615,7 @@ class ArenaManager(PlotClock):
             p1 = np.array(servos[0].center, dtype=float)
             p2 = np.array(servos[1].center, dtype=float)
             mid = (p1 + p2) / 2.0
-            dx = -abs(p2 - p1)
+            dx = abs(p2 - p1)
             px_dist = float(np.linalg.norm(dx))
             if px_dist < 1e-6:
                 return None

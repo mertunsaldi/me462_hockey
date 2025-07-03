@@ -297,6 +297,3 @@ while True:
         led_on = not led_on
         led.value(led_on)
         last_toggle_time = current_time
-
-
-

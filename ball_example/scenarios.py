@@ -3,7 +3,7 @@ import numpy as np
 import time
 import random
 from typing import List, Optional, Tuple, Union, Dict, Any
-from .models import Ball, Obstacle, ArucoMarker, ArucoHitter
+from .models import Ball, Obstacle, ArucoMarker, ArucoHitter, PhysicalTarget
 from .gadgets import PlotClock, ArenaManager
 
 
@@ -668,7 +668,7 @@ class MoveObject(Scenario):
 
         # finally release the object once at the target
         if self._step == 3 and now - self._last_time >= self.WAIT_TIME:
-            self.manager.release()
+            self.manager.release_smooth()
             wx, wy = self.manager.wait_position_mm()
             self.manager.setXY_updated_manager(wx, wy)
             self.finished = True
@@ -778,8 +778,18 @@ class MoveBallHitRandom(Scenario):
             self.hitter.y_range[0],
         )
 
-    def _start_hit(self) -> None:
-        self._target_mm = self._random_target_mm()
+    def _start_hit(self, detections) -> None:
+        tgt = next((d for d in detections if isinstance(d, PhysicalTarget)), None)
+        if tgt and self.hitter.calibration:
+            try:
+                self._target_mm = self.hitter.find_mm(*tgt.center)
+            except RuntimeError:
+                self._target_mm = None
+        else:
+            self._target_mm = None
+        if self._target_mm is None:
+            self._target_mm = self._random_target_mm()
+
         self.hit_sc = SingleHitStandingBallHitter(self.hitter, self._target_mm)
         self.hit_sc.on_start()
         self._preview_until = time.time() + self.PREVIEW_TIME
@@ -797,8 +807,8 @@ class MoveBallHitRandom(Scenario):
             if len(balls) != 1:
                 return
             ball = balls[0]
-            cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) / 2
-            cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) / 2
+            cx = (self.hitter.x_range[0] + self.hitter.x_range[1]) * 9 / 16
+            cy = (self.hitter.y_range[0] + self.hitter.y_range[1]) * 9 / 16
             cx_px, cy_px = self.hitter.mm_to_pixel((cx, cy))
             cx_mm, cy_mm = self.manager.find_mm(int(cx_px), int(cy_px))
             self.move_sc = MoveObject(self.manager, ball, (cx_mm, cy_mm))
@@ -823,7 +833,7 @@ class MoveBallHitRandom(Scenario):
                 if self._stable_start is None:
                     self._stable_start = time.time()
                 elif time.time() - self._stable_start >= self.STABLE_TIME:
-                    self._start_hit()
+                    self._start_hit(detections)
                     print("[MoveBallHitRandom] preparing hit")
                     self._step = 3
             else:
