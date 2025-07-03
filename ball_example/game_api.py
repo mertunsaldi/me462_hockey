@@ -55,7 +55,11 @@ class GameAPI:
         self.clock_scenarios: Dict[int, Scenario] = {}
         self.clock_modes: Dict[int, str] = {}
         self.preview_targets: Dict[int, Tuple[float, float]] = {}
+        self.selected_obj: Optional[Tuple[str, str]] = None
         self._cam_started = False
+        # scenario that could be loaded automatically after detection but is not
+        # active by default
+        self.default_scenario: Optional[str] = None
 
     # ------------------------------------------------------------------
     def set_cam_source(
@@ -180,6 +184,7 @@ class GameAPI:
             line_points=None,
             extra_points=extra_pts if extra_pts else None,
             extra_labels=extra_labels if extra_labels else None,
+            highlight={"type": self.selected_obj[0], "id": self.selected_obj[1]} if self.selected_obj else None,
         )
 
         for p1, p2 in scenario_lines:
@@ -263,9 +268,11 @@ class GameAPI:
 
     def stop_clock_mode(self, device_id: int) -> None:
         sc = self.clock_scenarios.pop(device_id, None)
+        mode = self.clock_modes.pop(device_id, None)
         if sc:
             sc.on_stop()
-        self.clock_modes.pop(device_id, None)
+        if mode == "move_object":
+            self.set_selected_object(None)
 
     def start_move_object(
         self,
@@ -285,6 +292,10 @@ class GameAPI:
     def clear_preview_target(self, device_id: int) -> None:
         with self.lock:
             self.preview_targets.pop(device_id, None)
+
+    def set_selected_object(self, obj: Optional[Tuple[str, str]]) -> None:
+        with self.lock:
+            self.selected_obj = obj
 
     def process_message(self, message: Dict[str, Any]) -> None:
         dev_id = message.get("device_id")
@@ -331,6 +342,8 @@ class GameAPI:
             "scenario_running": self._current_scenario is not None
             and self.scenario_enabled,
             "scenario_name": scenario_name,
+            "selected_obj": self.selected_obj,
+            "default_scenario": self.default_scenario,
         }
 
         counts = {"Obstacle": 0, "PhysicalTarget": 0}
